@@ -514,6 +514,8 @@ const Composer: FC<OwnProps & StateProps> = ({
   }, [hasWebPagePreview]);
 
   const insertHtmlAndUpdateCursor = useLastCallback((newHtml: string, inInputId: string = editableInputId) => {
+    console.log('insertHtmlAndUpdateCursor', newHtml, inInputId);
+
     if (inInputId === editableInputId && isComposerBlocked) return;
     const selection = window.getSelection()!;
     let messageInput: HTMLDivElement;
@@ -622,6 +624,7 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   const isEditingRef = useStateRef(Boolean(editingMessage));
   useEffect(() => {
+    console.log('useEffect 1');
     if (!isForCurrentMessageList || isInStoryViewer) return;
     if (getHtml() && !isEditingRef.current) {
       sendMessageAction({ type: 'typing' });
@@ -943,6 +946,8 @@ const Composer: FC<OwnProps & StateProps> = ({
       return;
     }
 
+    console.log('sendAttachments: getHtml call');
+
     const { text, entities } = parseHtmlAsFormattedText(getHtml());
     if (!text && !attachmentsToSend.length) {
       return;
@@ -1014,6 +1019,8 @@ const Composer: FC<OwnProps & StateProps> = ({
   });
 
   const handleSend = useLastCallback(async (isSilent = false, scheduledAt?: number) => {
+    console.log('handleSend');
+
     if (!currentMessageList && !storyId) {
       return;
     }
@@ -1032,6 +1039,10 @@ const Composer: FC<OwnProps & StateProps> = ({
         )];
       }
     }
+
+    const htmlToSend = 'aaa';
+
+    console.log('htmlToSend', htmlToSend);
 
     const { text, entities } = parseHtmlAsFormattedText(getHtml());
 
@@ -1827,6 +1838,7 @@ const Composer: FC<OwnProps & StateProps> = ({
             />
           )}
           <MessageInput
+            isNew
             ref={inputRef}
             id={inputId}
             editableInputId={editableInputId}

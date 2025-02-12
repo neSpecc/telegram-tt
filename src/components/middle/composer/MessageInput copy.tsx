@@ -2,8 +2,7 @@ import type { ChangeEvent, RefObject } from 'react';
 import type { FC } from '../../../lib/teact/teact';
 import React, {
   getIsHeavyAnimating,
-  memo, useCallback,
-  useEffect, useLayoutEffect,
+  memo, useEffect, useLayoutEffect,
   useRef, useState,
 } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
@@ -24,9 +23,6 @@ import { debounce } from '../../../util/schedulers';
 import {
   IS_ANDROID, IS_EMOJI_SUPPORTED, IS_IOS, IS_TOUCH_ENV,
 } from '../../../util/windowEnvironment';
-/* eslint-disable */
-import { setupInput } from '../../../../../ast/src/input'
-/* eslint-enable */
 import renderText from '../../common/helpers/renderText';
 import { isSelectionInsideInput } from './helpers/selection';
 
@@ -40,8 +36,8 @@ import useInputCustomEmojis from './hooks/useInputCustomEmojis';
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import TextTimer from '../../ui/TextTimer';
-import TextEditor from './TextEditor';
 import TextFormatter from './TextFormatter.async';
+import TextEditor from './TextEditor';
 
 const CONTEXT_MENU_CLOSE_DELAY_MS = 100;
 // Focus slows down animation, also it breaks transition layout in Chrome
@@ -249,7 +245,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   const htmlRef = useRef(getHtml());
   useLayoutEffect(() => {
-    return;
     const html = isActive ? getHtml() : '';
 
     if (html !== inputRef.current!.innerHTML) {
@@ -423,7 +418,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     }
   }
 
-  /** @deprecated */
   function handleChange(e: ChangeEvent<HTMLDivElement>) {
     const { innerHTML, textContent } = e.currentTarget;
 
@@ -564,26 +558,12 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const isTouched = useDerivedState(() => Boolean(isActive && getHtml()), [isActive, getHtml]);
 
   const className = buildClassName(
-    'text-editor form-control allow-selection',
+    'form-control allow-selection',
     isTouched && 'touched',
     shouldSuppressFocus && 'focus-disabled',
   );
 
   const inputScrollerContentClass = buildClassName('input-scroller-content', isNeedPremium && 'is-need-premium');
-
-  const handleUpdate = useCallback((html: string) => {
-    console.log('onUpdateNew', html);
-    onUpdate(html);
-  }, [onUpdate]);
-
-  useEffect(() => {
-    if (inputRef.current) {
-      setupInput({
-        input: inputRef.current,
-        onUpdate: handleUpdate,
-      });
-    }
-  });
 
   return (
     <div id={id} onClick={shouldSuppressFocus ? onSuppressedFocus : undefined} dir={lang.isRtl ? 'rtl' : undefined}>
@@ -594,22 +574,9 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       >
         <div className={inputScrollerContentClass}>
           {isNew && (
-          // <TextEditor
-          //   ref={inputRef}
-          //   onUpdate={handleUpdate}
-          //   onSend={handleSend}
-          //   isActive={isActive}
-          // />
-
-            <div
+            <TextEditor
               ref={inputRef}
-              className={className}
-              contentEditable
-              role="textbox"
-              dir="auto"
-              aria-label="Message input"
-              tabIndex={0}
-              onKeyDown={handleKeyDown}
+              onUpdate={onUpdate}
             />
           )}
           {!isNew && (

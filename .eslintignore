@@ -18,5 +18,6 @@ playwright.config.ts
 dist
 dist-electron
 public
+*.scss
 
 deploy/update_version.js

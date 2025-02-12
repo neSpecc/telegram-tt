@@ -1,0 +1,98 @@
+.text-editor {
+  background-color: red !important;
+
+
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  text-rendering: optimizelegibility;
+
+  .md-preview-char {
+    display: none;
+  }
+
+  .md-node-focused .md-preview-char {
+    display: inline;
+  }
+
+  .paragraph,
+  .paragraph-blockquote,
+  .paragraph-pre {
+    white-space: pre-wrap;
+  }
+
+  .md-underline  {
+    text-decoration: underline;
+  }
+
+  .md-mention {
+    color: #646cff;
+  }
+
+  // html.theme-dark #message-input-text .spoiler, html.theme-dark #story-input-text .spoiler, html.theme-dark #caption-input-text .spoiler
+  .md-spoiler {
+    color:rgba(255, 255, 255, 0.62);
+    background-color: rgba(0, 0, 0, 0.66);
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  code {
+    color: var(--color-code);
+    background: var(--color-code-bg);
+    padding: 0.05rem 0.05rem;
+    border-radius: 4px;
+  }
+
+  .paragraph-pre {
+    background-color: var(--color-code-bg);
+    padding: 0.1rem 0.6rem 0.1rem 0.8rem;
+    font-family: var(--font-family-monospace);
+    min-height: 1.5em;
+    font-size: 0.8rem;
+    position: relative;
+
+    &::before {
+      content: "";
+      display: block;
+      position: absolute;
+      top: 0;
+      inset-inline-start: 0;
+      bottom: 0;
+      width: 0.1875rem;
+      background: var(--bar-gradient, var(--accent-color));
+    }
+  }
+
+  .paragraph-pre .md-preview-char {
+    position: absolute;
+  }
+
+  .paragraph--quote {
+    background-color: var(--accent-background-color);
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    overflow-y: auto;
+    margin: 0.4em 0;
+    min-height: 1em;
+    position: relative;
+
+    &::before {
+      content: "";
+      display: block;
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      inset-inline-start: 0;
+      width: 3px;
+      background: var(--bar-gradient, var(--accent-color));
+
+      .custom-shape & {
+        background: var(--accent-color);
+      }
+    }
+  }
+
+}
+

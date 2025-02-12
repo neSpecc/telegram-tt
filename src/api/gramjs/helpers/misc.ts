@@ -63,6 +63,7 @@ export function isChatFolder(
 
 export function serializeBytes(value: Buffer) {
   return String.fromCharCode(...value);
+
 }
 
 export function deserializeBytes(value: string) {
@@ -70,6 +71,7 @@ export function deserializeBytes(value: string) {
 }
 
 export function log(suffix: keyof typeof LOG_SUFFIX, ...data: any) {
+  return;
   /* eslint-disable max-len */
   /* eslint-disable no-console */
   const func = suffix === 'UNEXPECTED RESPONSE' ? console.error
