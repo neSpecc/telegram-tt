@@ -23,27 +23,33 @@ const TextEditor: FC<OwnProps> = ({
   isActive,
 }) => {
   // eslint-disable-next-line no-null/no-null
-  let editorRef = useRef<HTMLDivElement | null>(null);
-  if (ref) {
-    editorRef = ref;
-  }
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  // if (ref) {
+  //   editorRef = ref;
+  // }
 
   const isTouched = useDerivedState(() => Boolean(isActive), [isActive]);
 
   const className = buildClassName(
-    'text-editor form-control allow-selection',
+    'text-editor',
     isTouched && 'touched',
     // shouldSuppressFocus && 'focus-disabled',
   );
 
   useEffect(() => {
+    console.warn('setupInput call');
+
     if (editorRef.current) {
       setupInput({
         input: editorRef.current,
-        onUpdate,
+        onUpdate: (html: string) => {
+          console.log('onUpdate', html);
+
+          // onUpdate(html);
+        },
       });
     }
-  });
+  }, []);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     const {
@@ -62,11 +68,11 @@ const TextEditor: FC<OwnProps> = ({
       ref={editorRef}
       className={className}
       contentEditable
-      role="textbox"
-      dir="auto"
-      aria-label="Message input"
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
+      // role="textbox"
+      // dir="auto"
+      // aria-label="Message input"
+      // tabIndex={0}
+      // onKeyDown={handleKeyDown}
     />
   );
 };

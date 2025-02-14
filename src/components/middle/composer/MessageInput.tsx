@@ -8,7 +8,10 @@ import React, {
 } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
 
-import type { ApiInputMessageReplyInfo } from '../../../api/types';
+/* eslint-disable */
+import type { InputApi } from '../../../../../ast/src/api';
+/* eslint-enable */
+import type { ApiFormattedText, ApiInputMessageReplyInfo } from '../../../api/types';
 import type { IAnchorPosition, ISettings, ThreadId } from '../../../types';
 import type { Signal } from '../../../util/signals';
 
@@ -29,6 +32,8 @@ import { setupInput } from '../../../../../ast/src/input'
 /* eslint-enable */
 import renderText from '../../common/helpers/renderText';
 import { isSelectionInsideInput } from './helpers/selection';
+import { areMessagesEqual } from './utils/areMessagesEqual';
+import { isMessageEmpty } from './utils/isMessageEmpty';
 
 import useAppLayout from '../../../hooks/useAppLayout';
 import useDerivedState from '../../../hooks/useDerivedState';
@@ -40,8 +45,10 @@ import useInputCustomEmojis from './hooks/useInputCustomEmojis';
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import TextTimer from '../../ui/TextTimer';
-import TextEditor from './TextEditor';
+// import TextEditor from './TextEditor';
 import TextFormatter from './TextFormatter.async';
+
+import './TextEditor.scss';
 
 const CONTEXT_MENU_CLOSE_DELAY_MS = 100;
 // Focus slows down animation, also it breaks transition layout in Chrome
@@ -63,7 +70,8 @@ type OwnProps = {
   editableInputId?: string;
   isReady: boolean;
   isActive: boolean;
-  getHtml: Signal<string>;
+  // getHtml: Signal<string>;
+  getApiFormattedText: Signal<ApiFormattedText | undefined>;
   placeholder: string;
   timedPlaceholderLangKey?: string;
   timedPlaceholderDate?: number;
@@ -73,7 +81,7 @@ type OwnProps = {
   shouldSuppressFocus?: boolean;
   shouldSuppressTextFormatter?: boolean;
   canSendPlainText?: boolean;
-  onUpdate: (html: string) => void;
+  onUpdate: (apiFormattedText: ApiFormattedText) => void;
   onSuppressedFocus?: () => void;
   onSend: () => void;
   onScroll?: (event: React.UIEvent<HTMLElement>) => void;
@@ -81,6 +89,7 @@ type OwnProps = {
   onFocus?: NoneToVoidFunction;
   onBlur?: NoneToVoidFunction;
   isNeedPremium?: boolean;
+  setInputApi: (inputApi: InputApi) => void;
 };
 
 type StateProps = {
@@ -127,7 +136,8 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   editableInputId,
   isReady,
   isActive,
-  getHtml,
+  // getHtml,
+  getApiFormattedText,
   placeholder,
   timedPlaceholderLangKey,
   timedPlaceholderDate,
@@ -148,6 +158,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   onFocus,
   onBlur,
   isNeedPremium,
+  setInputApi,
 }) => {
   const {
     editLastMessage,
@@ -186,6 +197,9 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   const [shouldDisplayTimer, setShouldDisplayTimer] = useState(false);
 
+  // Add ref for Input API
+  const inputApiRef = useRef<InputApi | undefined>(undefined);
+
   useEffect(() => {
     setShouldDisplayTimer(Boolean(timedPlaceholderLangKey && timedPlaceholderDate));
   }, [timedPlaceholderDate, timedPlaceholderLangKey]);
@@ -195,7 +209,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   });
 
   useInputCustomEmojis(
-    getHtml,
+    getApiFormattedText,
     inputRef,
     sharedCanvasRef,
     sharedCanvasHqRef,
@@ -227,6 +241,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         const transitionDuration = Math.round(
           TRANSITION_DURATION_FACTOR * Math.log(Math.abs(newHeight - currentHeight)),
         );
+
         scroller.style.height = `${newHeight}px`;
         scroller.style.transitionDuration = `${transitionDuration}ms`;
         scroller.classList.toggle('overflown', isOverflown);
@@ -247,25 +262,37 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     updateInputHeight(false);
   }, [isAttachmentModalInput, updateInputHeight]);
 
-  const htmlRef = useRef(getHtml());
+  const messageRef = useRef(getApiFormattedText());
+
   useLayoutEffect(() => {
-    return;
-    const html = isActive ? getHtml() : '';
+    console.log('useLayoutEffect call');
 
-    if (html !== inputRef.current!.innerHTML) {
-      inputRef.current!.innerHTML = html;
+    const message = isActive ? getApiFormattedText() : { text: '' };
+
+    if (areMessagesEqual(message, messageRef.current)) {
+      return;
     }
 
-    if (html !== cloneRef.current!.innerHTML) {
-      cloneRef.current!.innerHTML = html;
+    if (!inputApiRef.current) {
+      console.log('Input API is not initialized yet.');
+      return;
     }
 
-    if (html !== htmlRef.current) {
-      htmlRef.current = html;
+    console.log('SET CONTENT', message);
 
-      updateInputHeight(!html);
-    }
-  }, [getHtml, isActive, updateInputHeight]);
+    inputApiRef.current.setContent(message);
+
+    /**
+     * @todo support cloned input for height calculation
+     */
+    // if (message !== cloneRef.current!.innerHTML) {
+    //   cloneRef.current!.innerHTML = message;
+    // }
+
+    messageRef.current = message;
+
+    updateInputHeight(!message);
+  }, [getApiFormattedText, isActive, updateInputHeight]);
 
   const chatIdRef = useRef(chatId);
   chatIdRef.current = chatId;
@@ -391,8 +418,10 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     // https://levelup.gitconnected.com/javascript-events-handlers-keyboard-and-load-events-1b3e46a6b0c3#1960
     const { isComposing } = e;
 
-    const html = getHtml();
-    if (!isComposing && !html && (e.metaKey || e.ctrlKey)) {
+    const message = getApiFormattedText();
+    const messageIsEmpty = isMessageEmpty(message);
+
+    if (!isComposing && messageIsEmpty && (e.metaKey || e.ctrlKey)) {
       const targetIndexDelta = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : undefined;
       if (targetIndexDelta) {
         e.preventDefault();
@@ -415,7 +444,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         closeTextFormatter();
         onSend();
       }
-    } else if (!isComposing && e.key === 'ArrowUp' && !html && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    } else if (!isComposing && e.key === 'ArrowUp' && messageIsEmpty && !e.metaKey && !e.ctrlKey && !e.altKey) {
       e.preventDefault();
       editLastMessage();
     } else {
@@ -561,7 +590,10 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     };
   }, [shouldSuppressFocus]);
 
-  const isTouched = useDerivedState(() => Boolean(isActive && getHtml()), [isActive, getHtml]);
+  const isTouched = useDerivedState(
+    () => Boolean(isActive && !isMessageEmpty(getApiFormattedText())),
+    [isActive, getApiFormattedText],
+  );
 
   const className = buildClassName(
     'text-editor form-control allow-selection',
@@ -571,19 +603,28 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   const inputScrollerContentClass = buildClassName('input-scroller-content', isNeedPremium && 'is-need-premium');
 
-  const handleUpdate = useCallback((html: string) => {
-    console.log('onUpdateNew', html);
-    onUpdate(html);
-  }, [onUpdate]);
-
   useEffect(() => {
     if (inputRef.current) {
-      setupInput({
+      inputApiRef.current = setupInput({
         input: inputRef.current,
-        onUpdate: handleUpdate,
+        onUpdate: (apiFormattedText: ApiFormattedText) => {
+          messageRef.current = apiFormattedText;
+          onUpdate(apiFormattedText);
+        },
+        onHtmlUpdate: (html: string) => {
+          cloneRef.current!.innerHTML = html;
+
+          updateInputHeight(!html);
+        },
       });
+
+      setInputApi(inputApiRef.current);
     }
-  });
+  }, [onUpdate, setInputApi]);
+
+  // const handleSend = useCallback(() => {
+  //   onSend();
+  // }, [onSend]);
 
   return (
     <div id={id} onClick={shouldSuppressFocus ? onSuppressedFocus : undefined} dir={lang.isRtl ? 'rtl' : undefined}>
@@ -594,23 +635,25 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       >
         <div className={inputScrollerContentClass}>
           {isNew && (
-          // <TextEditor
-          //   ref={inputRef}
-          //   onUpdate={handleUpdate}
-          //   onSend={handleSend}
-          //   isActive={isActive}
-          // />
-
-            <div
-              ref={inputRef}
-              className={className}
-              contentEditable
-              role="textbox"
-              dir="auto"
-              aria-label="Message input"
-              tabIndex={0}
-              onKeyDown={handleKeyDown}
-            />
+            <>
+              {/* <TextEditor
+                ref={inputRef}
+                onUpdate={handleUpdate}
+                onSend={handleSend}
+                isActive={isActive}
+              /> */}
+              <div
+                ref={inputRef}
+                id={editableInputId || EDITABLE_INPUT_ID}
+                className={className}
+                contentEditable
+                role="textbox"
+                dir="auto"
+                aria-label="Message input"
+                tabIndex={0}
+                onKeyDown={handleKeyDown}
+              />
+            </>
           )}
           {!isNew && (
             <div

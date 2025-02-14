@@ -1,7 +1,7 @@
 import { useState } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
-import type { ApiAttachment, ApiMessage } from '../../../../api/types';
+import type { ApiAttachment, ApiFormattedText, ApiMessage } from '../../../../api/types';
 
 import { canReplaceMessageMedia, getAttachmentMediaType } from '../../../../global/helpers';
 import { MEMO_EMPTY_ARRAY } from '../../../../util/memo';
@@ -13,7 +13,7 @@ import useOldLang from '../../../../hooks/useOldLang';
 export default function useAttachmentModal({
   attachments,
   fileSizeLimit,
-  setHtml,
+  setApiFormattedText,
   setAttachments,
   chatId,
   canSendAudios,
@@ -25,7 +25,7 @@ export default function useAttachmentModal({
 }: {
   attachments: ApiAttachment[];
   fileSizeLimit: number;
-  setHtml: (html: string) => void;
+  setApiFormattedText: (apiFormattedText: ApiFormattedText) => void;
   setAttachments: (attachments: ApiAttachment[]) => void;
   chatId: string;
   canSendAudios?: boolean;
@@ -130,7 +130,7 @@ export default function useAttachmentModal({
     shouldSuggestCompression,
     handleAppendFiles,
     handleFileSelect,
-    onCaptionUpdate: setHtml,
+    onCaptionUpdate: setApiFormattedText,
     handleClearAttachments,
     handleSetAttachments,
     shouldForceCompression,

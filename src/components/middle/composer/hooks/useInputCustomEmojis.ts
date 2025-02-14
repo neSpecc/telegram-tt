@@ -3,7 +3,7 @@ import {
 } from '../../../../lib/teact/teact';
 import { getGlobal } from '../../../../global';
 
-import type { ApiSticker } from '../../../../api/types';
+import type { ApiFormattedText, ApiSticker } from '../../../../api/types';
 import type { Signal } from '../../../../util/signals';
 
 import { requestMeasure } from '../../../../lib/fasterdom/fasterdom';
@@ -17,6 +17,7 @@ import {
 import { round } from '../../../../util/math';
 import { hexToRgb } from '../../../../util/switchTheme';
 import { REM } from '../../../common/helpers/mediaDimensions';
+import { isMessageEmpty } from '../utils/isMessageEmpty';
 
 import useColorFilter from '../../../../hooks/stickers/useColorFilter';
 import useDynamicColorListener from '../../../../hooks/stickers/useDynamicColorListener';
@@ -38,7 +39,7 @@ type CustomEmojiPlayer = {
 };
 
 export default function useInputCustomEmojis(
-  getHtml: Signal<string>,
+  getApiFormattedText: Signal<ApiFormattedText | undefined>,
   inputRef: React.RefObject<HTMLDivElement>,
   sharedCanvasRef: React.RefObject<HTMLCanvasElement>,
   sharedCanvasHqRef: React.RefObject<HTMLCanvasElement>,
@@ -141,7 +142,9 @@ export default function useInputCustomEmojis(
   }, []);
 
   useEffect(() => {
-    if (!getHtml() || !inputRef.current || !sharedCanvasRef.current || !isActive || !isReady) {
+    const messageIsEmpty = isMessageEmpty(getApiFormattedText());
+
+    if (messageIsEmpty || !inputRef.current || !sharedCanvasRef.current || !isActive || !isReady) {
       clearPlayers(Array.from(playersById.current.keys()));
       return;
     }
@@ -150,7 +153,7 @@ export default function useInputCustomEmojis(
     requestMeasure(() => {
       synchronizeElements();
     });
-  }, [getHtml, synchronizeElements, inputRef, clearPlayers, sharedCanvasRef, isActive, isReady]);
+  }, [getApiFormattedText, synchronizeElements, inputRef, clearPlayers, sharedCanvasRef, isActive, isReady]);
 
   useLayoutEffect(() => {
     document.documentElement.style.setProperty('--input-custom-emoji-filter', colorFilter || 'none');

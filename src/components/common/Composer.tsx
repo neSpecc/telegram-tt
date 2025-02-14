@@ -1,3 +1,6 @@
+/* eslint-disable */
+import type { InputApi } from '../../../../ast/src/api';
+/* eslint-enable */
 import type { FC } from '../../lib/teact/teact';
 import React, {
   memo, useEffect, useMemo, useRef, useSignal, useState,
@@ -422,7 +425,18 @@ const Composer: FC<OwnProps & StateProps> = ({
   // eslint-disable-next-line no-null/no-null
   const storyReactionRef = useRef<HTMLButtonElement>(null);
 
+  /** @deprecated */
   const [getHtml, setHtml] = useSignal('');
+  const [getApiFormattedText, setApiFormattedText__] = useSignal<ApiFormattedText | undefined>(undefined);
+
+  const setApiFormattedText = useLastCallback((apiFormattedText: ApiFormattedText | undefined) => {
+    console.warn('setApiFormattedText call', apiFormattedText);
+
+    setApiFormattedText__(apiFormattedText);
+  });
+
+  const [getInputApi, setInputApi] = useSignal<InputApi | undefined>(undefined);
+
   const [isMounted, setIsMounted] = useState(false);
   const getSelectionRange = useGetSelectionRange(editableInputCssSelector);
   const lastMessageSendTimeSeconds = useRef<number>();
@@ -545,6 +559,8 @@ const Composer: FC<OwnProps & StateProps> = ({
   const insertTextAndUpdateCursor = useLastCallback((
     text: string, inInputId: string = editableInputId,
   ) => {
+    console.log('insertTextAndUpdateCursor', text, inInputId);
+
     const newHtml = renderText(text, ['escape_html', 'emoji_html', 'br_html'])
       .join('')
       .replace(/\u200b+/g, '\u200b');
@@ -579,7 +595,7 @@ const Composer: FC<OwnProps & StateProps> = ({
     handleSetAttachments,
   } = useAttachmentModal({
     attachments,
-    setHtml,
+    setApiFormattedText,
     setAttachments,
     fileSizeLimit,
     chatId,
@@ -642,9 +658,8 @@ const Composer: FC<OwnProps & StateProps> = ({
   } = useEmojiTooltip(
     Boolean(isReady && isOnActiveTab && (isInStoryViewer || isForCurrentMessageList)
       && shouldSuggestStickers && !hasAttachments),
-    getHtml,
-    setHtml,
-    undefined,
+    getApiFormattedText,
+    setApiFormattedText,
     recentEmojis,
     baseEmojiKeywords,
     emojiKeywords,
@@ -657,8 +672,8 @@ const Composer: FC<OwnProps & StateProps> = ({
   } = useCustomEmojiTooltip(
     Boolean(isReady && isOnActiveTab && (isInStoryViewer || isForCurrentMessageList)
       && shouldSuggestCustomEmoji && !hasAttachments),
-    getHtml,
-    setHtml,
+    getApiFormattedText,
+    setApiFormattedText,
     getSelectionRange,
     inputRef,
     customEmojiForEmoji,
@@ -674,7 +689,7 @@ const Composer: FC<OwnProps & StateProps> = ({
       && shouldSuggestStickers
       && canSendStickers
       && !hasAttachments),
-    getHtml,
+    getApiFormattedText,
     stickersForEmoji,
   );
 
@@ -685,63 +700,84 @@ const Composer: FC<OwnProps & StateProps> = ({
     mentionFilteredUsers,
   } = useMentionTooltip(
     Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
-    getHtml,
-    setHtml,
+    getApiFormattedText,
+    setApiFormattedText,
     getSelectionRange,
     inputRef,
+    getInputApi,
     groupChatMembers,
     topInlineBotIds,
     currentUserId,
   );
 
-  const {
-    isOpen: isInlineBotTooltipOpen,
-    botId: inlineBotId,
-    isGallery: isInlineBotTooltipGallery,
-    switchPm: inlineBotSwitchPm,
-    switchWebview: inlineBotSwitchWebview,
-    results: inlineBotResults,
-    closeTooltip: closeInlineBotTooltip,
-    help: inlineBotHelp,
-    loadMore: loadMoreForInlineBot,
-  } = useInlineBotTooltip(
-    Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
-    chatId,
-    getHtml,
-    inlineBots,
-  );
+  // const isMentionTooltipOpen = false;
+  // const closeMentionTooltip = () => {};
+  // const insertMention = () => {};
+  // const mentionFilteredUsers = [];
+
+  // const {
+  //   isOpen: isInlineBotTooltipOpen,
+  //   botId: inlineBotId,
+  //   isGallery: isInlineBotTooltipGallery,
+  //   switchPm: inlineBotSwitchPm,
+  //   switchWebview: inlineBotSwitchWebview,
+  //   results: inlineBotResults,
+  //   closeTooltip: closeInlineBotTooltip,
+  //   help: inlineBotHelp,
+  //   loadMore: loadMoreForInlineBot,
+  // } = useInlineBotTooltip(
+  //   Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
+  //   chatId,
+  //   getApiFormattedText,
+  //   inlineBots,
+  // );
+
+  const isInlineBotTooltipOpen = false;
+  const inlineBotId = '';
+  const isInlineBotTooltipGallery = false;
+  const inlineBotSwitchPm = '';
+  const inlineBotSwitchWebview = '';
+  const inlineBotResults = [];
+  const closeInlineBotTooltip = () => {};
+  const inlineBotHelp = '';
+  const loadMoreForInlineBot = () => {};
 
   const hasQuickReplies = Boolean(quickReplies && Object.keys(quickReplies).length);
 
-  const {
-    isOpen: isChatCommandTooltipOpen,
-    close: closeChatCommandTooltip,
-    filteredBotCommands: botTooltipCommands,
-    filteredQuickReplies: quickReplyCommands,
-  } = useChatCommandTooltip(
-    Boolean(isInMessageList
-      && isReady
-      && isForCurrentMessageList
-      && ((botCommands && botCommands?.length) || chatBotCommands?.length || (hasQuickReplies && canSendQuickReplies))),
-    getHtml,
-    botCommands,
-    chatBotCommands,
-    canSendQuickReplies ? quickReplies : undefined,
-  );
+  // const {
+  //   isOpen: isChatCommandTooltipOpen,
+  //   close: closeChatCommandTooltip,
+  //   filteredBotCommands: botTooltipCommands,
+  //   filteredQuickReplies: quickReplyCommands,
+  // } = useChatCommandTooltip(
+  //   Boolean(isInMessageList
+  //     && isReady
+  //     && isForCurrentMessageList
+  //     && ((botCommands && botCommands?.length) || chatBotCommands?.length || (hasQuickReplies && canSendQuickReplies))),
+  //   getHtml,
+  //   botCommands,
+  //   chatBotCommands,
+  //   canSendQuickReplies ? quickReplies : undefined,
+  // );
+
+  const isChatCommandTooltipOpen = false;
+  const closeChatCommandTooltip = () => {};
+  const botTooltipCommands = [];
+  const quickReplyCommands = [];
 
   useDraft({
     draft,
     chatId,
     threadId,
-    getHtml,
-    setHtml,
+    getApiFormattedText,
+    setApiFormattedText,
     editedMessage: editingMessage,
     isDisabled: isInStoryViewer || Boolean(requestedDraft),
   });
 
   const resetComposer = useLastCallback((shouldPreserveInput = false) => {
     if (!shouldPreserveInput) {
-      setHtml('');
+      setApiFormattedText({ text: '', entities: [] });
     }
 
     setAttachments(MEMO_EMPTY_ARRAY);
@@ -761,8 +797,8 @@ const Composer: FC<OwnProps & StateProps> = ({
   });
 
   const [handleEditComplete, handleEditCancel, shouldForceShowEditing] = useEditing(
-    getHtml,
-    setHtml,
+    getApiFormattedText,
+    setApiFormattedText,
     editingMessage,
     resetComposer,
     chatId,
@@ -1040,11 +1076,8 @@ const Composer: FC<OwnProps & StateProps> = ({
       }
     }
 
-    const htmlToSend = 'aaa';
-
-    console.log('htmlToSend', htmlToSend);
-
-    const { text, entities } = parseHtmlAsFormattedText(getHtml());
+    // const { text, entities } = parseHtmlAsFormattedText(getHtml());
+    const { text, entities } = getApiFormattedText() || { text: '', entities: [] };
 
     if (currentAttachments.length) {
       sendAttachments({
@@ -1097,6 +1130,8 @@ const Composer: FC<OwnProps & StateProps> = ({
     clearDraft({
       chatId, threadId, isLocalOnly: true, shouldKeepReply: isForwarding,
     });
+
+    console.log('messageInput --> ', messageInput, messageInput === document.activeElement);
 
     if (IS_IOS && messageInput && messageInput === document.activeElement) {
       applyIosAutoCapitalizationFix(messageInput);
@@ -1280,6 +1315,8 @@ const Composer: FC<OwnProps & StateProps> = ({
         }, scheduledAt, currentMessageList!);
       });
     } else {
+      console.log('inlineResult', inlineResult);
+
       sendInlineBotResult({
         id: inlineResult.id,
         queryId: inlineResult.queryId,
@@ -1652,7 +1689,7 @@ const Composer: FC<OwnProps & StateProps> = ({
         threadId={threadId}
         canShowCustomSendMenu={canShowCustomSendMenu}
         attachments={attachments}
-        getHtml={getHtml}
+        getApiFormattedText={getApiFormattedText}
         isReady={isReady}
         shouldSuggestCompression={shouldSuggestCompression}
         shouldForceCompression={shouldForceCompression}
@@ -1849,7 +1886,7 @@ const Composer: FC<OwnProps & StateProps> = ({
             threadId={threadId}
             isReady={isReady}
             isActive={!hasAttachments}
-            getHtml={getHtml}
+            getApiFormattedText={getApiFormattedText}
             placeholder={
               activeVoiceRecording && windowWidth <= SCREEN_WIDTH_TO_HIDE_PLACEHOLDER
                 ? ''
@@ -1864,7 +1901,8 @@ const Composer: FC<OwnProps & StateProps> = ({
             noFocusInterception={hasAttachments}
             shouldSuppressFocus={isMobile && isSymbolMenuOpen}
             shouldSuppressTextFormatter={isEmojiTooltipOpen || isMentionTooltipOpen || isInlineBotTooltipOpen}
-            onUpdate={setHtml}
+            onUpdate={setApiFormattedText}
+            setInputApi={setInputApi}
             onSend={onSend}
             onSuppressedFocus={closeSymbolMenu}
             onFocus={markInputHasFocus}
@@ -2240,3 +2278,16 @@ export default memo(withGlobal<OwnProps>(
     };
   },
 )(Composer));
+
+/**
+ *
+ * @todo Check: useEmojiTooltip / insertEmoji
+ * @todo add support for custom emojis insertion
+ * @todo buildCustomEmojiHtml should be passed to ast/Renderer to handle custom emoji
+ *
+ * @tooo Check useStickerTooltip works correctly
+ * @todo Check useMentionTooltipq works correctly
+ * @todo check message editing (useEditing)
+ *
+ *
+ */

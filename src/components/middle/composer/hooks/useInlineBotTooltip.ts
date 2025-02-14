@@ -1,6 +1,7 @@
 import { useEffect } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
+import type { ApiFormattedText } from '../../../../api/types';
 import type { InlineBotSettings } from '../../../../types';
 import type { Signal } from '../../../../util/signals';
 
@@ -27,7 +28,7 @@ const tempEl = document.createElement('div');
 export default function useInlineBotTooltip(
   isEnabled: boolean,
   chatId: string,
-  getHtml: Signal<string>,
+  getApiFormattedText: Signal<ApiFormattedText | undefined>,
   inlineBots?: Record<string, false | InlineBotSettings>,
 ) {
   const { queryInlineBot, resetInlineBot, resetAllInlineBots } = getActions();
@@ -35,12 +36,16 @@ export default function useInlineBotTooltip(
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
 
   const extractBotQueryThrottled = useThrottledResolver(() => {
-    const html = getHtml();
-    return isEnabled && html.startsWith('@') ? parseBotQuery(html) : MEMO_NO_RESULT;
-  }, [getHtml, isEnabled], THROTTLE);
+    const message = getApiFormattedText();
+    if (!message) return MEMO_NO_RESULT;
+
+    const text = message.text;
+
+    return isEnabled && text.startsWith('@') ? parseBotQuery(text) : MEMO_NO_RESULT;
+  }, [getApiFormattedText, isEnabled], THROTTLE);
   const {
     username, query, canShowHelp, usernameLowered,
-  } = useDerivedState(extractBotQueryThrottled, [extractBotQueryThrottled, getHtml], true);
+  } = useDerivedState(extractBotQueryThrottled, [extractBotQueryThrottled, getApiFormattedText], true);
 
   useSyncEffect(([prevUsername]) => {
     if (prevUsername) {
@@ -56,7 +61,7 @@ export default function useInlineBotTooltip(
     });
   }, [chatId, query, queryInlineBot, usernameLowered]);
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getApiFormattedText]);
 
   const {
     id: botId,

@@ -1,9 +1,11 @@
 import { useEffect, useState } from '../../../../lib/teact/teact';
 import { getGlobal } from '../../../../global';
 
-import type { ApiSticker } from '../../../../api/types';
 import type { EmojiData, EmojiModule, EmojiRawData } from '../../../../util/emoji/emoji';
 import type { Signal } from '../../../../util/signals';
+import {
+  type ApiFormattedText, type ApiMessageEntityCustomEmoji, ApiMessageEntityTypes, type ApiSticker,
+} from '../../../../api/types';
 
 import { EDITABLE_INPUT_CSS_SELECTOR, EDITABLE_INPUT_ID } from '../../../../config';
 import { requestNextMutation } from '../../../../lib/fasterdom/fasterdom';
@@ -58,8 +60,8 @@ try {
 
 export default function useEmojiTooltip(
   isEnabled: boolean,
-  getHtml: Signal<string>,
-  setHtml: (html: string) => void,
+  getApiFormattedText: Signal<ApiFormattedText | undefined>,
+  setApiFormattedText: (formattedText: ApiFormattedText | undefined) => void,
   inputId = EDITABLE_INPUT_ID,
   recentEmojiIds: string[],
   baseEmojiKeywords?: Record<string, string[]>,
@@ -87,12 +89,14 @@ export default function useEmojiTooltip(
   }, [isEnabled]);
 
   const detectEmojiCodeThrottled = useThrottledResolver(() => {
-    const html = getHtml();
-    return isEnabled && html.includes(':') ? prepareForRegExp(html).match(RE_EMOJI_SEARCH)?.[0].trim() : undefined;
-  }, [getHtml, isEnabled], THROTTLE);
+    const message = getApiFormattedText();
+    const text = message?.text;
+
+    return isEnabled && text?.includes(':') ? prepareForRegExp(text).match(RE_EMOJI_SEARCH)?.[0].trim() : undefined;
+  }, [getApiFormattedText, isEnabled], THROTTLE);
 
   const getEmojiCode = useDerivedSignal(
-    detectEmojiCodeThrottled, [detectEmojiCodeThrottled, getHtml], true,
+    detectEmojiCodeThrottled, [detectEmojiCodeThrottled, getApiFormattedText], true,
   );
 
   const updateFiltered = useLastCallback((emojis: Emoji[]) => {
@@ -112,15 +116,57 @@ export default function useEmojiTooltip(
   });
 
   const insertEmoji = useLastCallback((emoji: string | ApiSticker, isForce = false) => {
-    const html = getHtml();
-    if (!html) return;
+    const message = getApiFormattedText();
+    const text = message?.text;
 
-    const atIndex = html.lastIndexOf(':', isForce ? html.lastIndexOf(':') - 1 : undefined);
+    if (!text) return;
+
+    const atIndex = text.lastIndexOf(':', isForce ? text.lastIndexOf(':') - 1 : undefined);
 
     if (atIndex !== -1) {
-      const emojiHtml = typeof emoji === 'string' ? renderText(emoji, ['emoji_html']) : buildCustomEmojiHtml(emoji);
-      setHtml(`${html.substring(0, atIndex)}${emojiHtml}`);
+      const isCustomEmoji = typeof emoji !== 'string';
+      const emojiString = isCustomEmoji ? emoji.emoji : emoji;
 
+      if (!emojiString) {
+        // eslint-disable-next-line no-console
+        console.warn('Emoji string is empty', emoji);
+        return;
+      }
+
+      const regularEmojiText = renderText(emojiString, ['emoji']);
+
+      /**
+       * @todo buildCustomEmojiHtml should be passed to ast/Renderer to handle custom emoji
+       */
+      // const emojiHtml = typeof emoji === 'string'
+      //   ? renderText(emoji, ['emoji_html'])  // regular emoji
+      //   : buildCustomEmojiHtml(emoji); // custom emoji <img>
+
+      const newText = `${text.substring(0, atIndex)}${regularEmojiText}`;
+      let emojiEntity: ApiMessageEntityCustomEmoji | undefined;
+
+      if (isCustomEmoji) {
+        emojiEntity = {
+          type: ApiMessageEntityTypes.CustomEmoji,
+          offset: atIndex,
+          length: emojiString.length,
+          documentId: emoji.id,
+        };
+      }
+
+      const newEntities = message?.entities ? [...message.entities] : [];
+      if (emojiEntity) {
+        newEntities.push(emojiEntity);
+      }
+
+      setApiFormattedText({
+        text: newText,
+        entities: newEntities,
+      });
+
+      /**
+       * @todo fix focus input
+       */
       const messageInput = inputId === EDITABLE_INPUT_ID
         ? document.querySelector<HTMLDivElement>(EDITABLE_INPUT_CSS_SELECTOR)!
         : document.getElementById(inputId) as HTMLDivElement;
@@ -166,7 +212,7 @@ export default function useEmojiTooltip(
     baseEmojiKeywords, byId, getEmojiCode, emojiKeywords, insertEmoji, recentEmojiIds, updateFiltered,
   ]);
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getApiFormattedText]);
 
   return {
     isEmojiTooltipOpen: Boolean(filteredEmojis.length || filteredCustomEmojis.length) && !isManuallyClosed,

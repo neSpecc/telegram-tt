@@ -229,7 +229,11 @@ export function renderTextWithEntities({
   return result;
 }
 
+/**
+ * @deprecated
+ */
 export function getTextWithEntitiesAsHtml(formattedText?: ApiFormattedText) {
+  console.warn('getTextWithEntitiesAsHtml');
   const { text, entities } = formattedText || {};
   if (!text) {
     return '';

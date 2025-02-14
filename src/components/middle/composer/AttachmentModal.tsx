@@ -5,7 +5,7 @@ import React, {
 import { getActions, withGlobal } from '../../../global';
 
 import type {
-  ApiAttachment, ApiChatMember, ApiMessage, ApiSticker,
+  ApiAttachment, ApiChatMember, ApiFormattedText, ApiMessage, ApiSticker,
 } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
 import type { MessageListType, ThreadId } from '../../../types';
@@ -28,7 +28,6 @@ import { validateFiles } from '../../../util/files';
 import { removeAllSelections } from '../../../util/selection';
 import { openSystemFilesDialog } from '../../../util/systemFilesDialog';
 import getFilesFromDataTransferItems from './helpers/getFilesFromDataTransferItems';
-import { getHtmlTextLength } from './helpers/getHtmlTextLength';
 
 import useAppLayout from '../../../hooks/useAppLayout';
 import useContextMenuHandlers from '../../../hooks/useContextMenuHandlers';
@@ -66,7 +65,7 @@ export type OwnProps = {
   attachments: ApiAttachment[];
   editingMessage?: ApiMessage;
   messageListType?: MessageListType;
-  getHtml: Signal<string>;
+  getApiFormattedText: Signal<ApiFormattedText | undefined>;
   canShowCustomSendMenu?: boolean;
   isReady: boolean;
   isForMessage?: boolean;
@@ -76,7 +75,10 @@ export type OwnProps = {
   shouldForceAsFile?: boolean;
   isForCurrentMessageList?: boolean;
   forceDarkTheme?: boolean;
-  onCaptionUpdate: (html: string) => void;
+  /**
+   * @todo replace html with formattedText
+   */
+  onCaptionUpdate: (apiFormattedText: ApiFormattedText | undefined) => void;
   onSend: (sendCompressed: boolean, sendGrouped: boolean, isInvertedMedia?: true) => void;
   onFileAppend: (files: File[], isSpoiler?: boolean) => void;
   onAttachmentsUpdate: (attachments: ApiAttachment[]) => void;
@@ -112,7 +114,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   chatId,
   threadId,
   attachments,
-  getHtml,
+  getApiFormattedText,
   editingMessage,
   canShowCustomSendMenu,
   captionLimit,
@@ -223,7 +225,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     closeEmojiTooltip,
   } = useEmojiTooltip(
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen),
-    getHtml,
+    getApiFormattedText,
     onCaptionUpdate,
     EDITABLE_INPUT_MODAL_ID,
     recentEmojis,
@@ -237,28 +239,34 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     closeCustomEmojiTooltip,
   } = useCustomEmojiTooltip(
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen && shouldSuggestCustomEmoji),
-    getHtml,
+    getApiFormattedText,
     onCaptionUpdate,
     getSelectionRange,
     inputRef,
     customEmojiForEmoji,
   );
 
-  const {
-    isMentionTooltipOpen,
-    closeMentionTooltip,
-    insertMention,
-    mentionFilteredUsers,
-  } = useMentionTooltip(
-    Boolean(isReady && isForCurrentMessageList && renderingIsOpen),
-    getHtml,
-    onCaptionUpdate,
-    getSelectionRange,
-    inputRef,
-    groupChatMembers,
-    undefined,
-    currentUserId,
-  );
+  // const {
+  //   isMentionTooltipOpen,
+  //   closeMentionTooltip,
+  //   insertMention,
+  //   mentionFilteredUsers,
+  // } = useMentionTooltip(
+  //   Boolean(isReady && isForCurrentMessageList && renderingIsOpen),
+  //   getApiFormattedText,
+  //   onCaptionUpdate,
+  //   getSelectionRange,
+  //   inputRef,
+  //   getInputApi,
+  //   groupChatMembers,
+  //   undefined,
+  //   currentUserId,
+  // );
+
+  const isMentionTooltipOpen = false;
+  const closeMentionTooltip = () => {};
+  const insertMention = () => {};
+  const mentionFilteredUsers = [];
 
   useEffect(() => (isOpen ? captureEscKeyListener(onClear) : undefined), [isOpen, onClear]);
 
@@ -447,9 +455,14 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   const leftChars = useDerivedState(() => {
     if (!renderingIsOpen) return undefined;
 
-    const leftCharsBeforeLimit = captionLimit - getHtmlTextLength(getHtml());
+    const message = getApiFormattedText();
+    if (!message) return undefined;
+
+    const text = message.text;
+
+    const leftCharsBeforeLimit = captionLimit - text.length;
     return leftCharsBeforeLimit <= MAX_LEFT_CHARS_TO_SHOW ? leftCharsBeforeLimit : undefined;
-  }, [captionLimit, getHtml, renderingIsOpen]);
+  }, [captionLimit, getApiFormattedText, renderingIsOpen]);
 
   const isQuickGallery = isSendingCompressed && hasOnlyMedia;
 
@@ -682,7 +695,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
               customEmojiPrefix="attachment"
               isReady={isReady}
               isActive={isOpen}
-              getHtml={getHtml}
+              getApiFormattedText={getApiFormattedText}
               editableInputId={EDITABLE_INPUT_MODAL_ID}
               placeholder={lang('AddCaption')}
               onUpdate={onCaptionUpdate}

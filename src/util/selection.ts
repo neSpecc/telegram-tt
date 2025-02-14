@@ -21,7 +21,11 @@ export function insertHtmlInSelection(html: string) {
   }
 }
 
+/**
+ * @deprecated
+ */
 export function getHtmlBeforeSelection(container?: HTMLElement, useCommonAncestor?: boolean) {
+  console.warn('getHtmlBeforeSelection GET RID OF THIS');
   if (!container) {
     return '';
   }
