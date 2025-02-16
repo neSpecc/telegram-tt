@@ -698,7 +698,8 @@
     }
   }
 
-  .spoiler {
+  .spoiler,
+  .md-spoiler {
     background-image: url("../../assets/spoiler-dots-black.png");
     background-size: auto min(100%, 1.125rem);
     border-radius: 0.5rem;
@@ -710,7 +711,8 @@
       2px 2px 0 var(--color-background);
   }
 
-  html.theme-dark & .spoiler {
+  html.theme-dark & .spoiler,
+  html.theme-dark & .md-spoiler {
     background-image: url("../../assets/spoiler-dots-white.png");
   }
 

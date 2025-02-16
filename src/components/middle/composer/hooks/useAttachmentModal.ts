@@ -1,4 +1,4 @@
-import { useState } from '../../../../lib/teact/teact';
+import { useCallback, useState } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
 import type { ApiAttachment, ApiFormattedText, ApiMessage } from '../../../../api/types';
@@ -126,14 +126,19 @@ export default function useAttachmentModal({
     setShouldSuggestCompression(suggestCompression);
   });
 
+  const onCaptionUpdate = useLastCallback((apiFormattedText: ApiFormattedText | undefined) => {
+    if (!apiFormattedText) {
+      return;
+    }
+
+    setApiFormattedText(apiFormattedText);
+  });
+
   return {
     shouldSuggestCompression,
     handleAppendFiles,
     handleFileSelect,
-    onCaptionUpdate: (apiFormattedText: ApiFormattedText) => {
-      console.log('useAttachmentModal / onCaptionUpdate', apiFormattedText);
-      setApiFormattedText(apiFormattedText);
-    },
+    onCaptionUpdate,
     handleClearAttachments,
     handleSetAttachments,
     shouldForceCompression,

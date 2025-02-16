@@ -568,9 +568,6 @@ const Composer: FC<OwnProps & StateProps> = ({
   ) => {
     console.warn('insertFormattedTextAndUpdateCursor', text);
 
-    /**
-     * @todo extract links and past them as markdown (maybe on the AST side)
-     */
     const newHtml = getTextWithEntitiesAsHtml(text);
     insertHtmlAndUpdateCursor(newHtml, inInputId);
   });
@@ -599,11 +596,7 @@ const Composer: FC<OwnProps & StateProps> = ({
     handleSetAttachments,
   } = useAttachmentModal({
     attachments,
-    setApiFormattedText: (apiFormattedText: ApiFormattedText) => {
-      console.log('useAttachmentModal/setApiFormattedText', apiFormattedText);
-
-      setApiFormattedText(apiFormattedText);
-    },
+    setApiFormattedText,
     setAttachments,
     fileSizeLimit,
     chatId,
@@ -901,12 +894,8 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   useClipboardPaste(
     isForCurrentMessageList || isInStoryViewer,
-    insertFormattedTextAndUpdateCursor,
     handleSetAttachments,
-    setNextText,
     editingMessage,
-    !isCurrentUserPremium && !isChatWithSelf,
-    showCustomEmojiPremiumNotification,
   );
 
   const handleEmbeddedClear = useLastCallback(() => {
@@ -1698,8 +1687,6 @@ const Composer: FC<OwnProps & StateProps> = ({
         isForMessage={isInMessageList}
         shouldSchedule={isInScheduledList}
         forceDarkTheme={isInStoryViewer}
-        setInputApi={setInputApi}
-        getInputApi={getInputApi}
         onCaptionUpdate={onCaptionUpdate}
         onSendSilent={handleSendSilentAttachments}
         onSend={handleSendAttachmentsFromModal}
@@ -2285,5 +2272,6 @@ export default memo(withGlobal<OwnProps>(
  *
  * @todo pasted links does not show WebPagePreview
  * @todo check message editing (useEditing)
+ * @todo check all places of parseHtmlAsFormattedText — can we get rid of it?
  *
  */

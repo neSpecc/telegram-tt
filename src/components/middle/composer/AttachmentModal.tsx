@@ -69,8 +69,6 @@ export type OwnProps = {
   editingMessage?: ApiMessage;
   messageListType?: MessageListType;
   getApiFormattedText: Signal<ApiFormattedText | undefined>;
-  setInputApi: (api: InputApi | undefined) => void;
-  getInputApi: Signal<InputApi | undefined>;
   canShowCustomSendMenu?: boolean;
   isReady: boolean;
   isForMessage?: boolean;

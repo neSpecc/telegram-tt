@@ -615,18 +615,13 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         },
         onHtmlUpdate: (html: string) => {
           cloneRef.current!.innerHTML = html;
-
           updateInputHeight(!html);
         },
       });
 
       setInputApi(inputApiRef.current);
     }
-  }, [onUpdate, setInputApi, editableInputId]);
-
-  // const handleSend = useCallback(() => {
-  //   onSend();
-  // }, [onSend]);
+  }, [editableInputId, setInputApi]);
 
   return (
     <div id={id} onClick={shouldSuppressFocus ? onSuppressedFocus : undefined} dir={lang.isRtl ? 'rtl' : undefined}>
@@ -637,25 +632,17 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       >
         <div className={inputScrollerContentClass}>
           {isNew && (
-            <>
-              {/* <TextEditor
-                ref={inputRef}
-                onUpdate={handleUpdate}
-                onSend={handleSend}
-                isActive={isActive}
-              /> */}
-              <div
-                ref={inputRef}
-                id={editableInputId || EDITABLE_INPUT_ID}
-                className={className}
-                contentEditable
-                role="textbox"
-                dir="auto"
-                aria-label={placeholder}
-                tabIndex={0}
-                onKeyDown={handleKeyDown}
-              />
-            </>
+            <div
+              ref={inputRef}
+              id={editableInputId || EDITABLE_INPUT_ID}
+              className={className}
+              contentEditable
+              role="textbox"
+              dir="auto"
+              aria-label={placeholder}
+              tabIndex={0}
+              onKeyDown={handleKeyDown}
+            />
           )}
           {!isNew && (
             <div
