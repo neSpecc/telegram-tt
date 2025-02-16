@@ -36,9 +36,7 @@ try {
 export default function useMentionTooltip(
   isEnabled: boolean,
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
-  setApiFormattedText: (apiFormattedText: ApiFormattedText | undefined) => void,
   getSelectionRange: Signal<Range | undefined>,
-  inputRef: RefObject<HTMLDivElement>,
   getInputApi: Signal<InputApi | undefined>,
   groupChatMembers?: ApiChatMember[],
   topInlineBotIds?: string[],
@@ -48,12 +46,13 @@ export default function useMentionTooltip(
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
 
   const extractUsernameTagThrottled = useThrottledResolver(() => {
-    console.log('extractUsernameTagThrottled');
+    // console.log('@ useMentionTooltip / extractUsernameTagThrottled');
 
     if (!isEnabled) return undefined;
 
     const message = getApiFormattedText();
     const inputApi = getInputApi();
+
     if (!message || !inputApi) return undefined;
 
     const text = message.text;
@@ -63,9 +62,7 @@ export default function useMentionTooltip(
      */
     if (!getSelectionRange()?.collapsed || !text.includes('@')) return undefined;
 
-    const md = inputApi.getMarkdown();
-    const caretOffset = inputApi.getCaretOffset();
-    const beforeCaret = md.substring(0, caretOffset.start);
+    const beforeCaret = inputApi.getLeftSlice();
 
     return beforeCaret.match(RE_USERNAME_SEARCH)?.[0].trim();
   }, [isEnabled, getApiFormattedText, getSelectionRange, getInputApi], THROTTLE);
@@ -85,8 +82,6 @@ export default function useMentionTooltip(
   useEffect(() => {
     const usernameTag = getUsernameTag();
 
-    console.log('usernameTag', usernameTag);
-
     if (!usernameTag || !(groupChatMembers || topInlineBotIds)) {
       setFilteredUsers(undefined);
       return;
@@ -94,7 +89,6 @@ export default function useMentionTooltip(
 
     // No need for expensive global updates on users, so we avoid them
     const usersById = getGlobal().users.byId;
-    console.log('usersById', usersById);
 
     if (!usersById) {
       setFilteredUsers(undefined);
@@ -117,8 +111,6 @@ export default function useMentionTooltip(
 
     const usersToDisplay = Object.values(pickTruthy(usersById, filteredIds));
 
-    console.log('usersToDisplay', usersToDisplay);
-
     setFilteredUsers(usersToDisplay);
   }, [currentUserId, groupChatMembers, topInlineBotIds, getUsernameTag, getWithInlineBots]);
 
@@ -130,38 +122,25 @@ export default function useMentionTooltip(
     const mainUsername = getMainUsername(user);
     const userFirstOrLastName = getUserFirstOrLastName(user) || '';
 
-    const markdownToInsert = `[${userFirstOrLastName}](id:${user.id})`;
-
-    // /**
-    //  * @todo move to ast/Renderer
-    //  */
-    // const htmlToInsert = mainUsername
-    //   ? `@${mainUsername}`
-    //   : `<a
-    //       class="text-entity-link"
-    //       data-entity-type="${ApiMessageEntityTypes.MentionName}"
-    //       data-user-id="${user.id}"
-    //       contenteditable="false"
-    //       dir="auto"
-    //     >${userFirstOrLastName}</a>`;
-
-    // const inputEl = inputRef.current!;
     const message = getApiFormattedText();
     if (!message) return;
-
-    const text = message.text;
-    const entities = message.entities ?? [];
-
-    // const htmlBeforeSelection = getHtmlBeforeSelection(inputEl);
-    // const fixedHtmlBeforeSelection = cleanWebkitNewLines(htmlBeforeSelection);
 
     const inputApi = getInputApi()!;
 
     const offset = inputApi.getCaretOffset();
-    const mention = `[${userFirstOrLastName}](id:${user.id})`;
+    /**
+     *
+     *
+     *
+     * @todo text names
+     *
+     *
+     */
+    const name = mainUsername ? `@${mainUsername}` : userFirstOrLastName;
+    const mention = `[${name}](id:${user.id})`;
 
-    inputApi.replace(offset.start - 1, offset.start, ''); // remove @
-    inputApi.insert(mention, offset.end);
+    // replace @ with mention
+    inputApi.replace(offset.start - 1, offset.start, mention);
 
     setFilteredUsers(undefined);
   });

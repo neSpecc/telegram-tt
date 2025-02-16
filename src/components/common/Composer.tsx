@@ -105,7 +105,6 @@ import buildClassName from '../../util/buildClassName';
 import { formatMediaDuration, formatVoiceRecordDuration } from '../../util/dates/dateFormat';
 import { processDeepLink } from '../../util/deeplink';
 import { tryParseDeepLink } from '../../util/deepLinkParser';
-import deleteLastCharacterOutsideSelection from '../../util/deleteLastCharacterOutsideSelection';
 import { processMessageInputForCustomEmoji } from '../../util/emoji/customEmojiManager';
 import focusEditableElement from '../../util/focusEditableElement';
 import { MEMO_EMPTY_ARRAY } from '../../util/memo';
@@ -178,6 +177,7 @@ import Icon from './icons/Icon';
 import ReactionAnimatedEmoji from './reactions/ReactionAnimatedEmoji';
 
 import './Composer.scss';
+import { isMessageEmpty } from '../middle/composer/utils/isMessageEmpty';
 
 type ComposerType = 'messageList' | 'story';
 
@@ -528,7 +528,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   }, [hasWebPagePreview]);
 
   const insertHtmlAndUpdateCursor = useLastCallback((newHtml: string, inInputId: string = editableInputId) => {
-    console.log('insertHtmlAndUpdateCursor', newHtml, inInputId);
+    console.error('❌❌❌❌ insertHtmlAndUpdateCursor', newHtml, inInputId);
 
     if (inInputId === editableInputId && isComposerBlocked) return;
     const selection = window.getSelection()!;
@@ -556,26 +556,30 @@ const Composer: FC<OwnProps & StateProps> = ({
     });
   });
 
-  const insertTextAndUpdateCursor = useLastCallback((
-    text: string, inInputId: string = editableInputId,
-  ) => {
-    console.log('insertTextAndUpdateCursor', text, inInputId);
+  const insertTextAndUpdateCursor = useLastCallback((text: string) => {
+    console.log('insertTextAndUpdateCursor: ✅ rewritten to inputAPI', text);
 
-    const newHtml = renderText(text, ['escape_html', 'emoji_html', 'br_html'])
-      .join('')
-      .replace(/\u200b+/g, '\u200b');
-    insertHtmlAndUpdateCursor(newHtml, inInputId);
+    const inputApi = getInputApi()!;
+    inputApi.insert(text, inputApi.getCaretOffset().end);
   });
 
   const insertFormattedTextAndUpdateCursor = useLastCallback((
     text: ApiFormattedText, inInputId: string = editableInputId,
   ) => {
+    console.warn('insertFormattedTextAndUpdateCursor', text);
+
+    /**
+     * @todo extract links and past them as markdown (maybe on the AST side)
+     */
     const newHtml = getTextWithEntitiesAsHtml(text);
     insertHtmlAndUpdateCursor(newHtml, inInputId);
   });
 
   const insertCustomEmojiAndUpdateCursor = useLastCallback((emoji: ApiSticker, inInputId: string = editableInputId) => {
-    insertHtmlAndUpdateCursor(buildCustomEmojiHtml(emoji), inInputId);
+    console.log('insertCustomEmojiAndUpdateCursor', emoji, inInputId);
+
+    const emojiMarkdown = `[${emoji.emoji}](doc:${emoji.id})`;
+    insertTextAndUpdateCursor(emojiMarkdown);
   });
 
   const insertNextText = useLastCallback(() => {
@@ -595,7 +599,11 @@ const Composer: FC<OwnProps & StateProps> = ({
     handleSetAttachments,
   } = useAttachmentModal({
     attachments,
-    setApiFormattedText,
+    setApiFormattedText: (apiFormattedText: ApiFormattedText) => {
+      console.log('useAttachmentModal/setApiFormattedText', apiFormattedText);
+
+      setApiFormattedText(apiFormattedText);
+    },
     setAttachments,
     fileSizeLimit,
     chatId,
@@ -640,12 +648,12 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   const isEditingRef = useStateRef(Boolean(editingMessage));
   useEffect(() => {
-    console.log('useEffect 1');
+    const messageNotEmpty = !isMessageEmpty(getApiFormattedText());
     if (!isForCurrentMessageList || isInStoryViewer) return;
-    if (getHtml() && !isEditingRef.current) {
+    if (messageNotEmpty && !isEditingRef.current) {
       sendMessageAction({ type: 'typing' });
     }
-  }, [getHtml, isEditingRef, isForCurrentMessageList, isInStoryViewer, sendMessageAction]);
+  }, [getApiFormattedText, isEditingRef, isForCurrentMessageList, isInStoryViewer, sendMessageAction]);
 
   const isAdmin = chat && isChatAdmin(chat);
 
@@ -673,7 +681,7 @@ const Composer: FC<OwnProps & StateProps> = ({
     Boolean(isReady && isOnActiveTab && (isInStoryViewer || isForCurrentMessageList)
       && shouldSuggestCustomEmoji && !hasAttachments),
     getApiFormattedText,
-    setApiFormattedText,
+    getInputApi,
     getSelectionRange,
     inputRef,
     customEmojiForEmoji,
@@ -701,9 +709,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   } = useMentionTooltip(
     Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
     getApiFormattedText,
-    setApiFormattedText,
     getSelectionRange,
-    inputRef,
     getInputApi,
     groupChatMembers,
     topInlineBotIds,
@@ -744,26 +750,21 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   const hasQuickReplies = Boolean(quickReplies && Object.keys(quickReplies).length);
 
-  // const {
-  //   isOpen: isChatCommandTooltipOpen,
-  //   close: closeChatCommandTooltip,
-  //   filteredBotCommands: botTooltipCommands,
-  //   filteredQuickReplies: quickReplyCommands,
-  // } = useChatCommandTooltip(
-  //   Boolean(isInMessageList
-  //     && isReady
-  //     && isForCurrentMessageList
-  //     && ((botCommands && botCommands?.length) || chatBotCommands?.length || (hasQuickReplies && canSendQuickReplies))),
-  //   getHtml,
-  //   botCommands,
-  //   chatBotCommands,
-  //   canSendQuickReplies ? quickReplies : undefined,
-  // );
-
-  const isChatCommandTooltipOpen = false;
-  const closeChatCommandTooltip = () => {};
-  const botTooltipCommands = [];
-  const quickReplyCommands = [];
+  const {
+    isOpen: isChatCommandTooltipOpen,
+    close: closeChatCommandTooltip,
+    filteredBotCommands: botTooltipCommands,
+    filteredQuickReplies: quickReplyCommands,
+  } = useChatCommandTooltip(
+    Boolean(isInMessageList
+      && isReady
+      && isForCurrentMessageList
+      && ((botCommands && botCommands?.length) || chatBotCommands?.length || (hasQuickReplies && canSendQuickReplies))),
+    getApiFormattedText,
+    botCommands,
+    chatBotCommands,
+    canSendQuickReplies ? quickReplies : undefined,
+  );
 
   useDraft({
     draft,
@@ -845,7 +846,10 @@ const Composer: FC<OwnProps & StateProps> = ({
   });
 
   const mainButtonState = useDerivedState(() => {
-    if (!isInputHasFocus && onForward && !(getHtml() && !hasAttachments)) {
+    const message = getApiFormattedText();
+    const textNotEmpty = !isMessageEmpty(message);
+
+    if (!isInputHasFocus && onForward && !(textNotEmpty && !hasAttachments)) {
       return MainButtonState.Forward;
     }
 
@@ -853,7 +857,7 @@ const Composer: FC<OwnProps & StateProps> = ({
       return MainButtonState.Edit;
     }
 
-    if (IS_VOICE_RECORDING_SUPPORTED && !activeVoiceRecording && !isForwarding && !(getHtml() && !hasAttachments)) {
+    if (IS_VOICE_RECORDING_SUPPORTED && !activeVoiceRecording && !isForwarding && !(textNotEmpty && !hasAttachments)) {
       return MainButtonState.Record;
     }
 
@@ -863,8 +867,8 @@ const Composer: FC<OwnProps & StateProps> = ({
 
     return MainButtonState.Send;
   }, [
-    activeVoiceRecording, editingMessage, getHtml, hasAttachments, isForwarding, isInputHasFocus, onForward,
-    shouldForceShowEditing, isInScheduledList,
+    activeVoiceRecording, editingMessage, hasAttachments, isForwarding, isInputHasFocus, onForward,
+    shouldForceShowEditing, isInScheduledList, getApiFormattedText,
   ]);
   const canShowCustomSendMenu = !isInScheduledList;
 
@@ -982,9 +986,7 @@ const Composer: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    console.log('sendAttachments: getHtml call');
-
-    const { text, entities } = parseHtmlAsFormattedText(getHtml());
+    const { text, entities } = getApiFormattedText() || { text: '', entities: [] };
     if (!text && !attachmentsToSend.length) {
       return;
     }
@@ -1079,7 +1081,12 @@ const Composer: FC<OwnProps & StateProps> = ({
     // const { text, entities } = parseHtmlAsFormattedText(getHtml());
     const { text, entities } = getApiFormattedText() || { text: '', entities: [] };
 
+    console.log('text', text);
+    console.log('entities', entities);
+
     if (currentAttachments.length) {
+      console.log('currentAttachments', currentAttachments);
+
       sendAttachments({
         attachments: currentAttachments,
         scheduledAt,
@@ -1223,18 +1230,18 @@ const Composer: FC<OwnProps & StateProps> = ({
     }
   }, [handleFileSelect, requestedDraftFiles, resetOpenChatWithDraft]);
 
-  const handleCustomEmojiSelect = useLastCallback((emoji: ApiSticker, inInputId?: string) => {
+  const handleCustomEmojiSelect = useLastCallback((emoji: ApiSticker) => {
     const emojiSetId = 'id' in emoji.stickerSetInfo && emoji.stickerSetInfo.id;
     if (!emoji.isFree && !isCurrentUserPremium && !isChatWithSelf && emojiSetId !== chatEmojiSetId) {
       showCustomEmojiPremiumNotification();
       return;
     }
 
-    insertCustomEmojiAndUpdateCursor(emoji, inInputId);
+    insertCustomEmojiAndUpdateCursor(emoji);
   });
 
   const handleCustomEmojiSelectAttachmentModal = useLastCallback((emoji: ApiSticker) => {
-    handleCustomEmojiSelect(emoji, EDITABLE_INPUT_MODAL_ID);
+    handleCustomEmojiSelect(emoji);
   });
 
   const handleGifSelect = useLastCallback((gif: ApiVideo, isSilent?: boolean, isScheduleRequested?: boolean) => {
@@ -1397,25 +1404,16 @@ const Composer: FC<OwnProps & StateProps> = ({
   }, [isComposerBlocked, setHtml, attachments]);
 
   const insertTextAndUpdateCursorAttachmentModal = useLastCallback((text: string) => {
-    insertTextAndUpdateCursor(text, EDITABLE_INPUT_MODAL_ID);
+    insertTextAndUpdateCursor(text);
   });
 
-  const removeSymbol = useLastCallback((inInputId = editableInputId) => {
-    const selection = window.getSelection()!;
-
-    if (selection.rangeCount) {
-      const selectionRange = selection.getRangeAt(0);
-      if (isSelectionInsideInput(selectionRange, inInputId)) {
-        document.execCommand('delete', false);
-        return;
-      }
-    }
-
-    setHtml(deleteLastCharacterOutsideSelection(getHtml()));
+  const removeSymbol = useLastCallback(() => {
+    const inputApi = getInputApi()!;
+    inputApi.deleteLastSymbol();
   });
 
   const removeSymbolAttachmentModal = useLastCallback(() => {
-    removeSymbol(EDITABLE_INPUT_MODAL_ID);
+    removeSymbol();
   });
 
   const handleAllScheduledClick = useLastCallback(() => {
@@ -1444,8 +1442,10 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   const withBotMenuButton = isChatWithBot && botMenuButton?.type === 'webApp' && !editingMessage;
   const isBotMenuButtonOpen = useDerivedState(() => {
-    return withBotMenuButton && !getHtml() && !activeVoiceRecording;
-  }, [withBotMenuButton, getHtml, activeVoiceRecording]);
+    const messageIsEmpty = isMessageEmpty(getApiFormattedText());
+
+    return withBotMenuButton && messageIsEmpty && !activeVoiceRecording;
+  }, [withBotMenuButton, getApiFormattedText, activeVoiceRecording]);
 
   const [timedPlaceholderLangKey, timedPlaceholderDate] = useMemo(() => {
     if (slowMode?.nextSendDate) {
@@ -1698,6 +1698,8 @@ const Composer: FC<OwnProps & StateProps> = ({
         isForMessage={isInMessageList}
         shouldSchedule={isInScheduledList}
         forceDarkTheme={isInStoryViewer}
+        setInputApi={setInputApi}
+        getInputApi={getInputApi}
         onCaptionUpdate={onCaptionUpdate}
         onSendSilent={handleSendSilentAttachments}
         onSend={handleSendAttachmentsFromModal}
@@ -1739,7 +1741,7 @@ const Composer: FC<OwnProps & StateProps> = ({
         withUsername={Boolean(chatBotCommands)}
         botCommands={botTooltipCommands}
         quickReplies={quickReplyCommands}
-        getHtml={getHtml}
+        getApiFormattedText={getApiFormattedText}
         self={currentUser!}
         quickReplyMessages={quickReplyMessages}
         onClick={handleBotCommandSelect}
@@ -1800,7 +1802,7 @@ const Composer: FC<OwnProps & StateProps> = ({
             <WebPagePreview
               chatId={chatId}
               threadId={threadId}
-              getHtml={getHtml}
+              getApiFormattedText={getApiFormattedText}
               isDisabled={!canAttachEmbedLinks || hasAttachments}
               isEditing={Boolean(editingMessage)}
             />
@@ -2281,13 +2283,7 @@ export default memo(withGlobal<OwnProps>(
 
 /**
  *
- * @todo Check: useEmojiTooltip / insertEmoji
- * @todo add support for custom emojis insertion
- * @todo buildCustomEmojiHtml should be passed to ast/Renderer to handle custom emoji
- *
- * @tooo Check useStickerTooltip works correctly
- * @todo Check useMentionTooltipq works correctly
+ * @todo pasted links does not show WebPagePreview
  * @todo check message editing (useEditing)
- *
  *
  */

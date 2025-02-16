@@ -37,7 +37,7 @@ init();
 async function init() {
   if (DEBUG) {
     // eslint-disable-next-line no-console
-    console.log('>>> INIT');
+    // console.log('>>> INIT');
   }
 
   if (!(window as any).isCompatTestPassed) return;
@@ -79,7 +79,7 @@ async function init() {
 
   if (DEBUG) {
     // eslint-disable-next-line no-console
-    console.log('>>> START INITIAL RENDER');
+    // console.log('>>> START INITIAL RENDER');
   }
 
   requestMutation(() => {

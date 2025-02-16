@@ -265,7 +265,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const messageRef = useRef(getApiFormattedText());
 
   useLayoutEffect(() => {
-    console.log('useLayoutEffect call');
+    console.log('useLayoutEffect call %o %o', editableInputId, isActive ? 'on active state' : 'on inactive state');
 
     const message = isActive ? getApiFormattedText() : { text: '' };
 
@@ -278,7 +278,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    console.log('SET CONTENT', message);
+    console.log('SET CONTENT', editableInputId, message);
 
     inputApiRef.current.setContent(message);
 
@@ -605,6 +605,8 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   useEffect(() => {
     if (inputRef.current) {
+      console.log('setupInput: ', editableInputId);
+
       inputApiRef.current = setupInput({
         input: inputRef.current,
         onUpdate: (apiFormattedText: ApiFormattedText) => {
@@ -620,7 +622,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
       setInputApi(inputApiRef.current);
     }
-  }, [onUpdate, setInputApi]);
+  }, [onUpdate, setInputApi, editableInputId]);
 
   // const handleSend = useCallback(() => {
   //   onSend();
@@ -649,7 +651,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
                 contentEditable
                 role="textbox"
                 dir="auto"
-                aria-label="Message input"
+                aria-label={placeholder}
                 tabIndex={0}
                 onKeyDown={handleKeyDown}
               />

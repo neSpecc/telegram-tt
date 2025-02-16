@@ -5,5 +5,11 @@ import type { ApiFormattedText } from '../../../../api/types';
  * @param formattedText - both text and entities
  */
 export function isMessageEmpty(formattedText: ApiFormattedText | undefined) {
-  return formattedText?.text === '' && formattedText?.entities?.length === 0;
+  const emptyText = formattedText?.text === '';
+
+  if (formattedText?.entities === undefined) {
+    return emptyText;
+  }
+
+  return emptyText && formattedText?.entities?.length === 0;
 }

@@ -125,6 +125,8 @@ const useClipboardPaste = (
         if (shouldSetAttachments) {
           setNextText(textToPaste);
         } else {
+          console.warn('PASTE TEXT', textToPaste);
+
           insertTextAndUpdateCursor(textToPaste, input?.id);
         }
       }

@@ -1,4 +1,7 @@
+/* eslint-disable */
 import type { RefObject } from 'react';
+import type { InputApi } from '../../../../../../ast/src/api';
+/* eslint-enable */
 import { useEffect } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
@@ -26,7 +29,7 @@ const RE_ENDS_ON_EMOJI_IMG = new RegExp(`${EMOJI_IMG_REGEX.source}$`, 'g');
 export default function useCustomEmojiTooltip(
   isEnabled: boolean,
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
-  setApiFormattedText: (apiFormattedText: ApiFormattedText | undefined) => void,
+  getInputApi: Signal<InputApi | undefined>,
   getSelectionRange: Signal<Range | undefined>,
   inputRef: RefObject<HTMLDivElement>,
   customEmojis?: ApiSticker[],
@@ -36,16 +39,21 @@ export default function useCustomEmojiTooltip(
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
 
   const extractLastEmojiThrottled = useThrottledResolver(() => {
-    const message = getApiFormattedText();
-    if (!isEnabled || !message || !getSelectionRange()?.collapsed) return undefined;
+    // console.log('🤠 useCustomEmojiTooltip / extractLastEmojiThrottled -->');
 
-    const hasEmoji = message.text.match(IS_EMOJI_SUPPORTED ? twemojiRegex : EMOJI_IMG_REGEX);
+    const message = getApiFormattedText();
+    const inputApi = getInputApi()!;
+
+    if (!isEnabled || !message || !getSelectionRange()?.collapsed) return undefined;
+    if (!message.text) return undefined;
+
+    const beforeCaret = inputApi.getLeftSlice();
+    const hasEmoji = beforeCaret.match(IS_EMOJI_SUPPORTED ? twemojiRegex : EMOJI_IMG_REGEX);
+
     if (!hasEmoji) return undefined;
 
-    const htmlBeforeSelection = getHtmlBeforeSelection(inputRef.current!);
-
-    return htmlBeforeSelection.match(IS_EMOJI_SUPPORTED ? RE_ENDS_ON_EMOJI : RE_ENDS_ON_EMOJI_IMG)?.[0];
-  }, [getApiFormattedText, getSelectionRange, inputRef, isEnabled], THROTTLE);
+    return beforeCaret.match(IS_EMOJI_SUPPORTED ? RE_ENDS_ON_EMOJI : RE_ENDS_ON_EMOJI_IMG)?.[0];
+  }, [getApiFormattedText, getSelectionRange, getInputApi, isEnabled], THROTTLE);
 
   const getLastEmoji = useDerivedSignal(
     extractLastEmojiThrottled, [extractLastEmojiThrottled, getApiFormattedText, getSelectionRange], true,
@@ -71,33 +79,16 @@ export default function useCustomEmojiTooltip(
 
   const insertCustomEmoji = useLastCallback((emoji: ApiSticker) => {
     const lastEmoji = getLastEmoji();
-    if (!isEnabled || !lastEmoji) return;
+    const inputApi = getInputApi()!;
+    const leftSlice = inputApi.getLeftSlice();
+    if (!isEnabled || !lastEmoji || !inputApi) return;
 
-    const inputEl = inputRef.current!;
-    const htmlBeforeSelection = getHtmlBeforeSelection(inputEl);
-    const regexText = IS_EMOJI_SUPPORTED
-      ? lastEmoji
-      // Escape regexp special chars
-      : lastEmoji.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const regex = new RegExp(`(${regexText})\\1*$`, '');
-    const matched = htmlBeforeSelection.match(regex)![0];
-    const count = matched.length / lastEmoji.length;
-    const newHtml = htmlBeforeSelection.replace(regex, buildCustomEmojiHtml(emoji).repeat(count));
-    const htmlAfterSelection = inputEl.innerHTML.substring(htmlBeforeSelection.length);
+    const emojiMarkdown = `[${emoji.emoji}](doc:${emoji.id})`;
+    const input = getInputApi()!;
+    const lastEmojiLength = lastEmoji.length;
+    const lastEmojiIndex = leftSlice.indexOf(lastEmoji);
 
-    // setHtml(`${newHtml}${htmlAfterSelection}`);
-
-    /**
-     * @todo insert emoji as text and entity
-     */
-    setApiFormattedText({
-      ...getApiFormattedText(),
-      text: `${newHtml}${htmlAfterSelection}`,
-    });
-
-    requestNextMutation(() => {
-      focusEditableElement(inputEl, true, true);
-    });
+    input.replace(lastEmojiIndex, lastEmojiIndex + lastEmojiLength, emojiMarkdown);
   });
 
   useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getApiFormattedText]);

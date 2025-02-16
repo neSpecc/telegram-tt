@@ -1,6 +1,9 @@
+/* eslint-disable */
+import type { InputApi } from '../../../../../ast/src/api';
+/* eslint-enable */
 import type { FC } from '../../../lib/teact/teact';
 import React, {
-  memo, useEffect, useMemo, useRef, useState,
+  memo, useEffect, useMemo, useRef, useSignal, useState,
 } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
 
@@ -66,6 +69,8 @@ export type OwnProps = {
   editingMessage?: ApiMessage;
   messageListType?: MessageListType;
   getApiFormattedText: Signal<ApiFormattedText | undefined>;
+  setInputApi: (api: InputApi | undefined) => void;
+  getInputApi: Signal<InputApi | undefined>;
   canShowCustomSendMenu?: boolean;
   isReady: boolean;
   isForMessage?: boolean;
@@ -115,6 +120,8 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   threadId,
   attachments,
   getApiFormattedText,
+  // setInputApi,
+  // getInputApi,
   editingMessage,
   canShowCustomSendMenu,
   captionLimit,
@@ -153,6 +160,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   // eslint-disable-next-line no-null/no-null
   const svgRef = useRef<SVGSVGElement>(null);
   const { addRecentCustomEmoji, addRecentEmoji, updateAttachmentSettings } = getActions();
+  const [getInputApi, setInputApi] = useSignal<InputApi | undefined>(undefined);
 
   const lang = useOldLang();
 
@@ -240,33 +248,26 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   } = useCustomEmojiTooltip(
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen && shouldSuggestCustomEmoji),
     getApiFormattedText,
-    onCaptionUpdate,
+    getInputApi,
     getSelectionRange,
     inputRef,
     customEmojiForEmoji,
   );
 
-  // const {
-  //   isMentionTooltipOpen,
-  //   closeMentionTooltip,
-  //   insertMention,
-  //   mentionFilteredUsers,
-  // } = useMentionTooltip(
-  //   Boolean(isReady && isForCurrentMessageList && renderingIsOpen),
-  //   getApiFormattedText,
-  //   onCaptionUpdate,
-  //   getSelectionRange,
-  //   inputRef,
-  //   getInputApi,
-  //   groupChatMembers,
-  //   undefined,
-  //   currentUserId,
-  // );
-
-  const isMentionTooltipOpen = false;
-  const closeMentionTooltip = () => {};
-  const insertMention = () => {};
-  const mentionFilteredUsers = [];
+  const {
+    isMentionTooltipOpen,
+    closeMentionTooltip,
+    insertMention,
+    mentionFilteredUsers,
+  } = useMentionTooltip(
+    Boolean(isReady && isForCurrentMessageList && renderingIsOpen),
+    getApiFormattedText,
+    getSelectionRange,
+    getInputApi,
+    groupChatMembers,
+    undefined,
+    currentUserId,
+  );
 
   useEffect(() => (isOpen ? captureEscKeyListener(onClear) : undefined), [isOpen, onClear]);
 
@@ -696,6 +697,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
               isReady={isReady}
               isActive={isOpen}
               getApiFormattedText={getApiFormattedText}
+              setInputApi={setInputApi}
               editableInputId={EDITABLE_INPUT_MODAL_ID}
               placeholder={lang('AddCaption')}
               onUpdate={onCaptionUpdate}

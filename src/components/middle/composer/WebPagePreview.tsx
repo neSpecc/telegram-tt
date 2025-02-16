@@ -36,7 +36,7 @@ import './WebPagePreview.scss';
 type OwnProps = {
   chatId: string;
   threadId: ThreadId;
-  getHtml: Signal<string>;
+  getApiFormattedText: Signal<ApiFormattedText | undefined>;
   isEditing: boolean;
   isDisabled?: boolean;
 };
@@ -54,7 +54,7 @@ const RE_LINK = new RegExp(RE_LINK_TEMPLATE, 'i');
 const WebPagePreview: FC<OwnProps & StateProps> = ({
   chatId,
   threadId,
-  getHtml,
+  getApiFormattedText,
   isDisabled,
   webPagePreview,
   noWebPage,
@@ -80,7 +80,11 @@ const WebPagePreview: FC<OwnProps & StateProps> = ({
   const isSmallerMedia = attachmentSettings.webPageMediaSize === 'small';
 
   const detectLinkDebounced = useDebouncedResolver(() => {
-    const formattedText = parseHtmlAsFormattedText(getHtml());
+    const formattedText = getApiFormattedText();
+    if (!formattedText) {
+      return undefined;
+    }
+
     const linkEntity = formattedText.entities?.find((entity): entity is ApiMessageEntityTextUrl => (
       entity.type === ApiMessageEntityTypes.TextUrl
     ));
@@ -88,9 +92,9 @@ const WebPagePreview: FC<OwnProps & StateProps> = ({
     formattedTextWithLinkRef.current = formattedText;
 
     return linkEntity?.url || formattedText.text.match(RE_LINK)?.[0];
-  }, [getHtml], DEBOUNCE_MS, true);
+  }, [getApiFormattedText], DEBOUNCE_MS, true);
 
-  const getLink = useDerivedSignal(detectLinkDebounced, [detectLinkDebounced, getHtml], true);
+  const getLink = useDerivedSignal(detectLinkDebounced, [detectLinkDebounced, getApiFormattedText], true);
 
   useEffect(() => {
     const link = getLink();
@@ -110,8 +114,10 @@ const WebPagePreview: FC<OwnProps & StateProps> = ({
   }, [chatId, clearWebPagePreview, threadId, toggleMessageWebPage]);
 
   const isShown = useDerivedState(() => {
-    return Boolean(webPagePreview && getHtml() && !noWebPage && !isDisabled);
-  }, [isDisabled, getHtml, noWebPage, webPagePreview]);
+    const text = getApiFormattedText()?.text ?? '';
+    const textIsNotEmpty = text.length > 0;
+    return Boolean(webPagePreview && textIsNotEmpty && !noWebPage && !isDisabled);
+  }, [isDisabled, getApiFormattedText, noWebPage, webPagePreview]);
   const { shouldRender, transitionClassNames } = useShowTransitionDeprecated(isShown);
 
   const hasMediaSizeOptions = webPagePreview?.hasLargeMedia;

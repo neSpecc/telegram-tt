@@ -35,7 +35,6 @@ const useEditing = (
   draft?: ApiDraft,
   editingDraft?: ApiFormattedText,
 ): [VoidFunction, VoidFunction, boolean] => {
-  /*
   const {
     editMessage, setEditingDraft, toggleMessageWebPage, openDeleteMessageModal,
   } = getActions();
@@ -196,10 +195,6 @@ const useEditing = (
   useBeforeUnload(handleBlur);
 
   return [handleEditComplete, handleEditCancel, shouldForceShowEditing];
-
-  */
-
-  return [() => {}, () => {}, false];
 };
 
 export default useEditing;

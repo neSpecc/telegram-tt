@@ -130,7 +130,10 @@ export default function useAttachmentModal({
     shouldSuggestCompression,
     handleAppendFiles,
     handleFileSelect,
-    onCaptionUpdate: setApiFormattedText,
+    onCaptionUpdate: (apiFormattedText: ApiFormattedText) => {
+      console.log('useAttachmentModal / onCaptionUpdate', apiFormattedText);
+      setApiFormattedText(apiFormattedText);
+    },
     handleClearAttachments,
     handleSetAttachments,
     shouldForceCompression,
