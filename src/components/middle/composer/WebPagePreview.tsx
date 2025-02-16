@@ -14,6 +14,7 @@ import { RE_LINK_TEMPLATE } from '../../../config';
 import { selectNoWebPage, selectTabState, selectTheme } from '../../../global/selectors';
 import buildClassName from '../../../util/buildClassName';
 import parseHtmlAsFormattedText from '../../../util/parseHtmlAsFormattedText';
+import { isMessageEmpty } from './utils/isMessageEmpty';
 
 import { useDebouncedResolver } from '../../../hooks/useAsyncResolvers';
 import useContextMenuHandlers from '../../../hooks/useContextMenuHandlers';
@@ -81,7 +82,7 @@ const WebPagePreview: FC<OwnProps & StateProps> = ({
 
   const detectLinkDebounced = useDebouncedResolver(() => {
     const formattedText = getApiFormattedText();
-    if (!formattedText) {
+    if (!formattedText || isMessageEmpty(formattedText)) {
       return undefined;
     }
 

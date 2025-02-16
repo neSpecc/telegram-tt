@@ -994,8 +994,6 @@ const Composer: FC<OwnProps & StateProps> = ({
   });
 
   const handleSend = useLastCallback(async (isSilent = false, scheduledAt?: number) => {
-    console.log('handleSend');
-
     if (!currentMessageList && !storyId) {
       return;
     }
@@ -1015,15 +1013,9 @@ const Composer: FC<OwnProps & StateProps> = ({
       }
     }
 
-    // const { text, entities } = parseHtmlAsFormattedText(getHtml());
     const { text, entities } = getApiFormattedText() || { text: '', entities: [] };
 
-    console.log('text', text);
-    console.log('entities', entities);
-
     if (currentAttachments.length) {
-      console.log('currentAttachments', currentAttachments);
-
       sendAttachments({
         attachments: currentAttachments,
         scheduledAt,
@@ -1074,8 +1066,6 @@ const Composer: FC<OwnProps & StateProps> = ({
     clearDraft({
       chatId, threadId, isLocalOnly: true, shouldKeepReply: isForwarding,
     });
-
-    console.log('messageInput --> ', messageInput, messageInput === document.activeElement);
 
     if (IS_IOS && messageInput && messageInput === document.activeElement) {
       applyIosAutoCapitalizationFix(messageInput);
@@ -2216,5 +2206,6 @@ export default memo(withGlobal<OwnProps>(
  * @todo pasted links does not show WebPagePreview
  * @todo check message editing (useEditing)
  * @todo check all places of parseHtmlAsFormattedText — can we get rid of it?
+ * @todo ast / improve selection around links
  *
  */

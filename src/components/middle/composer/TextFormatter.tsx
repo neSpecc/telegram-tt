@@ -1,4 +1,7 @@
-import type { FC } from '../../../lib/teact/teact';
+/* eslint-disable */
+import type { InputApi } from '../../../../../ast/src/api';
+/* eslint-enable */
+import type { FC, RefObject } from '../../../lib/teact/teact';
 import React, {
   memo, useEffect, useRef, useState,
 } from '../../../lib/teact/teact';
@@ -31,6 +34,7 @@ export type OwnProps = {
   selectedRange?: Range;
   setSelectedRange: (range: Range) => void;
   onClose: () => void;
+  inputApi: RefObject<InputApi | undefined>;
 };
 
 interface ISelectedTextFormats {
@@ -60,6 +64,7 @@ const TextFormatter: FC<OwnProps> = ({
   selectedRange,
   setSelectedRange,
   onClose,
+  inputApi,
 }) => {
   // eslint-disable-next-line no-null/no-null
   const containerRef = useRef<HTMLDivElement>(null);
@@ -128,12 +133,12 @@ const TextFormatter: FC<OwnProps> = ({
     }
   });
 
-  const updateSelectedRange = useLastCallback(() => {
-    const selection = window.getSelection();
-    if (selection) {
-      setSelectedRange(selection.getRangeAt(0));
-    }
-  });
+  // const updateSelectedRange = useLastCallback(() => {
+  //   const selection = window.getSelection();
+  //   if (selection) {
+  //     setSelectedRange(selection.getRangeAt(0));
+  //   }
+  // });
 
   const getSelectedText = useLastCallback((shouldDropCustomEmoji?: boolean) => {
     if (!selectedRange) {
@@ -232,15 +237,9 @@ const TextFormatter: FC<OwnProps> = ({
 
   const handleBoldText = useLastCallback(() => {
     setSelectedTextFormats((selectedFormats) => {
-      // Somehow re-applying 'bold' command to already bold text doesn't work
-      document.execCommand(selectedFormats.bold ? 'removeFormat' : 'bold');
-      Object.keys(selectedFormats).forEach((key) => {
-        if ((key === 'italic' || key === 'underline') && Boolean(selectedFormats[key])) {
-          document.execCommand(key);
-        }
-      });
+      inputApi.current?.format('bold');
+      onClose();
 
-      updateSelectedRange();
       return {
         ...selectedFormats,
         bold: !selectedFormats.bold,
@@ -249,8 +248,9 @@ const TextFormatter: FC<OwnProps> = ({
   });
 
   const handleItalicText = useLastCallback(() => {
-    document.execCommand('italic');
-    updateSelectedRange();
+    inputApi.current?.format('italic');
+    onClose();
+    // updateSelectedRange();
     setSelectedTextFormats((selectedFormats) => ({
       ...selectedFormats,
       italic: !selectedFormats.italic,
@@ -258,8 +258,9 @@ const TextFormatter: FC<OwnProps> = ({
   });
 
   const handleUnderlineText = useLastCallback(() => {
-    document.execCommand('underline');
-    updateSelectedRange();
+    inputApi.current?.format('underline');
+    onClose();
+    // updateSelectedRange();
     setSelectedTextFormats((selectedFormats) => ({
       ...selectedFormats,
       underline: !selectedFormats.underline,
@@ -267,29 +268,20 @@ const TextFormatter: FC<OwnProps> = ({
   });
 
   const handleStrikethroughText = useLastCallback(() => {
-    if (selectedTextFormats.strikethrough) {
-      const element = getSelectedElement();
-      if (
-        !selectedRange
-        || !element
-        || element.tagName !== 'DEL'
-        || !element.textContent
-      ) {
-        return;
-      }
-
-      element.replaceWith(element.textContent);
-      setSelectedTextFormats((selectedFormats) => ({
-        ...selectedFormats,
-        strikethrough: false,
-      }));
-
-      return;
-    }
-
-    const text = getSelectedText();
-    document.execCommand('insertHTML', false, `<del>${text}</del>`);
+    inputApi.current?.format('strikethrough');
     onClose();
+    setSelectedTextFormats((selectedFormats) => ({
+      ...selectedFormats,
+      strikethrough: false,
+    }));
+    // if (selectedTextFormats.strikethrough) {
+
+    //   return;
+    // }
+
+    // const text = getSelectedText();
+    // document.execCommand('insertHTML', false, `<del>${text}</del>`);
+    // onClose();
   });
 
   const handleMonospaceText = useLastCallback(() => {

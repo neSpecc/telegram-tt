@@ -233,7 +233,6 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen),
     getApiFormattedText,
     onCaptionUpdate,
-    EDITABLE_INPUT_MODAL_ID,
     recentEmojis,
     baseEmojiKeywords,
     emojiKeywords,

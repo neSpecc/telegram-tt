@@ -265,8 +265,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const messageRef = useRef(getApiFormattedText());
 
   useLayoutEffect(() => {
-    console.log('useLayoutEffect call %o %o', editableInputId, isActive ? 'on active state' : 'on inactive state');
-
     const message = isActive ? getApiFormattedText() : { text: '' };
 
     if (areMessagesEqual(message, messageRef.current)) {
@@ -274,21 +272,12 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     }
 
     if (!inputApiRef.current) {
-      console.log('Input API is not initialized yet.');
       return;
     }
 
-    console.log('SET CONTENT', editableInputId, message);
+    console.log('SET CONTENT', message);
 
     inputApiRef.current.setContent(message);
-
-    /**
-     * @todo support cloned input for height calculation
-     */
-    // if (message !== cloneRef.current!.innerHTML) {
-    //   cloneRef.current!.innerHTML = message;
-    // }
-
     messageRef.current = message;
 
     updateInputHeight(!message);
@@ -311,7 +300,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   const handleCloseTextFormatter = useLastCallback(() => {
     closeTextFormatter();
-    clearSelection();
+    // clearSelection();
   });
 
   function checkSelection() {
@@ -452,29 +441,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     }
   }
 
-  /** @deprecated */
-  function handleChange(e: ChangeEvent<HTMLDivElement>) {
-    const { innerHTML, textContent } = e.currentTarget;
-
-    onUpdate(innerHTML === SAFARI_BR ? '' : innerHTML);
-
-    // Reset focus on the input to remove any active styling when input is cleared
-    if (
-      !IS_TOUCH_ENV
-      && (!textContent || !textContent.length)
-      // When emojis are not supported, innerHTML contains an emoji img tag that doesn't exist in the textContext
-      && !(!IS_EMOJI_SUPPORTED && innerHTML.includes('emoji-small'))
-      && !(innerHTML.includes('custom-emoji'))
-    ) {
-      const selection = window.getSelection()!;
-      if (selection) {
-        inputRef.current!.blur();
-        selection.removeAllRanges();
-        focusEditableElement(inputRef.current!, true);
-      }
-    }
-  }
-
   function handleAndroidContextMenu(e: React.MouseEvent<HTMLDivElement, MouseEvent>) {
     if (!checkSelection()) {
       return;
@@ -603,16 +569,18 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   const inputScrollerContentClass = buildClassName('input-scroller-content', isNeedPremium && 'is-need-premium');
 
+  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText) => {
+    messageRef.current = apiFormattedText;
+    onUpdate(apiFormattedText);
+  });
+
   useEffect(() => {
     if (inputRef.current) {
       console.log('setupInput: ', editableInputId);
 
       inputApiRef.current = setupInput({
         input: inputRef.current,
-        onUpdate: (apiFormattedText: ApiFormattedText) => {
-          messageRef.current = apiFormattedText;
-          onUpdate(apiFormattedText);
-        },
+        onUpdate: updateCallback,
         onHtmlUpdate: (html: string) => {
           cloneRef.current!.innerHTML = html;
           updateInputHeight(!html);
@@ -642,6 +610,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
               aria-label={placeholder}
               tabIndex={0}
               onKeyDown={handleKeyDown}
+              onMouseDown={handleMouseDown}
             />
           )}
           {!isNew && (
@@ -654,7 +623,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
               dir="auto"
               tabIndex={0}
               onClick={focusInput}
-              onChange={handleChange}
+              // onChange={handleChange}
               onKeyDown={handleKeyDown}
               onMouseDown={handleMouseDown}
               onContextMenu={IS_ANDROID ? handleAndroidContextMenu : undefined}
@@ -712,6 +681,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         selectedRange={selectedRange}
         setSelectedRange={setSelectedRange}
         onClose={handleCloseTextFormatter}
+        inputApi={inputApiRef}
       />
       {forcedPlaceholder && <span className="forced-placeholder">{renderText(forcedPlaceholder!)}</span>}
     </div>

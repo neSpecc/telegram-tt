@@ -62,7 +62,6 @@ export default function useEmojiTooltip(
   isEnabled: boolean,
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
   setApiFormattedText: (formattedText: ApiFormattedText | undefined) => void,
-  inputId = EDITABLE_INPUT_ID,
   recentEmojiIds: string[],
   baseEmojiKeywords?: Record<string, string[]>,
   emojiKeywords?: Record<string, string[]>,
@@ -162,17 +161,6 @@ export default function useEmojiTooltip(
       setApiFormattedText({
         text: newText,
         entities: newEntities,
-      });
-
-      /**
-       * @todo fix focus input
-       */
-      const messageInput = inputId === EDITABLE_INPUT_ID
-        ? document.querySelector<HTMLDivElement>(EDITABLE_INPUT_CSS_SELECTOR)!
-        : document.getElementById(inputId) as HTMLDivElement;
-
-      requestNextMutation(() => {
-        focusEditableElement(messageInput, true, true);
       });
     }
 
