@@ -10,8 +10,6 @@ import { DRAFT_DEBOUNCE } from '../../../../config';
 import {
   requestMeasure,
 } from '../../../../lib/fasterdom/fasterdom';
-import parseHtmlAsFormattedText from '../../../../util/parseHtmlAsFormattedText';
-import { getTextWithEntitiesAsHtml } from '../../../common/helpers/renderTextWithEntities';
 import { areMessagesEqual } from '../utils/areMessagesEqual';
 import { isMessageEmpty } from '../utils/isMessageEmpty';
 

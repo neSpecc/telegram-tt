@@ -10,8 +10,6 @@ import { EDITABLE_INPUT_CSS_SELECTOR } from '../../../../config';
 import { requestMeasure, requestNextMutation } from '../../../../lib/fasterdom/fasterdom';
 import { hasMessageMedia } from '../../../../global/helpers';
 import focusEditableElement from '../../../../util/focusEditableElement';
-import parseHtmlAsFormattedText from '../../../../util/parseHtmlAsFormattedText';
-import { getTextWithEntitiesAsHtml } from '../../../common/helpers/renderTextWithEntities';
 import { isMessageEmpty } from '../utils/isMessageEmpty';
 
 import { useDebouncedResolver } from '../../../../hooks/useAsyncResolvers';
@@ -60,7 +58,6 @@ const useEditing = (
     }
 
     const text = !prevEditedMessage && editingDraft?.text.length ? editingDraft : editedMessage.content.text;
-    // const html = getTextWithEntitiesAsHtml(text);
 
     setApiFormattedText(text);
     setShouldForceShowEditing(true);

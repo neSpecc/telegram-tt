@@ -1,4 +1,4 @@
-import { useCallback, useState } from '../../../../lib/teact/teact';
+import { useState } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
 import type { ApiAttachment, ApiFormattedText, ApiMessage } from '../../../../api/types';
@@ -20,7 +20,6 @@ export default function useAttachmentModal({
   canSendVideos,
   canSendPhotos,
   canSendDocuments,
-  insertNextText,
   editedMessage,
 }: {
   attachments: ApiAttachment[];
@@ -32,7 +31,6 @@ export default function useAttachmentModal({
   canSendVideos?: boolean;
   canSendPhotos?: boolean;
   canSendDocuments?: boolean;
-  insertNextText: VoidFunction;
   editedMessage: ApiMessage | undefined;
 }) {
   const lang = useOldLang();
@@ -43,7 +41,6 @@ export default function useAttachmentModal({
 
   const handleClearAttachments = useLastCallback(() => {
     setAttachments(MEMO_EMPTY_ARRAY);
-    insertNextText();
   });
 
   const handleSetAttachments = useLastCallback(

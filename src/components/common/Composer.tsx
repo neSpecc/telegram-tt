@@ -119,7 +119,6 @@ import { buildCustomEmojiHtml } from '../middle/composer/helpers/customEmoji';
 import { isSelectionInsideInput } from '../middle/composer/helpers/selection';
 import { getPeerColorClass } from './helpers/peerColor';
 import renderText from './helpers/renderText';
-import { getTextWithEntitiesAsHtml } from './helpers/renderTextWithEntities';
 
 import useInterval from '../../hooks/schedulers/useInterval';
 import useTimeout from '../../hooks/schedulers/useTimeout';
@@ -505,7 +504,6 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   const [attachments, setAttachments] = useState<ApiAttachment[]>([]);
   const hasAttachments = Boolean(attachments.length);
-  const [nextText, setNextText] = useState<ApiFormattedText | undefined>(undefined);
 
   const {
     canSendStickers, canSendGifs, canAttachMedia, canAttachPolls, canAttachEmbedLinks,
@@ -527,62 +525,14 @@ const Composer: FC<OwnProps & StateProps> = ({
     }
   }, [hasWebPagePreview]);
 
-  const insertHtmlAndUpdateCursor = useLastCallback((newHtml: string, inInputId: string = editableInputId) => {
-    console.error('❌❌❌❌ insertHtmlAndUpdateCursor', newHtml, inInputId);
-
-    if (inInputId === editableInputId && isComposerBlocked) return;
-    const selection = window.getSelection()!;
-    let messageInput: HTMLDivElement;
-    if (inInputId === editableInputId) {
-      messageInput = document.querySelector<HTMLDivElement>(editableInputCssSelector)!;
-    } else {
-      messageInput = document.getElementById(inInputId) as HTMLDivElement;
-    }
-
-    if (selection.rangeCount) {
-      const selectionRange = selection.getRangeAt(0);
-      if (isSelectionInsideInput(selectionRange, inInputId)) {
-        insertHtmlInSelection(newHtml);
-        messageInput.dispatchEvent(new Event('input', { bubbles: true }));
-        return;
-      }
-    }
-
-    setHtml(`${getHtml()}${newHtml}`);
-
-    // If selection is outside of input, set cursor at the end of input
-    requestNextMutation(() => {
-      focusEditableElement(messageInput);
-    });
-  });
-
   const insertTextAndUpdateCursor = useLastCallback((text: string) => {
-    console.log('insertTextAndUpdateCursor: ✅ rewritten to inputAPI', text);
-
     const inputApi = getInputApi()!;
     inputApi.insert(text, inputApi.getCaretOffset().end);
   });
 
-  const insertFormattedTextAndUpdateCursor = useLastCallback((
-    text: ApiFormattedText, inInputId: string = editableInputId,
-  ) => {
-    console.warn('insertFormattedTextAndUpdateCursor', text);
-
-    const newHtml = getTextWithEntitiesAsHtml(text);
-    insertHtmlAndUpdateCursor(newHtml, inInputId);
-  });
-
-  const insertCustomEmojiAndUpdateCursor = useLastCallback((emoji: ApiSticker, inInputId: string = editableInputId) => {
-    console.log('insertCustomEmojiAndUpdateCursor', emoji, inInputId);
-
+  const insertCustomEmojiAndUpdateCursor = useLastCallback((emoji: ApiSticker) => {
     const emojiMarkdown = `[${emoji.emoji}](doc:${emoji.id})`;
     insertTextAndUpdateCursor(emojiMarkdown);
-  });
-
-  const insertNextText = useLastCallback(() => {
-    if (!nextText) return;
-    insertFormattedTextAndUpdateCursor(nextText, editableInputId);
-    setNextText(undefined);
   });
 
   const {
@@ -604,7 +554,6 @@ const Composer: FC<OwnProps & StateProps> = ({
     canSendVideos,
     canSendPhotos,
     canSendDocuments,
-    insertNextText,
     editedMessage: editingMessage,
   });
 
@@ -775,7 +724,6 @@ const Composer: FC<OwnProps & StateProps> = ({
     }
 
     setAttachments(MEMO_EMPTY_ARRAY);
-    setNextText(undefined);
 
     closeEmojiTooltip();
     closeCustomEmojiTooltip();
@@ -1202,15 +1150,10 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   useEffect(() => {
     if (requestedDraft) {
-      insertFormattedTextAndUpdateCursor(requestedDraft);
+      setApiFormattedText(requestedDraft);
       resetOpenChatWithDraft();
-
-      requestNextMutation(() => {
-        const messageInput = document.getElementById(editableInputId)!;
-        focusEditableElement(messageInput, true);
-      });
     }
-  }, [editableInputId, requestedDraft, resetOpenChatWithDraft, setHtml]);
+  }, [editableInputId, requestedDraft, resetOpenChatWithDraft]);
 
   useEffect(() => {
     if (requestedDraftFiles?.length) {
