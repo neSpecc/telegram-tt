@@ -39,7 +39,6 @@ type OwnProps = {
   onLeftColumnContentChange: (content: LeftColumnContent) => void;
   shouldHideFolderTabs?: boolean;
   isForumPanelOpen?: boolean;
-  isAsideChatFoldersShown?: boolean;
 };
 
 type StateProps = {
@@ -82,7 +81,6 @@ const ChatFolders: FC<OwnProps & StateProps> = ({
   archiveSettings,
   isStoryRibbonShown,
   sessions,
-  isAsideChatFoldersShown,
 }) => {
   const {
     loadChatFolders,
@@ -336,7 +334,7 @@ const ChatFolders: FC<OwnProps & StateProps> = ({
       )}
     >
       {shouldRenderStoryRibbon && <StoryRibbon isClosing={isStoryRibbonClosing} />}
-      {shouldRenderFolders && !isAsideChatFoldersShown && (
+      {shouldRenderFolders && !shouldHideFolderTabs && (
         <TabList
           contextRootElementSelector="#LeftColumn"
           tabs={folderTabs}
@@ -346,7 +344,11 @@ const ChatFolders: FC<OwnProps & StateProps> = ({
       )}
       <Transition
         ref={transitionRef}
-        name={shouldSkipHistoryAnimations ? 'none' : lang.isRtl ? 'slideOptimizedRtl' : 'slideOptimized'}
+        name={shouldSkipHistoryAnimations
+          ? 'none'
+          : shouldHideFolderTabs
+            ? 'semiFade'
+            : lang.isRtl ? 'slideOptimizedRtl' : 'slideOptimized'}
         activeKey={activeChatFolder}
         renderCount={shouldRenderFolders ? folderTabs.length : undefined}
       >

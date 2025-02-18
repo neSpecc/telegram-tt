@@ -101,6 +101,7 @@ function LeftColumn({
     clearTwoFaError,
     openChat,
     requestNextSettingsScreen,
+    setActiveChatFolder,
   } = getActions();
 
   const [content, setContent] = useState<LeftColumnContent>(LeftColumnContent.ChatList);
@@ -554,6 +555,7 @@ function LeftColumn({
             isForumPanelOpen={isForumPanelOpen}
             onTopicSearch={handleTopicSearch}
             shouldDisplayMainMenu={shouldShowAsideFolders === false}
+            shouldHideFolderTabs={shouldShowAsideFolders}
           />
         );
     }

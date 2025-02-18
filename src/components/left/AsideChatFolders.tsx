@@ -10,7 +10,7 @@ import { ApiFormattedText, ApiMessageEntityTypes } from '../../api/types';
 import { LeftColumnContent } from '../../types';
 
 import { ALL_FOLDER_ID } from '../../config';
-import { selectTabState } from '../../global/selectors';
+import { selectIsCurrentUserPremium, selectTabState } from '../../global/selectors';
 import buildClassName from '../../util/buildClassName';
 import { getCustomEmojiMediaDataForInput, getInputCustomEmojiParams } from '../../util/emoji/customEmojiManager';
 import { MEMO_EMPTY_ARRAY } from '../../util/memo';
@@ -22,7 +22,6 @@ import useLastCallback from '../../hooks/useLastCallback';
 
 import CustomEmoji from '../common/CustomEmoji';
 import Icon from '../common/icons/Icon';
-import DropdownMenu from '../ui/DropdownMenu';
 import MainDropdownMenu from './main/MainDropdownMenu';
 
 import './AsideChatFolders.scss';
@@ -38,6 +37,7 @@ type StateProps = {
   chatFoldersById: Record<number, ApiChatFolder>;
   orderedFolderIds?: number[];
   activeChatFolder: number;
+  isCurrentUserPremium: boolean;
 };
 
 const AsideChatFolders: FC<OwnProps & StateProps> = ({
@@ -45,11 +45,10 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
   orderedFolderIds,
   activeChatFolder,
   content,
-  onFolderSelect,
   onReset,
   onContentChange,
 }) => {
-  const { setActiveChatFolder, loadChatFolders, openChat } = getActions();
+  const { loadChatFolders, setActiveChatFolder } = getActions();
   const lang = useLang();
 
   const getIconName = useMemo(() => {
@@ -114,12 +113,9 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
     loadChatFolders();
   }, []);
 
-  const handleFolderClick = (folderId: number) => {
-    if (folderId !== activeChatFolder) {
-      setActiveChatFolder({ activeChatFolder: folderId }, { forceOnHeavyAnimation: true });
-      onFolderSelect?.(folderId);
-    }
-  };
+  const handleFolderClick = useLastCallback((index: number) => {
+    setActiveChatFolder({ activeChatFolder: index }, { forceOnHeavyAnimation: true });
+  });
 
   const displayedFolders = useMemo(() => {
     if (!orderedFolderIds) {
@@ -179,7 +175,7 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
   });
 
   return (
-    <div className="VerticalChatFolders">
+    <div className="AsideChatFolders">
       <MainDropdownMenu
         shouldSkipTransition
         shouldHideSearch
@@ -190,13 +186,13 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
         onReset={onReset}
       />
       <div className="folder-items">
-        {displayedFolders.map((folder) => {
+        {displayedFolders.map((folder, index) => {
           const { titleText, icon } = getFolderTitleAndIcon(folder);
           return (
             <div
               key={folder.id}
-              className={buildClassName('folder-item', folder.id === activeChatFolder && 'active')}
-              onClick={() => handleFolderClick(folder.id)}
+              className={buildClassName('folder-item', index === activeChatFolder && 'active')}
+              onClick={() => handleFolderClick(index)}
             >
               {icon}
               {titleText}
@@ -217,13 +213,14 @@ export default memo(withGlobal<OwnProps>(
       },
     } = global;
 
-    const { activeChatFolder, content } = selectTabState(global);
+    const { activeChatFolder } = selectTabState(global);
+    const isCurrentUserPremium = selectIsCurrentUserPremium(global);
 
     return {
       chatFoldersById,
       orderedFolderIds,
       activeChatFolder,
-      content,
+      isCurrentUserPremium,
     };
   },
 )(AsideChatFolders));

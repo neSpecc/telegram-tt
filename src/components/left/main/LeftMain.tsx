@@ -44,7 +44,7 @@ type OwnProps = {
   onSettingsScreenSelect: (screen: SettingsScreens) => void;
   onTopicSearch: NoneToVoidFunction;
   onReset: () => void;
-  isAsideChatFoldersShown?: boolean;
+  shouldHideFolderTabs?: boolean;
   shouldDisplayMainMenu?: boolean;
 };
 
@@ -69,7 +69,7 @@ const LeftMain: FC<OwnProps> = ({
   onSettingsScreenSelect,
   onReset,
   onTopicSearch,
-  isAsideChatFoldersShown,
+  shouldHideFolderTabs,
   shouldDisplayMainMenu,
 }) => {
   const { closeForumPanel } = getActions();
@@ -201,12 +201,11 @@ const LeftMain: FC<OwnProps> = ({
             case LeftColumnContent.ChatList:
               return (
                 <ChatFolders
-                  shouldHideFolderTabs={isForumPanelVisible}
+                  shouldHideFolderTabs={isForumPanelVisible || shouldHideFolderTabs}
                   onSettingsScreenSelect={onSettingsScreenSelect}
                   onLeftColumnContentChange={onContentChange}
                   foldersDispatch={foldersDispatch}
                   isForumPanelOpen={isForumPanelVisible}
-                  isAsideChatFoldersShown={isAsideChatFoldersShown}
                 />
               );
             case LeftColumnContent.GlobalSearch:
