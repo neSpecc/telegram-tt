@@ -7,18 +7,14 @@ import {
   type ApiFormattedText, type ApiMessageEntityCustomEmoji, ApiMessageEntityTypes, type ApiSticker,
 } from '../../../../api/types';
 
-import { EDITABLE_INPUT_CSS_SELECTOR, EDITABLE_INPUT_ID } from '../../../../config';
-import { requestNextMutation } from '../../../../lib/fasterdom/fasterdom';
 import { selectCustomEmojiForEmojis } from '../../../../global/selectors';
 import { uncompressEmoji } from '../../../../util/emoji/emoji';
-import focusEditableElement from '../../../../util/focusEditableElement';
 import {
   buildCollectionByKey, mapValues, pickTruthy, unique, uniqueByField,
 } from '../../../../util/iteratees';
 import { MEMO_EMPTY_ARRAY } from '../../../../util/memo';
 import memoized from '../../../../util/memoized';
 import renderText from '../../../common/helpers/renderText';
-import { buildCustomEmojiHtml } from '../helpers/customEmoji';
 import { prepareForRegExp } from '../helpers/prepareForRegExp';
 
 import { useThrottledResolver } from '../../../../hooks/useAsyncResolvers';

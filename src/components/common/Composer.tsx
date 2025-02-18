@@ -56,7 +56,7 @@ import {
   SEND_MESSAGE_ACTION_INTERVAL,
   SERVICE_NOTIFICATIONS_USER_ID,
 } from '../../config';
-import { requestMeasure, requestNextMutation } from '../../lib/fasterdom/fasterdom';
+import { requestMeasure } from '../../lib/fasterdom/fasterdom';
 import {
   canEditMedia,
   getAllowedAttachmentOptions,
@@ -106,17 +106,15 @@ import { formatMediaDuration, formatVoiceRecordDuration } from '../../util/dates
 import { processDeepLink } from '../../util/deeplink';
 import { tryParseDeepLink } from '../../util/deepLinkParser';
 import { processMessageInputForCustomEmoji } from '../../util/emoji/customEmojiManager';
-import focusEditableElement from '../../util/focusEditableElement';
+
 import { MEMO_EMPTY_ARRAY } from '../../util/memo';
 import parseHtmlAsFormattedText from '../../util/parseHtmlAsFormattedText';
-import { insertHtmlInSelection } from '../../util/selection';
 import { getServerTime } from '../../util/serverTime';
 import { IS_IOS, IS_VOICE_RECORDING_SUPPORTED } from '../../util/windowEnvironment';
 import windowSize from '../../util/windowSize';
 import applyIosAutoCapitalizationFix from '../middle/composer/helpers/applyIosAutoCapitalizationFix';
 import buildAttachment, { prepareAttachmentsToSend } from '../middle/composer/helpers/buildAttachment';
 import { buildCustomEmojiHtml } from '../middle/composer/helpers/customEmoji';
-import { isSelectionInsideInput } from '../middle/composer/helpers/selection';
 import { getPeerColorClass } from './helpers/peerColor';
 import renderText from './helpers/renderText';
 
@@ -424,16 +422,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   // eslint-disable-next-line no-null/no-null
   const storyReactionRef = useRef<HTMLButtonElement>(null);
 
-  /** @deprecated */
-  const [getHtml, setHtml] = useSignal('');
-  const [getApiFormattedText, setApiFormattedText__] = useSignal<ApiFormattedText | undefined>(undefined);
-
-  const setApiFormattedText = useLastCallback((apiFormattedText: ApiFormattedText | undefined) => {
-    console.warn('setApiFormattedText call', apiFormattedText);
-
-    setApiFormattedText__(apiFormattedText);
-  });
-
+  const [getApiFormattedText, setApiFormattedText] = useSignal<ApiFormattedText | undefined>(undefined);
   const [getInputApi, setInputApi] = useSignal<InputApi | undefined>(undefined);
 
   const [isMounted, setIsMounted] = useState(false);
@@ -460,7 +449,7 @@ const Composer: FC<OwnProps & StateProps> = ({
 
   const isSentStoryReactionHeart = sentStoryReaction && isSameReaction(sentStoryReaction, HEART_REACTION);
 
-  useEffect(processMessageInputForCustomEmoji, [getHtml]);
+  useEffect(processMessageInputForCustomEmoji, [getApiFormattedText]);
 
   const customEmojiNotificationNumber = useRef(0);
 
@@ -658,37 +647,22 @@ const Composer: FC<OwnProps & StateProps> = ({
     currentUserId,
   );
 
-  // const isMentionTooltipOpen = false;
-  // const closeMentionTooltip = () => {};
-  // const insertMention = () => {};
-  // const mentionFilteredUsers = [];
-
-  // const {
-  //   isOpen: isInlineBotTooltipOpen,
-  //   botId: inlineBotId,
-  //   isGallery: isInlineBotTooltipGallery,
-  //   switchPm: inlineBotSwitchPm,
-  //   switchWebview: inlineBotSwitchWebview,
-  //   results: inlineBotResults,
-  //   closeTooltip: closeInlineBotTooltip,
-  //   help: inlineBotHelp,
-  //   loadMore: loadMoreForInlineBot,
-  // } = useInlineBotTooltip(
-  //   Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
-  //   chatId,
-  //   getApiFormattedText,
-  //   inlineBots,
-  // );
-
-  const isInlineBotTooltipOpen = false;
-  const inlineBotId = '';
-  const isInlineBotTooltipGallery = false;
-  const inlineBotSwitchPm = '';
-  const inlineBotSwitchWebview = '';
-  const inlineBotResults = [];
-  const closeInlineBotTooltip = () => {};
-  const inlineBotHelp = '';
-  const loadMoreForInlineBot = () => {};
+  const {
+    isOpen: isInlineBotTooltipOpen,
+    botId: inlineBotId,
+    isGallery: isInlineBotTooltipGallery,
+    switchPm: inlineBotSwitchPm,
+    switchWebview: inlineBotSwitchWebview,
+    results: inlineBotResults,
+    closeTooltip: closeInlineBotTooltip,
+    help: inlineBotHelp,
+    loadMore: loadMoreForInlineBot,
+  } = useInlineBotTooltip(
+    Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
+    chatId,
+    getApiFormattedText,
+    inlineBots,
+  );
 
   const hasQuickReplies = Boolean(quickReplies && Object.keys(quickReplies).length);
 
@@ -741,6 +715,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   const [handleEditComplete, handleEditCancel, shouldForceShowEditing] = useEditing(
     getApiFormattedText,
     setApiFormattedText,
+    getInputApi,
     editingMessage,
     resetComposer,
     chatId,
@@ -1143,7 +1118,7 @@ const Composer: FC<OwnProps & StateProps> = ({
       setApiFormattedText(requestedDraft);
       resetOpenChatWithDraft();
     }
-  }, [editableInputId, requestedDraft, resetOpenChatWithDraft]);
+  }, [requestedDraft, resetOpenChatWithDraft, setApiFormattedText]);
 
   useEffect(() => {
     if (requestedDraftFiles?.length) {
@@ -1244,8 +1219,6 @@ const Composer: FC<OwnProps & StateProps> = ({
         }, scheduledAt, currentMessageList!);
       });
     } else {
-      console.log('inlineResult', inlineResult);
-
       sendInlineBotResult({
         id: inlineResult.id,
         queryId: inlineResult.queryId,
@@ -1322,8 +1295,8 @@ const Composer: FC<OwnProps & StateProps> = ({
   useEffect(() => {
     if (!isComposerBlocked) return;
 
-    setHtml('');
-  }, [isComposerBlocked, setHtml, attachments]);
+    setApiFormattedText(undefined);
+  }, [isComposerBlocked, setApiFormattedText, attachments]);
 
   const insertTextAndUpdateCursorAttachmentModal = useLastCallback((text: string) => {
     insertTextAndUpdateCursor(text);
@@ -2202,10 +2175,5 @@ export default memo(withGlobal<OwnProps>(
 )(Composer));
 
 /**
- *
- * @todo pasted links does not show WebPagePreview
- * @todo check message editing (useEditing)
  * @todo check all places of parseHtmlAsFormattedText — can we get rid of it?
- * @todo ast / improve selection around links
- *
  */

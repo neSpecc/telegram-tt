@@ -1,8 +1,8 @@
-import type { ChangeEvent, RefObject } from 'react';
+import type { RefObject } from 'react';
 import type { FC } from '../../../lib/teact/teact';
 import React, {
   getIsHeavyAnimating,
-  memo, useCallback,
+  memo,
   useEffect, useLayoutEffect,
   useRef, useState,
 } from '../../../lib/teact/teact';
@@ -22,10 +22,9 @@ import buildClassName from '../../../util/buildClassName';
 import captureKeyboardListeners from '../../../util/captureKeyboardListeners';
 import { getIsDirectTextInputDisabled } from '../../../util/directInputManager';
 import parseEmojiOnlyString from '../../../util/emoji/parseEmojiOnlyString';
-import focusEditableElement from '../../../util/focusEditableElement';
 import { debounce } from '../../../util/schedulers';
 import {
-  IS_ANDROID, IS_EMOJI_SUPPORTED, IS_IOS, IS_TOUCH_ENV,
+  IS_ANDROID, IS_IOS, IS_TOUCH_ENV,
 } from '../../../util/windowEnvironment';
 /* eslint-disable */
 import { setupInput } from '../../../../../ast/src/input'
@@ -70,7 +69,6 @@ type OwnProps = {
   editableInputId?: string;
   isReady: boolean;
   isActive: boolean;
-  // getHtml: Signal<string>;
   getApiFormattedText: Signal<ApiFormattedText | undefined>;
   placeholder: string;
   timedPlaceholderLangKey?: string;
@@ -105,24 +103,9 @@ const TAB_INDEX_PRIORITY_TIMEOUT = 2000;
 // Heuristics allowing the user to make a triple click
 const SELECTION_RECALCULATE_DELAY_MS = 260;
 const TEXT_FORMATTER_SAFE_AREA_PX = 140;
-// For some reason Safari inserts `<br>` after user removes text from input
-const SAFARI_BR = '<br>';
 const IGNORE_KEYS = [
   'Esc', 'Escape', 'Enter', 'PageUp', 'PageDown', 'Meta', 'Alt', 'Ctrl', 'ArrowDown', 'ArrowUp', 'Control', 'Shift',
 ];
-
-function clearSelection() {
-  const selection = window.getSelection();
-  if (!selection) {
-    return;
-  }
-
-  if (selection.removeAllRanges) {
-    selection.removeAllRanges();
-  } else if (selection.empty) {
-    selection.empty();
-  }
-}
 
 const MessageInput: FC<OwnProps & StateProps> = ({
   isNew,
@@ -136,7 +119,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   editableInputId,
   isReady,
   isActive,
-  // getHtml,
   getApiFormattedText,
   placeholder,
   timedPlaceholderLangKey,
@@ -275,8 +257,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    console.log('SET CONTENT', message);
-
     inputApiRef.current.setContent(message);
     messageRef.current = message;
 
@@ -295,7 +275,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    focusEditableElement(inputRef.current!);
+    inputApiRef.current?.focus();
   });
 
   const handleCloseTextFormatter = useLastCallback(() => {
@@ -515,7 +495,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         && target.tagName !== 'TEXTAREA'
         && !target.isContentEditable
       ) {
-        focusEditableElement(input, true, true);
+        inputApiRef.current?.focus();
 
         const newEvent = new KeyboardEvent(e.type, e as any);
         input.dispatchEvent(newEvent);

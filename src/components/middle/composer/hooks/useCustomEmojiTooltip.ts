@@ -9,10 +9,7 @@ import type { ApiFormattedText, ApiSticker } from '../../../../api/types';
 import type { Signal } from '../../../../util/signals';
 
 import { EMOJI_IMG_REGEX } from '../../../../config';
-import { requestNextMutation } from '../../../../lib/fasterdom/fasterdom';
 import twemojiRegex from '../../../../lib/twemojiRegex';
-import focusEditableElement from '../../../../util/focusEditableElement';
-import { getHtmlBeforeSelection } from '../../../../util/selection';
 import { IS_EMOJI_SUPPORTED } from '../../../../util/windowEnvironment';
 import { buildCustomEmojiHtml } from '../helpers/customEmoji';
 

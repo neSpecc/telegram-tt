@@ -1,23 +1,17 @@
-import type { RefObject } from 'react';
 import { useEffect, useState } from '../../../../lib/teact/teact';
 import { getGlobal } from '../../../../global';
 
 import type {
-  ApiChatMember, ApiFormattedText, ApiMessageEntity, ApiMessageEntityMentionName, ApiUser,
+  ApiChatMember, ApiFormattedText, ApiUser,
 } from '../../../../api/types';
 import type { Signal } from '../../../../util/signals';
-import { ApiMessageEntityTypes } from '../../../../api/types';
 
-import { requestNextMutation } from '../../../../lib/fasterdom/fasterdom';
 import { filterUsersByName, getMainUsername, getUserFirstOrLastName } from '../../../../global/helpers';
-import focusEditableElement from '../../../../util/focusEditableElement';
 import { pickTruthy, unique } from '../../../../util/iteratees';
-import { getCaretPosition, getHtmlBeforeSelection, setCaretPosition } from '../../../../util/selection';
 /* eslint-disable */
 import { InputApi } from '../../../../../../ast/src/api';
-/* eslint-enable */
-import { prepareForRegExp } from '../helpers/prepareForRegExp';
 
+/* eslint-enable */
 import { useThrottledResolver } from '../../../../hooks/useAsyncResolvers';
 import useDerivedSignal from '../../../../hooks/useDerivedSignal';
 import useFlag from '../../../../hooks/useFlag';
@@ -128,14 +122,6 @@ export default function useMentionTooltip(
     const inputApi = getInputApi()!;
 
     const offset = inputApi.getCaretOffset();
-    /**
-     *
-     *
-     *
-     * @todo text names
-     *
-     *
-     */
     const name = mainUsername ? `@${mainUsername}` : userFirstOrLastName;
     const mention = `[${name}](id:${user.id})`;
 

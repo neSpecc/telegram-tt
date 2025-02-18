@@ -1,3 +1,6 @@
+/* eslint-disable */
+import type { InputApi } from '../../../../../../ast/src/api';
+/* eslint-enable */
 import { useEffect, useState } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
@@ -9,7 +12,6 @@ import { ApiMessageEntityTypes } from '../../../../api/types';
 import { EDITABLE_INPUT_CSS_SELECTOR } from '../../../../config';
 import { requestMeasure, requestNextMutation } from '../../../../lib/fasterdom/fasterdom';
 import { hasMessageMedia } from '../../../../global/helpers';
-import focusEditableElement from '../../../../util/focusEditableElement';
 import { isMessageEmpty } from '../utils/isMessageEmpty';
 
 import { useDebouncedResolver } from '../../../../hooks/useAsyncResolvers';
@@ -25,6 +27,7 @@ const DEBOUNCE_MS = 300;
 const useEditing = (
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
   setApiFormattedText: (apiFormattedText: ApiFormattedText | undefined) => void,
+  getInputApi: () => InputApi | undefined,
   editedMessage: ApiMessage | undefined,
   resetComposer: (shouldPreserveInput?: boolean) => void,
   chatId: string,
@@ -41,8 +44,6 @@ const useEditing = (
   const replyingToId = draft?.replyInfo?.replyToMsgId;
 
   useEffectWithPrevDeps(([prevEditedMessage, prevReplyingToId]) => {
-    console.log('message editing useEffectWithPrevDeps', editedMessage);
-
     if (!editedMessage) {
       return;
     }
@@ -65,10 +66,10 @@ const useEditing = (
     requestNextMutation(() => {
       const messageInput = document.querySelector<HTMLDivElement>(EDITABLE_INPUT_CSS_SELECTOR);
       if (messageInput) {
-        focusEditableElement(messageInput, true);
+        getInputApi()?.focus();
       }
     });
-  }, [editedMessage, replyingToId, editingDraft, setApiFormattedText]);
+  }, [editedMessage, replyingToId, editingDraft, setApiFormattedText, getInputApi]);
 
   useEffect(() => {
     if (!editedMessage) {
@@ -140,7 +141,7 @@ const useEditing = (
       requestNextMutation(() => {
         const messageInput = document.querySelector<HTMLDivElement>(EDITABLE_INPUT_CSS_SELECTOR);
         if (messageInput) {
-          focusEditableElement(messageInput, true);
+          getInputApi()?.focus();
         }
       });
     });
