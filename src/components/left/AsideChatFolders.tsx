@@ -1,6 +1,6 @@
 import type { FC } from '../../lib/teact/teact';
 import React, {
-  memo, useEffect, useMemo, useState,
+  createPortal, memo, useEffect, useMemo, useState,
 } from '../../lib/teact/teact';
 import { getActions, getGlobal, withGlobal } from '../../global';
 
@@ -155,28 +155,31 @@ const VerticalChatFolders: FC<OwnProps & StateProps> = ({
 
   return (
     <div className="VerticalChatFolders">
-      {/* <DropdownMenu
-        trigger={MainButton}
-        footer={`${APP_NAME} ${versionString}`}
-        className={buildClassName(
-          'main-menu',
-          oldLang.isRtl && 'rtl',
-          shouldHideSearch && oldLang.isRtl && 'right-aligned',
-          shouldDisableDropdownMenuTransitionRef.current && oldLang.isRtl && 'disable-transition',
-        )}
-        forceOpen={isBotMenuOpen}
-        positionX={shouldHideSearch && oldLang.isRtl ? 'right' : 'left'}
-        transformOriginX={IS_ELECTRON && IS_MAC_OS && !isFullscreen ? 90 : undefined}
-        onTransitionEnd={oldLang.isRtl ? handleDropdownMenuTransitionEnd : undefined}
-      >
-        <LeftSideMenuItems
-          onSelectArchived={onSelectArchived}
-          onSelectContacts={onSelectContacts}
-          onSelectSettings={onSelectSettings}
-          onBotMenuOpened={markBotMenuOpen}
-          onBotMenuClosed={unmarkBotMenuOpen}
-        />
-      </DropdownMenu> */}
+      {createPortal(
+        <DropdownMenu
+          trigger={MainButton}
+          footer={`${APP_NAME} ${versionString}`}
+          className={buildClassName(
+            'main-menu',
+            oldLang.isRtl && 'rtl',
+            shouldHideSearch && oldLang.isRtl && 'right-aligned',
+            shouldDisableDropdownMenuTransitionRef.current && oldLang.isRtl && 'disable-transition',
+          )}
+          forceOpen={isBotMenuOpen}
+          positionX={shouldHideSearch && oldLang.isRtl ? 'right' : 'left'}
+          transformOriginX={IS_ELECTRON && IS_MAC_OS && !isFullscreen ? 90 : undefined}
+          onTransitionEnd={oldLang.isRtl ? handleDropdownMenuTransitionEnd : undefined}
+        >
+          <LeftSideMenuItems
+            onSelectArchived={onSelectArchived}
+            onSelectContacts={onSelectContacts}
+            onSelectSettings={onSelectSettings}
+            onBotMenuOpened={markBotMenuOpen}
+            onBotMenuClosed={unmarkBotMenuOpen}
+          />
+        </DropdownMenu>,
+        document.getElementById('LeftMainHeader')!,
+      )}
       <div className="folder-items">
         {displayedFolders.map((folder) => {
           const { titleText, icon } = getFolderTitleAndIcon(folder);

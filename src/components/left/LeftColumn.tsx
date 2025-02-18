@@ -33,6 +33,7 @@ import './LeftColumn.scss';
 
 interface OwnProps {
   ref: RefObject<HTMLDivElement>;
+  isAsideChatFoldersShown?: boolean;
 }
 
 type StateProps = {
@@ -86,6 +87,7 @@ function LeftColumn({
   isClosingSearch,
   archiveSettings,
   isArchivedStoryRibbonShown,
+  isAsideChatFoldersShown,
 }: OwnProps & StateProps) {
   const {
     setGlobalSearchQuery,
@@ -540,6 +542,7 @@ function LeftColumn({
             isElectronUpdateAvailable={isElectronUpdateAvailable}
             isForumPanelOpen={isForumPanelOpen}
             onTopicSearch={handleTopicSearch}
+            isAsideChatFoldersShown={isAsideChatFoldersShown}
           />
         );
     }

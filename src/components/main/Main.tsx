@@ -3,6 +3,7 @@ import '../../global/actions/all';
 import React, {
   beginHeavyAnimation,
   memo, useEffect, useLayoutEffect,
+  useMemo,
   useRef, useState,
 } from '../../lib/teact/teact';
 import { addExtraClass } from '../../lib/teact/teact-dom';
@@ -141,6 +142,7 @@ type StateProps = {
   noRightColumnAnimation?: boolean;
   withInterfaceAnimations?: boolean;
   isSynced?: boolean;
+  orderedFolderIds?: number[];
 };
 
 const APP_OUTDATED_TIMEOUT_MS = 5 * 60 * 1000; // 5 min
@@ -194,6 +196,7 @@ const Main = ({
   noRightColumnAnimation,
   isSynced,
   currentUserId,
+  orderedFolderIds,
 }: OwnProps & StateProps) => {
   const {
     initMain,
@@ -268,6 +271,15 @@ const Main = ({
   const leftColumnRef = useRef<HTMLDivElement>(null);
 
   const { isDesktop } = useAppLayout();
+
+  const shouldShowAsideFolders = useMemo(() => {
+    if (!orderedFolderIds || !isDesktop) {
+      return false;
+    }
+    // Same logic as in ChatFolders
+    return orderedFolderIds.length > 1;
+  }, [orderedFolderIds, isDesktop]);
+
   useEffect(() => {
     if (!isLeftColumnOpen && !isMiddleColumnOpen && !isDesktop) {
       // Always display at least one column
@@ -537,8 +549,8 @@ const Main = ({
 
   return (
     <div ref={containerRef} id="Main" className={className}>
-      <AsideChatFolders />
-      <LeftColumn ref={leftColumnRef} />
+      {shouldShowAsideFolders && <AsideChatFolders />}
+      <LeftColumn ref={leftColumnRef} isAsideChatFoldersShown={shouldShowAsideFolders} />
       <MiddleColumn leftColumnRef={leftColumnRef} isMobile={isMobile} />
       <RightColumn isMobile={isMobile} />
       <MediaViewer isOpen={isMediaViewerOpen} />
@@ -602,6 +614,9 @@ export default memo(withGlobal<OwnProps>(
         byKey: {
           wasTimeFormatSetManually,
         },
+      },
+      chatFolders: {
+        orderedIds: orderedFolderIds,
       },
       currentUserId,
     } = global;
@@ -683,6 +698,7 @@ export default memo(withGlobal<OwnProps>(
       requestedDraft,
       noRightColumnAnimation,
       isSynced: global.isSynced,
+      orderedFolderIds,
     };
   },
 )(Main));
