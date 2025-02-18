@@ -1,3 +1,6 @@
+@use "../../styles/mixins";
+
+
 .VerticalChatFolders {
   display: flex;
   flex-direction: column;
@@ -49,5 +52,14 @@
         height: var(--custom-emoji-size);
       }
     }
+  }
+
+  .main-menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .animated-menu-icon {
+    @include mixins.animated-menu-icon();
   }
 }

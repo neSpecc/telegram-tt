@@ -60,7 +60,6 @@ import CustomEmojiSetsModal from '../common/CustomEmojiSetsModal.async';
 import DeleteMessageModal from '../common/DeleteMessageModal.async';
 import StickerSetModal from '../common/StickerSetModal.async';
 import UnreadCount from '../common/UnreadCounter';
-import AsideChatFolders from '../left/AsideChatFolders';
 import LeftColumn from '../left/LeftColumn';
 import MediaViewer from '../mediaViewer/MediaViewer.async';
 import ReactionPicker from '../middle/message/reactions/ReactionPicker.async';
@@ -142,7 +141,6 @@ type StateProps = {
   noRightColumnAnimation?: boolean;
   withInterfaceAnimations?: boolean;
   isSynced?: boolean;
-  orderedFolderIds?: number[];
 };
 
 const APP_OUTDATED_TIMEOUT_MS = 5 * 60 * 1000; // 5 min
@@ -196,7 +194,6 @@ const Main = ({
   noRightColumnAnimation,
   isSynced,
   currentUserId,
-  orderedFolderIds,
 }: OwnProps & StateProps) => {
   const {
     initMain,
@@ -271,14 +268,6 @@ const Main = ({
   const leftColumnRef = useRef<HTMLDivElement>(null);
 
   const { isDesktop } = useAppLayout();
-
-  const shouldShowAsideFolders = useMemo(() => {
-    if (!orderedFolderIds || !isDesktop) {
-      return false;
-    }
-    // Same logic as in ChatFolders
-    return orderedFolderIds.length > 1;
-  }, [orderedFolderIds, isDesktop]);
 
   useEffect(() => {
     if (!isLeftColumnOpen && !isMiddleColumnOpen && !isDesktop) {
@@ -549,8 +538,7 @@ const Main = ({
 
   return (
     <div ref={containerRef} id="Main" className={className}>
-      {shouldShowAsideFolders && <AsideChatFolders />}
-      <LeftColumn ref={leftColumnRef} isAsideChatFoldersShown={shouldShowAsideFolders} />
+      <LeftColumn ref={leftColumnRef} />
       <MiddleColumn leftColumnRef={leftColumnRef} isMobile={isMobile} />
       <RightColumn isMobile={isMobile} />
       <MediaViewer isOpen={isMediaViewerOpen} />
@@ -614,9 +602,6 @@ export default memo(withGlobal<OwnProps>(
         byKey: {
           wasTimeFormatSetManually,
         },
-      },
-      chatFolders: {
-        orderedIds: orderedFolderIds,
       },
       currentUserId,
     } = global;
@@ -698,7 +683,6 @@ export default memo(withGlobal<OwnProps>(
       requestedDraft,
       noRightColumnAnimation,
       isSynced: global.isSynced,
-      orderedFolderIds,
     };
   },
 )(Main));

@@ -17,6 +17,7 @@ import {
 } from '../../util/windowEnvironment';
 
 import useFoldersReducer from '../../hooks/reducers/useFoldersReducer';
+import useAppLayout from '../../hooks/useAppLayout';
 import { useHotkeys } from '../../hooks/useHotkeys';
 import useLastCallback from '../../hooks/useLastCallback';
 import usePrevious from '../../hooks/usePrevious';
@@ -25,6 +26,7 @@ import useSyncEffect from '../../hooks/useSyncEffect';
 
 import Transition from '../ui/Transition';
 import ArchivedChats from './ArchivedChats.async';
+import AsideChatFolders from './AsideChatFolders';
 import LeftMain from './main/LeftMain';
 import NewChat from './newChat/NewChat.async';
 import Settings from './settings/Settings.async';
@@ -33,7 +35,6 @@ import './LeftColumn.scss';
 
 interface OwnProps {
   ref: RefObject<HTMLDivElement>;
-  isAsideChatFoldersShown?: boolean;
 }
 
 type StateProps = {
@@ -53,6 +54,7 @@ type StateProps = {
   isClosingSearch?: boolean;
   archiveSettings: GlobalState['archiveSettings'];
   isArchivedStoryRibbonShown?: boolean;
+  orderedFolderIds?: number[];
 };
 
 enum ContentType {
@@ -87,7 +89,7 @@ function LeftColumn({
   isClosingSearch,
   archiveSettings,
   isArchivedStoryRibbonShown,
-  isAsideChatFoldersShown,
+  orderedFolderIds,
 }: OwnProps & StateProps) {
   const {
     setGlobalSearchQuery,
@@ -475,6 +477,15 @@ function LeftColumn({
     });
   }, [prevSettingsScreenRef, ref]);
 
+  const { isDesktop } = useAppLayout();
+
+  const shouldShowAsideFolders = useMemo(() => {
+    if (!orderedFolderIds || !isDesktop) {
+      return false;
+    }
+    return orderedFolderIds.length > 1;
+  }, [orderedFolderIds, isDesktop]);
+
   function renderContent(isActive: boolean) {
     switch (contentType) {
       case ContentType.Archived:
@@ -542,27 +553,36 @@ function LeftColumn({
             isElectronUpdateAvailable={isElectronUpdateAvailable}
             isForumPanelOpen={isForumPanelOpen}
             onTopicSearch={handleTopicSearch}
-            isAsideChatFoldersShown={isAsideChatFoldersShown}
+            shouldDisplayMainMenu={shouldShowAsideFolders === false}
           />
         );
     }
   }
 
   return (
-    <Transition
-      ref={ref}
-      name={shouldSkipHistoryAnimations ? 'none' : LAYERS_ANIMATION_NAME}
-      renderCount={RENDER_COUNT}
-      activeKey={contentType}
-      shouldCleanup
-      cleanupExceptionKey={ContentType.Main}
-      shouldWrap
-      wrapExceptionKey={ContentType.Main}
-      id="LeftColumn"
-      withSwipeControl
-    >
-      {renderContent}
-    </Transition>
+    <>
+      {shouldShowAsideFolders && (
+        <AsideChatFolders
+          content={content}
+          onReset={handleReset}
+          onContentChange={setContent}
+        />
+      )}
+      <Transition
+        ref={ref}
+        name={shouldSkipHistoryAnimations ? 'none' : LAYERS_ANIMATION_NAME}
+        renderCount={RENDER_COUNT}
+        activeKey={contentType}
+        shouldCleanup
+        cleanupExceptionKey={ContentType.Main}
+        shouldWrap
+        wrapExceptionKey={ContentType.Main}
+        id="LeftColumn"
+        withSwipeControl
+      >
+        {renderContent}
+      </Transition>
+    </>
   );
 }
 
@@ -590,6 +610,9 @@ export default memo(withGlobal<OwnProps>(
       isAppUpdateAvailable,
       isElectronUpdateAvailable,
       archiveSettings,
+      chatFolders: {
+        orderedIds: orderedFolderIds,
+      },
     } = global;
 
     const currentChat = selectCurrentChat(global);
@@ -614,6 +637,7 @@ export default memo(withGlobal<OwnProps>(
       isClosingSearch: tabState.globalSearch.isClosing,
       archiveSettings,
       isArchivedStoryRibbonShown: isArchivedRibbonShown,
+      orderedFolderIds,
     };
   },
 )(LeftColumn));

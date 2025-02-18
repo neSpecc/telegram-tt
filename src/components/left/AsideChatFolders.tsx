@@ -7,6 +7,7 @@ import { getActions, getGlobal, withGlobal } from '../../global';
 import type { ApiChatFolder } from '../../api/types';
 import type { IconName } from '../../types/icons';
 import { ApiFormattedText, ApiMessageEntityTypes } from '../../api/types';
+import { LeftColumnContent } from '../../types';
 
 import { ALL_FOLDER_ID } from '../../config';
 import { selectTabState } from '../../global/selectors';
@@ -15,16 +16,22 @@ import { getCustomEmojiMediaDataForInput, getInputCustomEmojiParams } from '../.
 import { MEMO_EMPTY_ARRAY } from '../../util/memo';
 import { buildCustomEmojiHtml } from '../middle/composer/helpers/customEmoji';
 
+import useFlag from '../../hooks/useFlag';
 import useLang from '../../hooks/useLang';
+import useLastCallback from '../../hooks/useLastCallback';
 
 import CustomEmoji from '../common/CustomEmoji';
 import Icon from '../common/icons/Icon';
 import DropdownMenu from '../ui/DropdownMenu';
+import MainDropdownMenu from './main/MainDropdownMenu';
 
 import './AsideChatFolders.scss';
 
 type OwnProps = {
   onFolderSelect?: (folderId: number) => void;
+  content: LeftColumnContent;
+  onContentChange: (content: LeftColumnContent) => void;
+  onReset: NoneToVoidFunction;
 };
 
 type StateProps = {
@@ -33,13 +40,16 @@ type StateProps = {
   activeChatFolder: number;
 };
 
-const VerticalChatFolders: FC<OwnProps & StateProps> = ({
+const AsideChatFolders: FC<OwnProps & StateProps> = ({
   chatFoldersById,
   orderedFolderIds,
   activeChatFolder,
+  content,
   onFolderSelect,
+  onReset,
+  onContentChange,
 }) => {
-  const { setActiveChatFolder, loadChatFolders } = getActions();
+  const { setActiveChatFolder, loadChatFolders, openChat } = getActions();
   const lang = useLang();
 
   const getIconName = useMemo(() => {
@@ -153,33 +163,32 @@ const VerticalChatFolders: FC<OwnProps & StateProps> = ({
     return { titleText, icon };
   };
 
+  const { closeForumPanel } = getActions();
+
+  const handleSelectSettings = useLastCallback(() => {
+    onContentChange(LeftColumnContent.Settings);
+  });
+
+  const handleSelectContacts = useLastCallback(() => {
+    onContentChange(LeftColumnContent.Contacts);
+  });
+
+  const handleSelectArchived = useLastCallback(() => {
+    onContentChange(LeftColumnContent.Archived);
+    closeForumPanel();
+  });
+
   return (
     <div className="VerticalChatFolders">
-      {createPortal(
-        <DropdownMenu
-          trigger={MainButton}
-          footer={`${APP_NAME} ${versionString}`}
-          className={buildClassName(
-            'main-menu',
-            oldLang.isRtl && 'rtl',
-            shouldHideSearch && oldLang.isRtl && 'right-aligned',
-            shouldDisableDropdownMenuTransitionRef.current && oldLang.isRtl && 'disable-transition',
-          )}
-          forceOpen={isBotMenuOpen}
-          positionX={shouldHideSearch && oldLang.isRtl ? 'right' : 'left'}
-          transformOriginX={IS_ELECTRON && IS_MAC_OS && !isFullscreen ? 90 : undefined}
-          onTransitionEnd={oldLang.isRtl ? handleDropdownMenuTransitionEnd : undefined}
-        >
-          <LeftSideMenuItems
-            onSelectArchived={onSelectArchived}
-            onSelectContacts={onSelectContacts}
-            onSelectSettings={onSelectSettings}
-            onBotMenuOpened={markBotMenuOpen}
-            onBotMenuClosed={unmarkBotMenuOpen}
-          />
-        </DropdownMenu>,
-        document.getElementById('LeftMainHeader')!,
-      )}
+      <MainDropdownMenu
+        shouldSkipTransition
+        shouldHideSearch
+        onSelectArchived={handleSelectArchived}
+        onSelectContacts={handleSelectContacts}
+        onSelectSettings={handleSelectSettings}
+        content={content}
+        onReset={onReset}
+      />
       <div className="folder-items">
         {displayedFolders.map((folder) => {
           const { titleText, icon } = getFolderTitleAndIcon(folder);
@@ -208,12 +217,13 @@ export default memo(withGlobal<OwnProps>(
       },
     } = global;
 
-    const { activeChatFolder } = selectTabState(global);
+    const { activeChatFolder, content } = selectTabState(global);
 
     return {
       chatFoldersById,
       orderedFolderIds,
       activeChatFolder,
+      content,
     };
   },
-)(VerticalChatFolders));
+)(AsideChatFolders));

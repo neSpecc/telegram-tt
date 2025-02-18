@@ -40,11 +40,10 @@ import Icon from '../../common/icons/Icon';
 import PeerChip from '../../common/PeerChip';
 import StoryToggler from '../../story/StoryToggler';
 import Button from '../../ui/Button';
-import DropdownMenu from '../../ui/DropdownMenu';
 import SearchInput from '../../ui/SearchInput';
 import ShowTransition from '../../ui/ShowTransition';
 import ConnectionStatusOverlay from '../ConnectionStatusOverlay';
-import LeftSideMenuItems from './LeftSideMenuItems';
+import MainDropdownMenu from './MainDropdownMenu';
 import StatusButton from './StatusButton';
 
 import './LeftMainHeader.scss';
@@ -60,6 +59,7 @@ type OwnProps = {
   onSelectContacts: NoneToVoidFunction;
   onSelectArchived: NoneToVoidFunction;
   onReset: NoneToVoidFunction;
+  shouldDisplayMainMenu?: boolean;
 };
 
 type StateProps =
@@ -106,6 +106,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   onSelectContacts,
   onSelectArchived,
   onReset,
+  shouldDisplayMainMenu,
 }) => {
   const {
     setGlobalSearchDate,
@@ -118,11 +119,7 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   const oldLang = useOldLang();
   const lang = useLang();
   const { isMobile, isDesktop } = useAppLayout();
-
-  const [isBotMenuOpen, markBotMenuOpen, unmarkBotMenuOpen] = useFlag();
-
   const areContactsVisible = content === LeftColumnContent.Contacts;
-  const hasMenu = content === LeftColumnContent.ChatList;
 
   const selectedSearchDate = useMemo(() => {
     return searchDate
@@ -156,28 +153,6 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     ...(IS_APP && { 'Mod+L': handleLockScreenHotkey }),
   } : undefined), [canSetPasscode]));
 
-  const MainButton: FC<{ onTrigger: () => void; isOpen?: boolean }> = useMemo(() => {
-    return ({ onTrigger, isOpen }) => (
-      <Button
-        round
-        ripple={hasMenu && !isMobile}
-        size="smaller"
-        color="translucent"
-        className={isOpen ? 'active' : ''}
-        // eslint-disable-next-line react/jsx-no-bind
-        onClick={hasMenu ? onTrigger : () => onReset()}
-        ariaLabel={hasMenu ? oldLang('AccDescrOpenMenu2') : 'Return to chat list'}
-      >
-        <div className={buildClassName(
-          'animated-menu-icon',
-          !hasMenu && 'state-back',
-          shouldSkipTransition && 'no-animation',
-        )}
-        />
-      </Button>
-    );
-  }, [hasMenu, isMobile, oldLang, onReset, shouldSkipTransition]);
-
   const handleSearchFocus = useLastCallback(() => {
     if (!searchQuery) {
       onSearchQuery('');
@@ -203,16 +178,6 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   const searchInputPlaceholder = content === LeftColumnContent.Contacts
     ? lang('SearchFriends')
     : lang('Search');
-
-  const versionString = IS_BETA ? `${APP_VERSION} Beta (${APP_REVISION})` : (DEBUG ? APP_REVISION : APP_VERSION);
-
-  const isFullscreen = useFullscreenStatus();
-
-  // Disable dropdown menu RTL animation for resize
-  const {
-    shouldDisableDropdownMenuTransitionRef,
-    handleDropdownMenuTransitionEnd,
-  } = useLeftHeaderButtonRtlForumTransition(shouldHideSearch);
 
   // eslint-disable-next-line no-null/no-null
   const headerRef = useRef<HTMLDivElement>(null);
@@ -253,34 +218,24 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     <div className="LeftMainHeader">
       <div id="LeftMainHeader" className="left-header" ref={headerRef}>
         {oldLang.isRtl && <div className="DropdownMenuFiller" />}
-        <DropdownMenu
-          trigger={MainButton}
-          footer={`${APP_NAME} ${versionString}`}
-          className={buildClassName(
-            'main-menu',
-            oldLang.isRtl && 'rtl',
-            shouldHideSearch && oldLang.isRtl && 'right-aligned',
-            shouldDisableDropdownMenuTransitionRef.current && oldLang.isRtl && 'disable-transition',
-          )}
-          forceOpen={isBotMenuOpen}
-          positionX={shouldHideSearch && oldLang.isRtl ? 'right' : 'left'}
-          transformOriginX={IS_ELECTRON && IS_MAC_OS && !isFullscreen ? 90 : undefined}
-          onTransitionEnd={oldLang.isRtl ? handleDropdownMenuTransitionEnd : undefined}
-        >
-          <LeftSideMenuItems
+        {shouldDisplayMainMenu && (
+          <MainDropdownMenu
+            shouldSkipTransition={shouldSkipTransition}
+            shouldHideSearch={shouldHideSearch}
             onSelectArchived={onSelectArchived}
             onSelectContacts={onSelectContacts}
             onSelectSettings={onSelectSettings}
-            onBotMenuOpened={markBotMenuOpen}
-            onBotMenuClosed={unmarkBotMenuOpen}
+            content={content}
+            onReset={onReset}
           />
-        </DropdownMenu>
+        )}
         <SearchInput
           inputId="telegram-search-input"
           resultsItemSelector=".LeftSearch .ListItem-button"
           className={buildClassName(
             (globalSearchChatId || searchDate) ? 'with-picker-item' : undefined,
             shouldHideSearch && 'SearchInput--hidden',
+            shouldDisplayMainMenu && 'with-main-menu',
           )}
           value={isClosingSearch ? undefined : (contactsFilter || searchQuery)}
           focused={isSearchFocused}
