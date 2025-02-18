@@ -576,8 +576,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   useEffect(() => {
     if (inputRef.current) {
-      console.log('setupInput: ', editableInputId);
-
       inputApiRef.current = setupInput({
         input: inputRef.current,
         onUpdate: updateCallback,
@@ -679,7 +677,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         isOpen={isTextFormatterOpen}
         anchorPosition={textFormatterAnchorPosition}
         selectedRange={selectedRange}
-        setSelectedRange={setSelectedRange}
         onClose={handleCloseTextFormatter}
         inputApi={inputApiRef}
       />
