@@ -30,7 +30,6 @@ try {
 export default function useMentionTooltip(
   isEnabled: boolean,
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
-  getSelectionRange: Signal<Range | undefined>,
   getInputApi: Signal<InputApi | undefined>,
   groupChatMembers?: ApiChatMember[],
   topInlineBotIds?: string[],
@@ -40,8 +39,6 @@ export default function useMentionTooltip(
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
 
   const extractUsernameTagThrottled = useThrottledResolver(() => {
-    // console.log('@ useMentionTooltip / extractUsernameTagThrottled');
-
     if (!isEnabled) return undefined;
 
     const message = getApiFormattedText();
@@ -50,16 +47,14 @@ export default function useMentionTooltip(
     if (!message || !inputApi) return undefined;
 
     const text = message.text;
-
-    /**
-     * @todo implement working with offset instead
-     */
-    if (!getSelectionRange()?.collapsed || !text.includes('@')) return undefined;
+    const range = inputApi.getCaretOffset();
+    const isCollapsed = range.start === range.end;
+    if (!isCollapsed || !text.includes('@')) return undefined;
 
     const beforeCaret = inputApi.getLeftSlice();
 
     return beforeCaret.match(RE_USERNAME_SEARCH)?.[0].trim();
-  }, [isEnabled, getApiFormattedText, getSelectionRange, getInputApi], THROTTLE);
+  }, [isEnabled, getApiFormattedText, getInputApi], THROTTLE);
 
   const getUsernameTag = useDerivedSignal(
     extractUsernameTagThrottled, [extractUsernameTagThrottled, getApiFormattedText], true,

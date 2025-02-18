@@ -124,7 +124,6 @@ import useContextMenuHandlers from '../../hooks/useContextMenuHandlers';
 import useDerivedState from '../../hooks/useDerivedState';
 import useEffectWithPrevDeps from '../../hooks/useEffectWithPrevDeps';
 import useFlag from '../../hooks/useFlag';
-import useGetSelectionRange from '../../hooks/useGetSelectionRange';
 import useLastCallback from '../../hooks/useLastCallback';
 import useOldLang from '../../hooks/useOldLang';
 import usePreviousDeprecated from '../../hooks/usePreviousDeprecated';
@@ -426,7 +425,6 @@ const Composer: FC<OwnProps & StateProps> = ({
   const [getInputApi, setInputApi] = useSignal<InputApi | undefined>(undefined);
 
   const [isMounted, setIsMounted] = useState(false);
-  const getSelectionRange = useGetSelectionRange(editableInputCssSelector);
   const lastMessageSendTimeSeconds = useRef<number>();
   const prevDropAreaState = usePreviousDeprecated(dropAreaState);
   const { width: windowWidth } = windowSize.get();
@@ -613,8 +611,6 @@ const Composer: FC<OwnProps & StateProps> = ({
       && shouldSuggestCustomEmoji && !hasAttachments),
     getApiFormattedText,
     getInputApi,
-    getSelectionRange,
-    inputRef,
     customEmojiForEmoji,
   );
 
@@ -640,7 +636,6 @@ const Composer: FC<OwnProps & StateProps> = ({
   } = useMentionTooltip(
     Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
     getApiFormattedText,
-    getSelectionRange,
     getInputApi,
     groupChatMembers,
     topInlineBotIds,

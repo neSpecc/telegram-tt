@@ -11,7 +11,6 @@ import type { Signal } from '../../../../util/signals';
 import { EMOJI_IMG_REGEX } from '../../../../config';
 import twemojiRegex from '../../../../lib/twemojiRegex';
 import { IS_EMOJI_SUPPORTED } from '../../../../util/windowEnvironment';
-import { buildCustomEmojiHtml } from '../helpers/customEmoji';
 
 import { useThrottledResolver } from '../../../../hooks/useAsyncResolvers';
 import useDerivedSignal from '../../../../hooks/useDerivedSignal';
@@ -27,8 +26,6 @@ export default function useCustomEmojiTooltip(
   isEnabled: boolean,
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
   getInputApi: Signal<InputApi | undefined>,
-  getSelectionRange: Signal<Range | undefined>,
-  inputRef: RefObject<HTMLDivElement>,
   customEmojis?: ApiSticker[],
 ) {
   const { loadCustomEmojiForEmoji, clearCustomEmojiForEmoji } = getActions();
@@ -36,12 +33,12 @@ export default function useCustomEmojiTooltip(
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
 
   const extractLastEmojiThrottled = useThrottledResolver(() => {
-    // console.log('🤠 useCustomEmojiTooltip / extractLastEmojiThrottled -->');
-
     const message = getApiFormattedText();
     const inputApi = getInputApi()!;
+    const range = inputApi.getCaretOffset();
+    const isCollapsed = range.start === range.end;
 
-    if (!isEnabled || !message || !getSelectionRange()?.collapsed) return undefined;
+    if (!isEnabled || !message || !isCollapsed) return undefined;
     if (!message.text) return undefined;
 
     const beforeCaret = inputApi.getLeftSlice();
@@ -50,7 +47,7 @@ export default function useCustomEmojiTooltip(
     if (!hasEmoji) return undefined;
 
     return beforeCaret.match(IS_EMOJI_SUPPORTED ? RE_ENDS_ON_EMOJI : RE_ENDS_ON_EMOJI_IMG)?.[0];
-  }, [getApiFormattedText, getSelectionRange, getInputApi, isEnabled], THROTTLE);
+  }, [getApiFormattedText, getInputApi, isEnabled], THROTTLE);
 
   const getLastEmoji = useDerivedSignal(
     extractLastEmojiThrottled, [extractLastEmojiThrottled, getApiFormattedText, getSelectionRange], true,

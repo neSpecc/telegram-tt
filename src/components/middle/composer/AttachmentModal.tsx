@@ -37,7 +37,6 @@ import useContextMenuHandlers from '../../../hooks/useContextMenuHandlers';
 import useDerivedState from '../../../hooks/useDerivedState';
 import useEffectOnce from '../../../hooks/useEffectOnce';
 import useFlag from '../../../hooks/useFlag';
-import useGetSelectionRange from '../../../hooks/useGetSelectionRange';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
 import usePreviousDeprecated from '../../../hooks/usePreviousDeprecated';
@@ -78,9 +77,6 @@ export type OwnProps = {
   shouldForceAsFile?: boolean;
   isForCurrentMessageList?: boolean;
   forceDarkTheme?: boolean;
-  /**
-   * @todo replace html with formattedText
-   */
   onCaptionUpdate: (apiFormattedText: ApiFormattedText | undefined) => void;
   onSend: (sendCompressed: boolean, sendGrouped: boolean, isInvertedMedia?: true) => void;
   onFileAppend: (files: File[], isSpoiler?: boolean) => void;
@@ -118,8 +114,6 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   threadId,
   attachments,
   getApiFormattedText,
-  // setInputApi,
-  // getInputApi,
   editingMessage,
   canShowCustomSendMenu,
   captionLimit,
@@ -221,8 +215,6 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     return [hasOneSpoiler, false];
   }, [renderingAttachments]);
 
-  const getSelectionRange = useGetSelectionRange(`#${EDITABLE_INPUT_MODAL_ID}`);
-
   const {
     isEmojiTooltipOpen,
     filteredEmojis,
@@ -246,8 +238,6 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen && shouldSuggestCustomEmoji),
     getApiFormattedText,
     getInputApi,
-    getSelectionRange,
-    inputRef,
     customEmojiForEmoji,
   );
 
@@ -259,7 +249,6 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   } = useMentionTooltip(
     Boolean(isReady && isForCurrentMessageList && renderingIsOpen),
     getApiFormattedText,
-    getSelectionRange,
     getInputApi,
     groupChatMembers,
     undefined,

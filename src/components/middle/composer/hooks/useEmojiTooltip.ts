@@ -123,20 +123,10 @@ export default function useEmojiTooltip(
       const emojiString = isCustomEmoji ? emoji.emoji : emoji;
 
       if (!emojiString) {
-        // eslint-disable-next-line no-console
-        console.warn('Emoji string is empty', emoji);
         return;
       }
 
       const regularEmojiText = renderText(emojiString, ['emoji']);
-
-      /**
-       * @todo buildCustomEmojiHtml should be passed to ast/Renderer to handle custom emoji
-       */
-      // const emojiHtml = typeof emoji === 'string'
-      //   ? renderText(emoji, ['emoji_html'])  // regular emoji
-      //   : buildCustomEmojiHtml(emoji); // custom emoji <img>
-
       const newText = `${text.substring(0, atIndex)}${regularEmojiText}`;
       let emojiEntity: ApiMessageEntityCustomEmoji | undefined;
 

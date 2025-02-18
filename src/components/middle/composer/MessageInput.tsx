@@ -44,7 +44,6 @@ import useInputCustomEmojis from './hooks/useInputCustomEmojis';
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import TextTimer from '../../ui/TextTimer';
-// import TextEditor from './TextEditor';
 import TextFormatter from './TextFormatter.async';
 
 import './TextEditor.scss';
@@ -58,7 +57,6 @@ const SCROLLER_CLASS = 'input-scroller';
 const INPUT_WRAPPER_CLASS = 'message-input-wrapper';
 
 type OwnProps = {
-  isNew?: boolean;
   ref?: RefObject<HTMLDivElement>;
   id: string;
   chatId: string;
@@ -108,7 +106,6 @@ const IGNORE_KEYS = [
 ];
 
 const MessageInput: FC<OwnProps & StateProps> = ({
-  isNew,
   ref,
   id,
   chatId,
@@ -267,6 +264,11 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   chatIdRef.current = chatId;
   const focusInput = useLastCallback(() => {
     if (!inputRef.current || isNeedPremium) {
+      return;
+    }
+
+    const range = inputApiRef.current?.getCaretOffset();
+    if (range?.start === range?.end) {
       return;
     }
 
@@ -577,40 +579,22 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         onClick={!isAttachmentModalInput && !canSendPlainText ? handleClick : undefined}
       >
         <div className={inputScrollerContentClass}>
-          {isNew && (
-            <div
-              ref={inputRef}
-              id={editableInputId || EDITABLE_INPUT_ID}
-              className={className}
-              contentEditable
-              role="textbox"
-              dir="auto"
-              aria-label={placeholder}
-              tabIndex={0}
-              onKeyDown={handleKeyDown}
-              onMouseDown={handleMouseDown}
-            />
-          )}
-          {!isNew && (
-            <div
-              ref={inputRef}
-              id={editableInputId || EDITABLE_INPUT_ID}
-              className={className}
-              contentEditable={isAttachmentModalInput || canSendPlainText}
-              role="textbox"
-              dir="auto"
-              tabIndex={0}
-              onClick={focusInput}
-              // onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              onMouseDown={handleMouseDown}
-              onContextMenu={IS_ANDROID ? handleAndroidContextMenu : undefined}
-              onTouchCancel={IS_ANDROID ? processSelectionWithTimeout : undefined}
-              aria-label={placeholder}
-              onFocus={!isNeedPremium ? onFocus : undefined}
-              onBlur={!isNeedPremium ? onBlur : undefined}
-            />
-          )}
+          <div
+            ref={inputRef}
+            id={editableInputId || EDITABLE_INPUT_ID}
+            className={className}
+            contentEditable={isAttachmentModalInput || canSendPlainText}
+            role="textbox"
+            dir="auto"
+            aria-label={placeholder}
+            tabIndex={0}
+            onKeyDown={handleKeyDown}
+            onMouseDown={handleMouseDown}
+            onContextMenu={IS_ANDROID ? handleAndroidContextMenu : undefined}
+            onTouchCancel={IS_ANDROID ? processSelectionWithTimeout : undefined}
+            onFocus={!isNeedPremium ? onFocus : undefined}
+            onBlur={!isNeedPremium ? onBlur : undefined}
+          />
           {!forcedPlaceholder && (
             <span
               className={buildClassName(
