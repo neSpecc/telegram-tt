@@ -1,0 +1,53 @@
+.VerticalChatFolders {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5625rem;
+  background-color: var(--color-background-aside);
+  width: 80px;
+  border-right: 1px solid var(--color-borders);
+
+  .folder-items {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .folder-item {
+    --background-color: transparent;
+    --background-color-hover: rgb(44, 44, 44);
+    --custom-emoji-size: 32px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 0.2rem;
+    cursor: pointer;
+    border-radius: 0.5rem;
+    transition: background-color 0.15s ease;
+    font-size: 0.64375rem;
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+    text-align: center;
+    line-height: 1.25;
+    background-color: var(--background-color);
+
+
+    &:hover {
+      --background-color: var(--background-color-hover);
+    }
+
+    &.active {
+      color: var(--color-primary);
+    }
+
+    .folder-item-icon {
+      flex-shrink: 0;
+      font-size: 2rem;
+      margin-bottom: 3px;
+
+      &.custom-emoji {
+        width: var(--custom-emoji-size);
+        height: var(--custom-emoji-size);
+      }
+    }
+  }
+}

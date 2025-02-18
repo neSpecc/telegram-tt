@@ -1,3 +1,6 @@
+@use "sass:map";
+@use "../../../styles/icons";
+
 .text-editor {
   background-color: rgba(255, 0, 0, 0.283) !important;
 
@@ -39,12 +42,12 @@
     border-radius: 4px;
   }
 
-  .paragraph-pre {
+  .md-pre {
+    margin-block: 0.25rem;
+    border-radius: 0.25rem;
+    overflow: hidden;
     background-color: var(--color-code-bg);
     padding: 0.1rem 0.6rem 0.1rem 0.8rem;
-    font-family: var(--font-family-monospace);
-    min-height: 1.5em;
-    font-size: 0.8rem;
     position: relative;
 
     &::before {
@@ -59,18 +62,41 @@
     }
   }
 
+  .md-pre-language {
+    display: inline;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: var(--font-weight-medium);
+    color: var(--accent-color);
+    font-family: var(--font-family);
+  }
+
+
+  .paragraph-pre {
+    min-height: 1.5em;
+    font-size: calc(var(--message-text-size, 1rem) - 0.125rem);
+    font-family: var(--font-family-monospace);
+  }
+
   .paragraph-pre .md-preview-char {
     position: absolute;
   }
 
-  .paragraph--quote {
+  .md-quote {
+    display: inline-block;
     background-color: var(--accent-background-color);
-    padding: 0.3rem 0.5rem;
-    border-radius: 4px;
     overflow-y: auto;
     margin: 0.4em 0;
     min-height: 1em;
     position: relative;
+    font-size: calc(var(--message-text-size, 1rem) - 0.125rem);
+    padding-inline: 0.5rem 1rem;
+    padding-block: 0.152rem;
+    margin-block: 0.125rem;
+    border-radius: 0.25rem;
+    white-space: pre-wrap;
+
 
     &::before {
       content: "";
@@ -85,6 +111,18 @@
       .custom-shape & {
         background: var(--accent-color);
       }
+    }
+
+    &::after {
+      @include icons.icon;
+      content: map.get(icons.$icons-map, "quote");
+
+      color: var(--accent-color);
+      position: absolute;
+      top: 0.25rem;
+      inset-inline-end: 0.25rem;
+
+      font-size: 0.625rem;
     }
   }
 

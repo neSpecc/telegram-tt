@@ -34,7 +34,10 @@ export default function useCustomEmojiTooltip(
 
   const extractLastEmojiThrottled = useThrottledResolver(() => {
     const message = getApiFormattedText();
-    const inputApi = getInputApi()!;
+    const inputApi = getInputApi();
+
+    if (!inputApi) return undefined;
+
     const range = inputApi.getCaretOffset();
     const isCollapsed = range.start === range.end;
 
@@ -50,7 +53,7 @@ export default function useCustomEmojiTooltip(
   }, [getApiFormattedText, getInputApi, isEnabled], THROTTLE);
 
   const getLastEmoji = useDerivedSignal(
-    extractLastEmojiThrottled, [extractLastEmojiThrottled, getApiFormattedText, getSelectionRange], true,
+    extractLastEmojiThrottled, [extractLastEmojiThrottled, getApiFormattedText], true,
   );
 
   const isActive = useDerivedState(() => Boolean(getLastEmoji()), [getLastEmoji]);

@@ -983,7 +983,11 @@ const Composer: FC<OwnProps & StateProps> = ({
       }
     }
 
-    const { text, entities } = getApiFormattedText() || { text: '', entities: [] };
+    const message = getApiFormattedText() || { text: '', entities: [] };
+    const isEmpty = isMessageEmpty(message);
+
+    console.log('message', message);
+    console.log('isEmpty', isEmpty);
 
     if (currentAttachments.length) {
       sendAttachments({
@@ -994,17 +998,17 @@ const Composer: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    if (!text && !isForwarding) {
+    if (isEmpty && !isForwarding) {
       return;
     }
 
-    if (!validateTextLength(text)) return;
+    if (!validateTextLength(message.text)) return;
 
     const messageInput = document.querySelector<HTMLDivElement>(editableInputCssSelector);
 
     const effectId = effect?.id;
 
-    if (text) {
+    if (!isEmpty) {
       if (!checkSlowMode()) return;
 
       const isInvertedMedia = hasWebPagePreview ? attachmentSettings.isInvertedMedia : undefined;
@@ -1013,8 +1017,8 @@ const Composer: FC<OwnProps & StateProps> = ({
 
       sendMessage({
         messageList: currentMessageList,
-        text,
-        entities,
+        text: message.text,
+        entities: message.entities,
         scheduledAt,
         isSilent,
         shouldUpdateStickerSetOrder,
