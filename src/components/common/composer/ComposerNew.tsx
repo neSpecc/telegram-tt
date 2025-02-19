@@ -1,9 +1,3 @@
-/* eslint-disable */
-import { setupInput } from '../../../../../ast/src/input'
-/* eslint-enable */
-/* eslint-disable */
-import type { InputApi } from '../../../../../ast/src/api';
-/* eslint-enable */
 import type { FC } from '../../../lib/teact/teact';
 import React, {
   memo,
@@ -15,16 +9,20 @@ import React, {
 import { withGlobal } from '../../../global';
 
 import type { ApiFormattedText, ApiSticker } from '../../../api/types';
-
-import useLastCallback from '../../../hooks/useLastCallback';
-import buildClassName from '../../../util/buildClassName';
-import SymbolMenuButton from '../../middle/composer/SymbolMenuButton';
-import useFlag from '../../../hooks/useFlag';
-import { selectIsCurrentUserPremium } from '../../../global/selectors';
-import useCustomEmojiPremiumNotification from '../hooks/useCustomEmojiPremiumNotification';
 import type { MenuPositionOptions } from '../../ui/Menu';
+import type { TextEditorApi } from './TextEditorApi';
+
+import { selectIsCurrentUserPremium } from '../../../global/selectors';
+import buildClassName from '../../../util/buildClassName';
+
 import useAppLayout from '../../../hooks/useAppLayout';
+import useFlag from '../../../hooks/useFlag';
+import useLastCallback from '../../../hooks/useLastCallback';
 import useInputCustomEmojis from '../../middle/composer/hooks/useInputCustomEmojis';
+import useCustomEmojiPremiumNotification from '../hooks/useCustomEmojiPremiumNotification';
+import { useTextEditor } from './hooks/useTextEditor';
+
+import SymbolMenuButton from '../../middle/composer/SymbolMenuButton';
 
 export enum ComposerMode {
   Plain = 'plain',
@@ -37,7 +35,7 @@ type OwnProps = {
   mode?: ComposerMode;
   canSendSymbols?: boolean;
   className?: string;
-  setInputApi?: (inputApi: InputApi) => void;
+  setEditorApi?: (editorApi: TextEditorApi) => void;
   onFocus?: NoneToVoidFunction;
   onBlur?: NoneToVoidFunction;
   ariaLabel?: string;
@@ -57,7 +55,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   currentUserId,
   isCurrentUserPremium,
   className,
-  setInputApi,
+  setEditorApi,
   onFocus,
   onBlur,
   ariaLabel,
@@ -66,7 +64,7 @@ const Composer: FC<OwnProps & StateProps> = ({
 }) => {
   // eslint-disable-next-line no-null/no-null
   const inputRef = useRef<HTMLDivElement>(null);
-  const inputApiRef = useRef<InputApi | undefined>(undefined);
+  const editorApiRef = useRef<TextEditorApi | undefined>(undefined);
   const [isSymbolMenuOpen, openSymbolMenu, closeSymbolMenu] = useFlag();
   const [getCurrentValue, setCurrentValue] = useSignal<ApiFormattedText | undefined>(undefined);
   const [customEmoji, setCustomEmoji] = useState<ApiSticker | undefined>(undefined);
@@ -79,12 +77,12 @@ const Composer: FC<OwnProps & StateProps> = ({
   });
 
   const handleRemoveSymbol = useLastCallback(() => {
-    inputApiRef.current!.deleteLastSymbol();
+    editorApiRef.current!.deleteLastSymbol();
     setCustomEmoji(undefined);
   });
 
   const insertText = useLastCallback((text: string) => {
-    inputApiRef.current!.insert(text, inputApiRef.current!.getCaretOffset().end);
+    editorApiRef.current!.insert(text, editorApiRef.current!.getCaretOffset().end);
   });
 
   const { showCustomEmojiPremiumNotification } = useCustomEmojiPremiumNotification(currentUserId!);
@@ -133,7 +131,8 @@ const Composer: FC<OwnProps & StateProps> = ({
   );
 
   useEffect(() => {
-    inputApiRef.current = setupInput({
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    editorApiRef.current = useTextEditor({
       value,
       mode: ComposerMode.Rich,
       input: inputRef.current!,
@@ -142,7 +141,7 @@ const Composer: FC<OwnProps & StateProps> = ({
       },
     });
 
-    setInputApi?.(inputApiRef.current);
+    setEditorApi?.(editorApiRef.current);
     setIsReady(true);
   }, []);
 

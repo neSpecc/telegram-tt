@@ -11,6 +11,7 @@
   position: relative;
   cursor: text;
 
+
   .composer-input {
     flex: 1;
     outline: none;
@@ -60,10 +61,13 @@
   }
 
   code {
+    font-family: var(--font-family-monospace);
+    font-size: 0.875rem;
     color: var(--color-code);
     background: var(--color-code-bg);
-    padding: 0.05rem 0.05rem;
+    padding: 1px 2px;
     border-radius: 4px;
+    white-space: pre-wrap;
   }
 
   .md-pre {

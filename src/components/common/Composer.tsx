@@ -1,6 +1,3 @@
-/* eslint-disable */
-import type { InputApi } from '../../../../ast/src/api';
-/* eslint-enable */
 import type { FC } from '../../lib/teact/teact';
 import React, {
   memo, useEffect, useMemo, useRef, useSignal, useState,
@@ -43,6 +40,7 @@ import type {
   MessageListType,
   ThreadId,
 } from '../../types';
+import type { TextEditorApi } from './composer/TextEditorApi';
 import { MAIN_THREAD_ID } from '../../api/types';
 
 import {
@@ -106,7 +104,6 @@ import { formatMediaDuration, formatVoiceRecordDuration } from '../../util/dates
 import { processDeepLink } from '../../util/deeplink';
 import { tryParseDeepLink } from '../../util/deepLinkParser';
 import { processMessageInputForCustomEmoji } from '../../util/emoji/customEmojiManager';
-
 import { MEMO_EMPTY_ARRAY } from '../../util/memo';
 import parseHtmlAsFormattedText from '../../util/parseHtmlAsFormattedText';
 import { getServerTime } from '../../util/serverTime';
@@ -115,6 +112,7 @@ import windowSize from '../../util/windowSize';
 import applyIosAutoCapitalizationFix from '../middle/composer/helpers/applyIosAutoCapitalizationFix';
 import buildAttachment, { prepareAttachmentsToSend } from '../middle/composer/helpers/buildAttachment';
 import { buildCustomEmojiHtml } from '../middle/composer/helpers/customEmoji';
+import { isMessageEmpty } from '../middle/composer/utils/isMessageEmpty';
 import { getPeerColorClass } from './helpers/peerColor';
 import renderText from './helpers/renderText';
 
@@ -143,6 +141,7 @@ import useInlineBotTooltip from '../middle/composer/hooks/useInlineBotTooltip';
 import useMentionTooltip from '../middle/composer/hooks/useMentionTooltip';
 import useStickerTooltip from '../middle/composer/hooks/useStickerTooltip';
 import useVoiceRecording from '../middle/composer/hooks/useVoiceRecording';
+import useCustomEmojiPremiumNotification from './hooks/useCustomEmojiPremiumNotification';
 
 import AttachmentModal from '../middle/composer/AttachmentModal.async';
 import AttachMenu from '../middle/composer/AttachMenu';
@@ -173,8 +172,6 @@ import Icon from './icons/Icon';
 import ReactionAnimatedEmoji from './reactions/ReactionAnimatedEmoji';
 
 import './Composer.scss';
-import { isMessageEmpty } from '../middle/composer/utils/isMessageEmpty';
-import useCustomEmojiPremiumNotification from './hooks/useCustomEmojiPremiumNotification';
 
 type ComposerType = 'messageList' | 'story';
 
@@ -423,7 +420,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   const storyReactionRef = useRef<HTMLButtonElement>(null);
 
   const [getApiFormattedText, setApiFormattedText] = useSignal<ApiFormattedText | undefined>(undefined);
-  const [getInputApi, setInputApi] = useSignal<InputApi | undefined>(undefined);
+  const [getEditorApi, setEditorApi] = useSignal<TextEditorApi | undefined>(undefined);
 
   const [isMounted, setIsMounted] = useState(false);
   const lastMessageSendTimeSeconds = useRef<number>();
@@ -512,8 +509,9 @@ const Composer: FC<OwnProps & StateProps> = ({
   }, [hasWebPagePreview]);
 
   const insertTextAndUpdateCursor = useLastCallback((text: string) => {
-    const inputApi = getInputApi()!;
-    inputApi.insert(text, inputApi.getCaretOffset().end);
+    const editorApi = getEditorApi()!;
+    const offset = editorApi.getCaretOffset().end;
+    editorApi.insert(text, offset);
   });
 
   const insertCustomEmojiAndUpdateCursor = useLastCallback((emoji: ApiSticker) => {
@@ -609,7 +607,7 @@ const Composer: FC<OwnProps & StateProps> = ({
     Boolean(isReady && isOnActiveTab && (isInStoryViewer || isForCurrentMessageList)
       && shouldSuggestCustomEmoji && !hasAttachments),
     getApiFormattedText,
-    getInputApi,
+    getEditorApi,
     customEmojiForEmoji,
   );
 
@@ -635,7 +633,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   } = useMentionTooltip(
     Boolean(isInMessageList && isReady && isForCurrentMessageList && !hasAttachments),
     getApiFormattedText,
-    getInputApi,
+    getEditorApi,
     groupChatMembers,
     topInlineBotIds,
     currentUserId,
@@ -709,7 +707,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   const [handleEditComplete, handleEditCancel, shouldForceShowEditing] = useEditing(
     getApiFormattedText,
     setApiFormattedText,
-    getInputApi,
+    getEditorApi,
     editingMessage,
     resetComposer,
     chatId,
@@ -1274,17 +1272,9 @@ const Composer: FC<OwnProps & StateProps> = ({
     setApiFormattedText(undefined);
   }, [isComposerBlocked, setApiFormattedText, attachments]);
 
-  const insertTextAndUpdateCursorAttachmentModal = useLastCallback((text: string) => {
-    insertTextAndUpdateCursor(text);
-  });
-
   const removeSymbol = useLastCallback(() => {
-    const inputApi = getInputApi()!;
-    inputApi.deleteLastSymbol();
-  });
-
-  const removeSymbolAttachmentModal = useLastCallback(() => {
-    removeSymbol();
+    const editorApi = getEditorApi()!;
+    editorApi.deleteLastSymbol();
   });
 
   const handleAllScheduledClick = useLastCallback(() => {
@@ -1577,8 +1567,6 @@ const Composer: FC<OwnProps & StateProps> = ({
         onClear={handleClearAttachments}
         onAttachmentsUpdate={handleSetAttachments}
         onCustomEmojiSelect={handleCustomEmojiSelectAttachmentModal}
-        onRemoveSymbol={removeSymbolAttachmentModal}
-        onEmojiSelect={insertTextAndUpdateCursorAttachmentModal}
         editingMessage={editingMessage}
         onSendWhenOnline={handleSendWhenOnline}
         canScheduleUntilOnline={canScheduleUntilOnline && !isViewOnceEnabled}
@@ -1772,7 +1760,7 @@ const Composer: FC<OwnProps & StateProps> = ({
             shouldSuppressFocus={isMobile && isSymbolMenuOpen}
             shouldSuppressTextFormatter={isEmojiTooltipOpen || isMentionTooltipOpen || isInlineBotTooltipOpen}
             onUpdate={setApiFormattedText}
-            setInputApi={setInputApi}
+            setEditorApi={setEditorApi}
             onSend={onSend}
             onSuppressedFocus={closeSymbolMenu}
             onFocus={markInputHasFocus}

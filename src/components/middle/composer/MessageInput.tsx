@@ -8,12 +8,10 @@ import React, {
 } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
 
-/* eslint-disable */
-import type { InputApi } from '../../../../../ast/src/api';
-/* eslint-enable */
 import type { ApiFormattedText, ApiInputMessageReplyInfo } from '../../../api/types';
 import type { IAnchorPosition, ISettings, ThreadId } from '../../../types';
 import type { Signal } from '../../../util/signals';
+import type { TextEditorApi } from '../../common/composer/TextEditorApi';
 
 import { EDITABLE_INPUT_ID } from '../../../config';
 import { requestForcedReflow, requestMutation } from '../../../lib/fasterdom/fasterdom';
@@ -26,9 +24,6 @@ import { debounce } from '../../../util/schedulers';
 import {
   IS_ANDROID, IS_IOS, IS_TOUCH_ENV,
 } from '../../../util/windowEnvironment';
-/* eslint-disable */
-import { setupInput } from '../../../../../ast/src/input'
-/* eslint-enable */
 import renderText from '../../common/helpers/renderText';
 import { isSelectionInsideInput } from './helpers/selection';
 import { areMessagesEqual } from './utils/areMessagesEqual';
@@ -39,6 +34,7 @@ import useDerivedState from '../../../hooks/useDerivedState';
 import useFlag from '../../../hooks/useFlag';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
+import { useTextEditor } from '../../common/composer/hooks/useTextEditor';
 import useInputCustomEmojis from './hooks/useInputCustomEmojis';
 
 import Icon from '../../common/icons/Icon';
@@ -85,7 +81,7 @@ type OwnProps = {
   onFocus?: NoneToVoidFunction;
   onBlur?: NoneToVoidFunction;
   isNeedPremium?: boolean;
-  setInputApi: (inputApi: InputApi) => void;
+  setEditorApi: (editorApi: TextEditorApi) => void;
 };
 
 type StateProps = {
@@ -137,7 +133,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   onFocus,
   onBlur,
   isNeedPremium,
-  setInputApi,
+  setEditorApi,
 }) => {
   const {
     editLastMessage,
@@ -177,7 +173,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const [shouldDisplayTimer, setShouldDisplayTimer] = useState(false);
 
   // Add ref for Input API
-  const inputApiRef = useRef<InputApi | undefined>(undefined);
+  const editorApiRef = useRef<TextEditorApi | undefined>(undefined);
 
   useEffect(() => {
     setShouldDisplayTimer(Boolean(timedPlaceholderLangKey && timedPlaceholderDate));
@@ -244,17 +240,23 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const messageRef = useRef(getApiFormattedText());
 
   useLayoutEffect(() => {
+    console.log('useLayoutEffect, setConten', getApiFormattedText());
+
     const message = isActive ? getApiFormattedText() : { text: '' };
 
     if (areMessagesEqual(message, messageRef.current)) {
       return;
     }
 
-    if (!inputApiRef.current) {
+    if (!editorApiRef.current) {
       return;
     }
 
-    inputApiRef.current.setContent(message);
+    console.log('set content');
+
+    editorApiRef.current.setContent(message);
+    editorApiRef.current.focus();
+
     messageRef.current = message;
 
     updateInputHeight(!message);
@@ -267,7 +269,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    const range = inputApiRef.current?.getCaretOffset();
+    const range = editorApiRef.current?.getCaretOffset();
     if (range?.start === range?.end) {
       return;
     }
@@ -277,7 +279,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    inputApiRef.current?.focus();
+    editorApiRef.current?.focus();
   });
 
   const handleCloseTextFormatter = useLastCallback(() => {
@@ -443,6 +445,8 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   function handleClick() {
     if (isAttachmentModalInput || canSendPlainText || (isStoryInput && isNeedPremium)) return;
     showAllowedMessageTypesNotification({ chatId });
+
+    focusInput();
   }
 
   const handleOpenPremiumModal = useLastCallback(() => openPremiumModal());
@@ -497,7 +501,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         && target.tagName !== 'TEXTAREA'
         && !target.isContentEditable
       ) {
-        inputApiRef.current?.focus();
+        editorApiRef.current?.focus();
 
         const newEvent = new KeyboardEvent(e.type, e as any);
         input.dispatchEvent(newEvent);
@@ -558,7 +562,8 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   useEffect(() => {
     if (inputRef.current) {
-      inputApiRef.current = setupInput({
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      editorApiRef.current = useTextEditor({
         input: inputRef.current,
         onUpdate: updateCallback,
         onHtmlUpdate: (html: string) => {
@@ -567,14 +572,20 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         },
       });
 
-      setInputApi(inputApiRef.current);
+      setEditorApi(editorApiRef.current);
     }
-  }, [editableInputId, setInputApi]);
+  }, [editableInputId, setEditorApi]);
 
   return (
     <div id={id} onClick={shouldSuppressFocus ? onSuppressedFocus : undefined} dir={lang.isRtl ? 'rtl' : undefined}>
       <div
-        className={buildClassName('custom-scroll', SCROLLER_CLASS, isNeedPremium && 'is-need-premium')}
+        className={buildClassName(
+          'ComposerNew',
+          'MessageInputCombinedEditor',
+          'custom-scroll',
+          SCROLLER_CLASS,
+          isNeedPremium && 'is-need-premium',
+        )}
         onScroll={onScroll}
         onClick={!isAttachmentModalInput && !canSendPlainText ? handleClick : undefined}
       >
@@ -642,7 +653,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         anchorPosition={textFormatterAnchorPosition}
         selectedRange={selectedRange}
         onClose={handleCloseTextFormatter}
-        inputApi={inputApiRef}
+        editorApi={editorApiRef}
       />
       {forcedPlaceholder && <span className="forced-placeholder">{renderText(forcedPlaceholder!)}</span>}
     </div>

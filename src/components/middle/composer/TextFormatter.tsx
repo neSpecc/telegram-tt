@@ -1,12 +1,11 @@
-/* eslint-disable */
-import type { InputApi } from '../../../../../ast/src/api';
-/* eslint-enable */
 import type { FC, RefObject } from '../../../lib/teact/teact';
 import React, {
   memo, useEffect, useRef, useState,
 } from '../../../lib/teact/teact';
 
 import type { IAnchorPosition } from '../../../types';
+import type { TextEditorApi } from '../../common/composer/TextEditorApi';
+
 import buildClassName from '../../../util/buildClassName';
 import captureEscKeyListener from '../../../util/captureEscKeyListener';
 import { ensureProtocol } from '../../../util/ensureProtocol';
@@ -29,7 +28,7 @@ export type OwnProps = {
   anchorPosition?: IAnchorPosition;
   selectedRange?: Range;
   onClose: () => void;
-  inputApi: RefObject<InputApi | undefined>;
+  editorApi: RefObject<TextEditorApi | undefined>;
 };
 
 interface ISelectedTextFormats {
@@ -47,7 +46,7 @@ const TextFormatter: FC<OwnProps> = ({
   anchorPosition,
   selectedRange,
   onClose,
-  inputApi,
+  editorApi,
 }) => {
   // eslint-disable-next-line no-null/no-null
   const containerRef = useRef<HTMLDivElement>(null);
@@ -76,8 +75,8 @@ const TextFormatter: FC<OwnProps> = ({
 
   useEffect(() => {
     if (isLinkControlOpen) {
-      const { start, end } = inputApi.current!.getCaretOffset();
-      const formattings = inputApi.current!.getFormattingNodes();
+      const { start, end } = editorApi.current!.getCaretOffset();
+      const formattings = editorApi.current!.getFormattingNodes();
       const link = formattings.find((node) => node.type === 'link');
 
       if (link) {
@@ -100,7 +99,7 @@ const TextFormatter: FC<OwnProps> = ({
       setEditingLink(undefined);
       setSavedRange(undefined);
     }
-  }, [isLinkControlOpen, inputApi]);
+  }, [isLinkControlOpen, editorApi]);
 
   useEffect(() => {
     if (!shouldRender) {
@@ -115,7 +114,7 @@ const TextFormatter: FC<OwnProps> = ({
       return;
     }
 
-    const formattings = inputApi.current?.getActiveFormattingsForRange();
+    const formattings = editorApi.current?.getActiveFormattingsForRange();
 
     const selectedFormats: ISelectedTextFormats = {};
 
@@ -124,7 +123,7 @@ const TextFormatter: FC<OwnProps> = ({
     });
 
     setSelectedTextFormats(selectedFormats);
-  }, [isOpen, selectedRange, openLinkControl, inputApi]);
+  }, [isOpen, selectedRange, openLinkControl, editorApi]);
 
   function updateInputStyles() {
     const input = linkUrlInputRef.current;
@@ -173,7 +172,7 @@ const TextFormatter: FC<OwnProps> = ({
   }
 
   const handleSpoilerText = useLastCallback(() => {
-    inputApi.current?.format('spoiler');
+    editorApi.current?.format('spoiler');
     onClose();
 
     setSelectedTextFormats((selectedFormats) => ({
@@ -184,7 +183,7 @@ const TextFormatter: FC<OwnProps> = ({
 
   const handleBoldText = useLastCallback(() => {
     setSelectedTextFormats((selectedFormats) => {
-      inputApi.current?.format('bold');
+      editorApi.current?.format('bold');
       onClose();
 
       return {
@@ -195,7 +194,7 @@ const TextFormatter: FC<OwnProps> = ({
   });
 
   const handleItalicText = useLastCallback(() => {
-    inputApi.current?.format('italic');
+    editorApi.current?.format('italic');
     onClose();
     setSelectedTextFormats((selectedFormats) => ({
       ...selectedFormats,
@@ -204,7 +203,7 @@ const TextFormatter: FC<OwnProps> = ({
   });
 
   const handleUnderlineText = useLastCallback(() => {
-    inputApi.current?.format('underline');
+    editorApi.current?.format('underline');
     onClose();
     setSelectedTextFormats((selectedFormats) => ({
       ...selectedFormats,
@@ -213,7 +212,7 @@ const TextFormatter: FC<OwnProps> = ({
   });
 
   const handleStrikethroughText = useLastCallback(() => {
-    inputApi.current?.format('strikethrough');
+    editorApi.current?.format('strikethrough');
     onClose();
     setSelectedTextFormats((selectedFormats) => ({
       ...selectedFormats,
@@ -222,7 +221,7 @@ const TextFormatter: FC<OwnProps> = ({
   });
 
   const handleMonospaceText = useLastCallback(() => {
-    inputApi.current?.format('monospace');
+    editorApi.current?.format('monospace');
 
     setSelectedTextFormats((selectedFormats) => ({
       ...selectedFormats,
@@ -237,7 +236,7 @@ const TextFormatter: FC<OwnProps> = ({
 
     if (editingLink) {
       if (linkUrl) {
-        inputApi.current?.updateFormattingNode(editingLink.nodeId, {
+        editorApi.current?.updateFormattingNode(editingLink.nodeId, {
           href: formattedLinkUrl,
         });
 
@@ -252,7 +251,7 @@ const TextFormatter: FC<OwnProps> = ({
     }
 
     const { start, end } = savedRange;
-    inputApi.current?.format('link', {
+    editorApi.current?.format('link', {
       href: formattedLinkUrl,
       start,
       end,

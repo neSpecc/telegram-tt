@@ -127,7 +127,10 @@ export default function useEmojiTooltip(
       }
 
       const regularEmojiText = renderText(emojiString, ['emoji']);
-      const newText = `${text.substring(0, atIndex)}${regularEmojiText}`;
+      const leftSlice = text.substring(0, atIndex);
+      const rightSlice = text.substring(atIndex + emojiString.length);
+
+      const newText = `${leftSlice}${regularEmojiText}${rightSlice}`;
       let emojiEntity: ApiMessageEntityCustomEmoji | undefined;
 
       if (isCustomEmoji) {

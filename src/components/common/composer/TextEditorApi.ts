@@ -7,6 +7,8 @@ export interface LinkFormattingOptions {
   end?: number;
 }
 
+export type FormatOperation = 'bold' | 'italic' | 'underline' | 'strikethrough' | 'link' | 'monospace' | 'spoiler';
+
 export interface TextEditorApi {
   setContent: (formattedText: ApiFormattedText | undefined) => void;
   getCaretOffset: () => { start: number; end: number };
@@ -16,7 +18,7 @@ export interface TextEditorApi {
   replace: (start: number, end: number, text: string) => void;
   getLeftSlice: () => string;
   deleteLastSymbol: () => void;
-  format: (formatting: 'bold' | 'italic' | 'underline' | 'strikethrough' | 'link' | 'monospace' | 'spoiler', options?: LinkFormattingOptions) => void;
+  format: (formatting: FormatOperation, options?: LinkFormattingOptions) => void;
   getActiveFormattingsForRange: () => ASTFormattingInlineNodeBase['type'][];
   getFormattingNodes: () => ASTFormattingNode[];
   updateFormattingNode: (id: string, options?: { href: string }) => void;

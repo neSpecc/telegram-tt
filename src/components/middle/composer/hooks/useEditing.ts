@@ -1,12 +1,10 @@
-/* eslint-disable */
-import type { InputApi } from '../../../../../../ast/src/api';
-/* eslint-enable */
 import { useEffect, useState } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
 import type { ApiDraft, ApiFormattedText, ApiMessage } from '../../../../api/types';
 import type { MessageListType, ThreadId } from '../../../../types';
 import type { Signal } from '../../../../util/signals';
+import type { TextEditorApi } from '../../../common/composer/TextEditorApi';
 import { ApiMessageEntityTypes } from '../../../../api/types';
 
 import { EDITABLE_INPUT_CSS_SELECTOR } from '../../../../config';
@@ -27,7 +25,7 @@ const DEBOUNCE_MS = 300;
 const useEditing = (
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
   setApiFormattedText: (apiFormattedText: ApiFormattedText | undefined) => void,
-  getInputApi: () => InputApi | undefined,
+  getEditorApi: () => TextEditorApi | undefined,
   editedMessage: ApiMessage | undefined,
   resetComposer: (shouldPreserveInput?: boolean) => void,
   chatId: string,
@@ -66,10 +64,10 @@ const useEditing = (
     requestNextMutation(() => {
       const messageInput = document.querySelector<HTMLDivElement>(EDITABLE_INPUT_CSS_SELECTOR);
       if (messageInput) {
-        getInputApi()?.focus();
+        getEditorApi()?.focus();
       }
     });
-  }, [editedMessage, replyingToId, editingDraft, setApiFormattedText, getInputApi]);
+  }, [editedMessage, replyingToId, editingDraft, setApiFormattedText, getEditorApi]);
 
   useEffect(() => {
     if (!editedMessage) {
@@ -141,7 +139,7 @@ const useEditing = (
       requestNextMutation(() => {
         const messageInput = document.querySelector<HTMLDivElement>(EDITABLE_INPUT_CSS_SELECTOR);
         if (messageInput) {
-          getInputApi()?.focus();
+          getEditorApi()?.focus();
         }
       });
     });

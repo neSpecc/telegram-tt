@@ -1,12 +1,9 @@
-/* eslint-disable */
-import type { RefObject } from 'react';
-import type { InputApi } from '../../../../../../ast/src/api';
-/* eslint-enable */
 import { useEffect } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
 import type { ApiFormattedText, ApiSticker } from '../../../../api/types';
 import type { Signal } from '../../../../util/signals';
+import type { TextEditorApi } from '../../../common/composer/TextEditorApi';
 
 import { EMOJI_IMG_REGEX } from '../../../../config';
 import twemojiRegex from '../../../../lib/twemojiRegex';
@@ -25,7 +22,7 @@ const RE_ENDS_ON_EMOJI_IMG = new RegExp(`${EMOJI_IMG_REGEX.source}$`, 'g');
 export default function useCustomEmojiTooltip(
   isEnabled: boolean,
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
-  getInputApi: Signal<InputApi | undefined>,
+  getEditorApi: Signal<TextEditorApi | undefined>,
   customEmojis?: ApiSticker[],
 ) {
   const { loadCustomEmojiForEmoji, clearCustomEmojiForEmoji } = getActions();
@@ -34,23 +31,23 @@ export default function useCustomEmojiTooltip(
 
   const extractLastEmojiThrottled = useThrottledResolver(() => {
     const message = getApiFormattedText();
-    const inputApi = getInputApi();
+    const editorApi = getEditorApi();
 
-    if (!inputApi) return undefined;
+    if (!editorApi) return undefined;
 
-    const range = inputApi.getCaretOffset();
+    const range = editorApi.getCaretOffset();
     const isCollapsed = range.start === range.end;
 
     if (!isEnabled || !message || !isCollapsed) return undefined;
     if (!message.text) return undefined;
 
-    const beforeCaret = inputApi.getLeftSlice();
+    const beforeCaret = editorApi.getLeftSlice();
     const hasEmoji = beforeCaret.match(IS_EMOJI_SUPPORTED ? twemojiRegex : EMOJI_IMG_REGEX);
 
     if (!hasEmoji) return undefined;
 
     return beforeCaret.match(IS_EMOJI_SUPPORTED ? RE_ENDS_ON_EMOJI : RE_ENDS_ON_EMOJI_IMG)?.[0];
-  }, [getApiFormattedText, getInputApi, isEnabled], THROTTLE);
+  }, [getApiFormattedText, getEditorApi, isEnabled], THROTTLE);
 
   const getLastEmoji = useDerivedSignal(
     extractLastEmojiThrottled, [extractLastEmojiThrottled, getApiFormattedText], true,
@@ -76,12 +73,12 @@ export default function useCustomEmojiTooltip(
 
   const insertCustomEmoji = useLastCallback((emoji: ApiSticker) => {
     const lastEmoji = getLastEmoji();
-    const inputApi = getInputApi()!;
-    const leftSlice = inputApi.getLeftSlice();
-    if (!isEnabled || !lastEmoji || !inputApi) return;
+    const editorApi = getEditorApi()!;
+    const leftSlice = editorApi.getLeftSlice();
+    if (!isEnabled || !lastEmoji || !editorApi) return;
 
     const emojiMarkdown = `[${emoji.emoji}](doc:${emoji.id})`;
-    const input = getInputApi()!;
+    const input = getEditorApi()!;
     const lastEmojiLength = lastEmoji.length;
     const lastEmojiIndex = leftSlice.indexOf(lastEmoji);
 

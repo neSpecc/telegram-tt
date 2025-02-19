@@ -1,3 +1,4 @@
+/* eslint-disable no-null/no-null */
 import { isEmoji } from './char';
 
 export type InputResult = [string, number];
@@ -32,14 +33,12 @@ export function useInputOperations({
 
   function insertReplacementText(dataTransfer: DataTransfer | null): InputResult {
     if (dataTransfer === null) {
-      console.warn('insertReplacementText: dataTransfer is null');
       return [text, start];
     }
 
     const replacementText = dataTransfer.getData('text/plain');
 
     if (replacementText === null) {
-      console.warn('insertReplacementText: event.dataTransfer.getData is null', event);
       return [text, start];
     }
 
@@ -66,13 +65,13 @@ export function useInputOperations({
       return [text, start];
     }
 
-    const prevChar = text[start - 1];
+    const prevTwoChars = text.slice(start - 2, start);
+
     let sliceStart = start;
 
-    if (isEmoji(prevChar)) {
+    if (isEmoji(prevTwoChars)) {
       sliceStart -= 2;
-    }
-    else {
+    } else {
       sliceStart -= 1;
     }
 
@@ -90,13 +89,12 @@ export function useInputOperations({
       return removeRange();
     }
 
-    const nextChar = text[start];
+    const nextTwoChars = text.slice(start, start + 2);
     let sliceEnd = start;
 
-    if (isEmoji(nextChar)) {
+    if (isEmoji(nextTwoChars)) {
       sliceEnd += 2;
-    }
-    else {
+    } else {
       sliceEnd += 1;
     }
 
@@ -110,15 +108,12 @@ export function useInputOperations({
       return removeRange();
     }
 
-    // Find the start of the current word
     let wordStart = start;
 
-    // First consume any whitespace before the cursor
     while (wordStart > 0 && /\s/.test(text[wordStart - 1])) {
       wordStart--;
     }
 
-    // Then consume non-whitespace characters (the word)
     while (wordStart > 0 && !/\s/.test(text[wordStart - 1])) {
       wordStart--;
     }
@@ -135,15 +130,12 @@ export function useInputOperations({
       return [text, start];
     }
 
-    // Find the end of the current word
     let wordEnd = start;
 
-    // First consume any whitespace after the cursor
     while (wordEnd < text.length && /\s/.test(text[wordEnd])) {
       wordEnd++;
     }
 
-    // Then consume non-whitespace characters (the word)
     while (wordEnd < text.length && !/\s/.test(text[wordEnd])) {
       wordEnd++;
     }

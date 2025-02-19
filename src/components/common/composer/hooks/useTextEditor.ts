@@ -461,6 +461,8 @@ export function useTextEditor({
       focusedNode = node;
       hightlightFocusedNode();
     }
+
+    return true;
   }
 
   function findNodeMapping(node: ASTNode, offsetMapping: OffsetMappingRecord[]): OffsetMappingRecord | undefined {
@@ -788,6 +790,7 @@ export function useTextEditor({
         end = mdEnd;
       }
 
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       const utils = useInputOperations({
         text: currentText,
         start,
@@ -795,11 +798,13 @@ export function useTextEditor({
       });
 
       const [newText, newPosition] = utils.insertText(text);
+
       currentText = newText;
 
       ofAfterInput(newPosition);
     },
     replace: (start: number, end: number, text: string) => {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       const utils = useInputOperations({
         text: currentText,
         start,
@@ -818,6 +823,7 @@ export function useTextEditor({
     deleteLastSymbol: () => {
       const { start, end } = getInputOperationMarkdownRange(true, 'backward');
 
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       const utils = useInputOperations({
         text: currentText,
         start,
@@ -858,7 +864,7 @@ export function useTextEditor({
         return;
       }
 
-      const newHrefDist = options?.href.length - node.href.length;
+      const newHrefDist = options.href.length - node.href.length;
       const dimensions = findNodeMapping(node, offsetMapping);
 
       const newNode = {

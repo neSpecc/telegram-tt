@@ -5,13 +5,11 @@ import type {
   ApiChatMember, ApiFormattedText, ApiUser,
 } from '../../../../api/types';
 import type { Signal } from '../../../../util/signals';
+import type { TextEditorApi } from '../../../common/composer/TextEditorApi';
 
 import { filterUsersByName, getMainUsername, getUserFirstOrLastName } from '../../../../global/helpers';
 import { pickTruthy, unique } from '../../../../util/iteratees';
-/* eslint-disable */
-import { InputApi } from '../../../../../../ast/src/api';
 
-/* eslint-enable */
 import { useThrottledResolver } from '../../../../hooks/useAsyncResolvers';
 import useDerivedSignal from '../../../../hooks/useDerivedSignal';
 import useFlag from '../../../../hooks/useFlag';
@@ -30,7 +28,7 @@ try {
 export default function useMentionTooltip(
   isEnabled: boolean,
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
-  getInputApi: Signal<InputApi | undefined>,
+  getEditorApi: Signal<TextEditorApi | undefined>,
   groupChatMembers?: ApiChatMember[],
   topInlineBotIds?: string[],
   currentUserId?: string,
@@ -42,19 +40,19 @@ export default function useMentionTooltip(
     if (!isEnabled) return undefined;
 
     const message = getApiFormattedText();
-    const inputApi = getInputApi();
+    const editorApi = getEditorApi();
 
-    if (!message || !inputApi) return undefined;
+    if (!message || !editorApi) return undefined;
 
     const text = message.text;
-    const range = inputApi.getCaretOffset();
+    const range = editorApi.getCaretOffset();
     const isCollapsed = range.start === range.end;
     if (!isCollapsed || !text.includes('@')) return undefined;
 
-    const beforeCaret = inputApi.getLeftSlice();
+    const beforeCaret = editorApi.getLeftSlice();
 
     return beforeCaret.match(RE_USERNAME_SEARCH)?.[0].trim();
-  }, [isEnabled, getApiFormattedText, getInputApi], THROTTLE);
+  }, [isEnabled, getApiFormattedText, getEditorApi], THROTTLE);
 
   const getUsernameTag = useDerivedSignal(
     extractUsernameTagThrottled, [extractUsernameTagThrottled, getApiFormattedText], true,
@@ -114,14 +112,14 @@ export default function useMentionTooltip(
     const message = getApiFormattedText();
     if (!message) return;
 
-    const inputApi = getInputApi()!;
+    const editorApi = getEditorApi()!;
 
-    const offset = inputApi.getCaretOffset();
+    const offset = editorApi.getCaretOffset();
     const name = mainUsername ? `@${mainUsername}` : userFirstOrLastName;
     const mention = `[${name}](id:${user.id})`;
 
     // replace @ with mention
-    inputApi.replace(offset.start - 1, offset.start, mention);
+    editorApi.replace(offset.start - 1, offset.start, mention);
 
     setFilteredUsers(undefined);
   });

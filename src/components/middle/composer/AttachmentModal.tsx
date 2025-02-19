@@ -1,6 +1,3 @@
-/* eslint-disable */
-import type { InputApi } from '../../../../../ast/src/api';
-/* eslint-enable */
 import type { FC } from '../../../lib/teact/teact';
 import React, {
   memo, useEffect, useMemo, useRef, useSignal, useState,
@@ -13,6 +10,7 @@ import type {
 import type { GlobalState } from '../../../global/types';
 import type { MessageListType, ThreadId } from '../../../types';
 import type { Signal } from '../../../util/signals';
+import type { TextEditorApi } from '../../common/composer/TextEditorApi';
 
 import {
   BASE_EMOJI_KEYWORD_LANG,
@@ -85,8 +83,6 @@ export type OwnProps = {
   onSendSilent: (sendCompressed: boolean, sendGrouped: boolean, isInvertedMedia?: true) => void;
   onSendScheduled: (sendCompressed: boolean, sendGrouped: boolean, isInvertedMedia?: true) => void;
   onCustomEmojiSelect: (emoji: ApiSticker) => void;
-  onRemoveSymbol: VoidFunction;
-  onEmojiSelect: (emoji: string) => void;
   canScheduleUntilOnline?: boolean;
   onSendWhenOnline?: NoneToVoidFunction;
 };
@@ -142,8 +138,6 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   onSendSilent,
   onSendScheduled,
   onCustomEmojiSelect,
-  onRemoveSymbol,
-  onEmojiSelect,
   canScheduleUntilOnline,
   onSendWhenOnline,
 }) => {
@@ -152,7 +146,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   // eslint-disable-next-line no-null/no-null
   const svgRef = useRef<SVGSVGElement>(null);
   const { addRecentCustomEmoji, addRecentEmoji, updateAttachmentSettings } = getActions();
-  const [getInputApi, setInputApi] = useSignal<InputApi | undefined>(undefined);
+  const [getEditorApi, setEditorApi] = useSignal<TextEditorApi | undefined>(undefined);
 
   const lang = useOldLang();
 
@@ -237,7 +231,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   } = useCustomEmojiTooltip(
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen && shouldSuggestCustomEmoji),
     getApiFormattedText,
-    getInputApi,
+    getEditorApi,
     customEmojiForEmoji,
   );
 
@@ -249,7 +243,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   } = useMentionTooltip(
     Boolean(isReady && isForCurrentMessageList && renderingIsOpen),
     getApiFormattedText,
-    getInputApi,
+    getEditorApi,
     groupChatMembers,
     undefined,
     currentUserId,
@@ -422,6 +416,17 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
       input.style.setProperty('--margin-for-scrollbar', `${width}px`);
     });
   }, [lang, isOpen]);
+
+  const insertText = useLastCallback((text: string) => {
+    const editorApi = getEditorApi()!;
+
+    editorApi.insert(text, editorApi.getCaretOffset().end);
+  });
+
+  const removeSymbol = useLastCallback(() => {
+    const editorApi = getEditorApi()!;
+    editorApi.deleteLastSymbol();
+  });
 
   const MoreMenuButton: FC<{ onTrigger: () => void; isOpen?: boolean }> = useMemo(() => {
     return ({ onTrigger, isOpen: isMenuOpen }) => (
@@ -665,8 +670,8 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
               openSymbolMenu={openSymbolMenu}
               closeSymbolMenu={closeSymbolMenu}
               onCustomEmojiSelect={onCustomEmojiSelect}
-              onRemoveSymbol={onRemoveSymbol}
-              onEmojiSelect={onEmojiSelect}
+              onRemoveSymbol={removeSymbol}
+              onEmojiSelect={insertText}
               isAttachmentModal
               canSendPlainText
               className="attachment-modal-symbol-menu with-menu-transitions"
@@ -683,7 +688,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
               isReady={isReady}
               isActive={isOpen}
               getApiFormattedText={getApiFormattedText}
-              setInputApi={setInputApi}
+              setEditorApi={setEditorApi}
               editableInputId={EDITABLE_INPUT_MODAL_ID}
               placeholder={lang('AddCaption')}
               onUpdate={onCaptionUpdate}

@@ -11,20 +11,27 @@ export default function useMouseInside(
 ) {
   const isMouseInside = useRef(false);
 
+  const markMouseInside = useLastCallback(() => {
+    isMouseInside.current = true;
+  });
+
   useEffect(() => {
     if (closeTimeout) {
       clearTimeout(closeTimeout);
       closeTimeout = undefined;
     }
-  }, [isOpen]);
+
+    if (isOpen && !IS_TOUCH_ENV && !isDisabled) {
+      closeTimeout = window.setTimeout(() => {
+        if (!isMouseInside.current) {
+          onClose();
+        }
+      }, menuCloseTimeout * 2);
+    }
+  }, [isDisabled, isOpen, menuCloseTimeout, onClose]);
 
   const handleMouseEnter = useLastCallback(() => {
     isMouseInside.current = true;
-
-    if (closeTimeout) {
-      clearTimeout(closeTimeout);
-      closeTimeout = undefined;
-    }
   });
 
   const handleMouseLeave = useLastCallback(() => {
@@ -42,5 +49,5 @@ export default function useMouseInside(
     }, menuCloseTimeout);
   });
 
-  return [handleMouseEnter, handleMouseLeave];
+  return [handleMouseEnter, handleMouseLeave, markMouseInside];
 }
