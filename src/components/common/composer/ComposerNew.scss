@@ -1,13 +1,37 @@
 @use "sass:map";
 @use "../../../styles/icons";
 
-.text-editor {
-  background-color: rgba(255, 0, 0, 0.283) !important;
-
-
+.ComposerNew {
   word-break: break-word;
   overflow-wrap: anywhere;
   text-rendering: optimizelegibility;
+  text-align: left;
+
+  .ComposerNew-input-wrapper {
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: text;
+    padding-inline-end: 0.5rem;
+
+    .composer-input {
+      flex: 1;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .Button {
+      flex-shrink: 0;
+      background: none !important;
+    }
+
+    .Menu {
+      .bubble {
+        --offset-y: 100%;
+        --offset-x: -4.125rem;
+      }
+    }
+  }
 
   .md-preview-char {
     display: none;

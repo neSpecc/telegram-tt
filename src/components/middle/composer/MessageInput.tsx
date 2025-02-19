@@ -46,7 +46,7 @@ import Button from '../../ui/Button';
 import TextTimer from '../../ui/TextTimer';
 import TextFormatter from './TextFormatter.async';
 
-import './TextEditor.scss';
+import '../../common/composer/ComposerNew.scss';
 
 const CONTEXT_MENU_CLOSE_DELAY_MS = 100;
 // Focus slows down animation, also it breaks transition layout in Chrome

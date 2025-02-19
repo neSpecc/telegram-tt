@@ -1,5 +1,5 @@
 import type { FC } from '../../../lib/teact/teact';
-import React, { memo, useState } from '../../../lib/teact/teact';
+import React, { memo, useEffect, useState } from '../../../lib/teact/teact';
 import { getActions, getGlobal } from '../../../global';
 
 import type { FolderEditDispatch, FoldersState } from '../../../hooks/reducers/useFoldersReducer';
@@ -200,6 +200,10 @@ const Settings: FC<OwnProps> = ({
     }
 
     onReset();
+  });
+
+  useEffect(() => {
+    onScreenSelect(SettingsScreens.FoldersCreateFolder);
   });
 
   function renderCurrentSectionContent(isScreenActive: boolean, activeScreen: SettingsScreens) {

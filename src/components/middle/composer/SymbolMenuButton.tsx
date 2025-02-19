@@ -3,6 +3,7 @@ import React, { memo, useRef, useState } from '../../../lib/teact/teact';
 import { getActions } from '../../../global';
 
 import type { ApiSticker, ApiVideo } from '../../../api/types';
+import type { MenuPositionOptions } from '../../../hooks/useMenuPosition';
 import type { IAnchorPosition, ThreadId } from '../../../types';
 
 import { EDITABLE_INPUT_CSS_SELECTOR, EDITABLE_INPUT_MODAL_CSS_SELECTOR } from '../../../config';
@@ -50,6 +51,8 @@ type OwnProps = {
   canSendPlainText?: boolean;
   className?: string;
   inputCssSelector?: string;
+  positionOptions?: MenuPositionOptions;
+  getTriggerElement?: () => HTMLElement | null;
 };
 
 const SymbolMenuButton: FC<OwnProps> = ({
@@ -77,6 +80,8 @@ const SymbolMenuButton: FC<OwnProps> = ({
   onEmojiSelect,
   closeBotCommandMenu,
   closeSendAsMenu,
+  positionOptions,
+  getTriggerElement,
 }) => {
   const {
     setStickerSearchQuery,
@@ -136,7 +141,8 @@ const SymbolMenuButton: FC<OwnProps> = ({
     }, MOBILE_KEYBOARD_HIDE_DELAY_MS);
   });
 
-  const getTriggerElement = useLastCallback(() => triggerRef.current);
+  const defaultTriggerElement = useLastCallback(() => triggerRef.current);
+  const getFinalTriggerElement = getTriggerElement || defaultTriggerElement;
   const getRootElement = useLastCallback(() => triggerRef.current?.closest('.custom-scroll, .no-scrollbar'));
   const getMenuElement = useLastCallback(() => document.querySelector('#portals .SymbolMenu .bubble'));
   const getLayout = useLastCallback(() => ({ withPortal: true }));
@@ -190,10 +196,12 @@ const SymbolMenuButton: FC<OwnProps> = ({
         canSendPlainText={canSendPlainText}
         className={buildClassName(className, forceDarkTheme && 'component-theme-dark')}
         anchor={isAttachmentModal ? contextMenuAnchor : undefined}
-        getTriggerElement={isAttachmentModal ? getTriggerElement : undefined}
+        getTriggerElement={isAttachmentModal ? getFinalTriggerElement : undefined}
         getRootElement={isAttachmentModal ? getRootElement : undefined}
         getMenuElement={isAttachmentModal ? getMenuElement : undefined}
         getLayout={isAttachmentModal ? getLayout : undefined}
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...(positionOptions !== undefined ? (positionOptions) : {})}
       />
     </>
   );

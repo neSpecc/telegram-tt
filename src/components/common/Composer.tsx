@@ -174,6 +174,7 @@ import ReactionAnimatedEmoji from './reactions/ReactionAnimatedEmoji';
 
 import './Composer.scss';
 import { isMessageEmpty } from '../middle/composer/utils/isMessageEmpty';
+import useCustomEmojiPremiumNotification from './hooks/useCustomEmojiPremiumNotification';
 
 type ComposerType = 'messageList' | 'story';
 
@@ -448,8 +449,6 @@ const Composer: FC<OwnProps & StateProps> = ({
   const isSentStoryReactionHeart = sentStoryReaction && isSameReaction(sentStoryReaction, HEART_REACTION);
 
   useEffect(processMessageInputForCustomEmoji, [getApiFormattedText]);
-
-  const customEmojiNotificationNumber = useRef(0);
 
   const [requestCalendar, calendar] = useSchedule(
     isInMessageList && canScheduleUntilOnline,
@@ -731,30 +730,6 @@ const Composer: FC<OwnProps & StateProps> = ({
       resetComposerRef.current();
     };
   }, [chatId, threadId, resetComposerRef, stopRecordingVoiceRef]);
-
-  const showCustomEmojiPremiumNotification = useLastCallback(() => {
-    const notificationNumber = customEmojiNotificationNumber.current;
-    if (!notificationNumber) {
-      showNotification({
-        message: lang('UnlockPremiumEmojiHint'),
-        action: {
-          action: 'openPremiumModal',
-          payload: { initialSection: 'animated_emoji' },
-        },
-        actionText: lang('PremiumMore'),
-      });
-    } else {
-      showNotification({
-        message: lang('UnlockPremiumEmojiHint2'),
-        action: {
-          action: 'openChat',
-          payload: { id: currentUserId, shouldReplaceHistory: true },
-        },
-        actionText: lang('Open'),
-      });
-    }
-    customEmojiNotificationNumber.current = Number(!notificationNumber);
-  });
 
   const mainButtonState = useDerivedState(() => {
     const message = getApiFormattedText();
@@ -1125,6 +1100,8 @@ const Composer: FC<OwnProps & StateProps> = ({
       resetOpenChatWithDraft();
     }
   }, [handleFileSelect, requestedDraftFiles, resetOpenChatWithDraft]);
+
+  const { showCustomEmojiPremiumNotification } = useCustomEmojiPremiumNotification(currentUserId!);
 
   const handleCustomEmojiSelect = useLastCallback((emoji: ApiSticker) => {
     const emojiSetId = 'id' in emoji.stickerSetInfo && emoji.stickerSetInfo.id;
@@ -1769,7 +1746,6 @@ const Composer: FC<OwnProps & StateProps> = ({
             />
           )}
           <MessageInput
-            isNew
             ref={inputRef}
             id={inputId}
             editableInputId={editableInputId}
