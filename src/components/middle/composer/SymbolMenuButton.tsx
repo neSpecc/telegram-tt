@@ -12,10 +12,12 @@ import buildClassName from '../../../util/buildClassName';
 import useFlag from '../../../hooks/useFlag';
 import useLastCallback from '../../../hooks/useLastCallback';
 
+import CustomEmoji from '../../common/CustomEmoji';
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import ResponsiveHoverButton from '../../ui/ResponsiveHoverButton';
 import Spinner from '../../ui/Spinner';
+import Transition from '../../ui/Transition';
 import SymbolMenu from './SymbolMenu.async';
 
 const MOBILE_KEYBOARD_HIDE_DELAY_MS = 100;
@@ -53,6 +55,7 @@ type OwnProps = {
   inputCssSelector?: string;
   positionOptions?: MenuPositionOptions;
   getTriggerElement?: () => HTMLElement | null;
+  customEmojiToggler?: ApiSticker | undefined;
 };
 
 const SymbolMenuButton: FC<OwnProps> = ({
@@ -82,6 +85,7 @@ const SymbolMenuButton: FC<OwnProps> = ({
   closeSendAsMenu,
   positionOptions,
   getTriggerElement,
+  customEmojiToggler,
 }) => {
   const {
     setStickerSearchQuery,
@@ -170,7 +174,20 @@ const SymbolMenuButton: FC<OwnProps> = ({
           ariaLabel="Choose emoji, sticker or GIF"
         >
           <div ref={triggerRef} className="symbol-menu-trigger" />
-          <Icon name="smile" />
+          <Transition
+            name="slideVertical"
+            activeKey={customEmojiToggler ? Number(customEmojiToggler.id) : 0}
+          >
+            {customEmojiToggler ? (
+              <CustomEmoji
+                documentId={customEmojiToggler.id}
+                size={28}
+                className="symbol-menu-trigger-emoji"
+              />
+            ) : (
+              <Icon name="smile" />
+            )}
+          </Transition>
         </ResponsiveHoverButton>
       )}
 

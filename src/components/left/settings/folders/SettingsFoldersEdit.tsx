@@ -4,7 +4,7 @@ import React, {
 } from '../../../../lib/teact/teact';
 import { getActions, getGlobal, withGlobal } from '../../../../global';
 
-import type { ApiChatlistExportedInvite } from '../../../../api/types';
+import type { ApiChatlistExportedInvite, ApiFormattedText } from '../../../../api/types';
 import type {
   FolderEditDispatch,
   FoldersState,
@@ -152,9 +152,14 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
     onBack,
   });
 
-  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const { currentTarget } = event;
-    dispatch({ type: 'setTitle', payload: currentTarget.value.trim() });
+  const handleChange = useCallback((textFormatted: ApiFormattedText) => {
+    if (textFormatted.text.length > 0) {
+      dispatch({ type: 'setTitle', payload: textFormatted });
+    }
+  }, [dispatch]);
+
+  const handleEmoticonSelect = useCallback((emoticon: string) => {
+    dispatch({ type: 'setEmoticon', payload: emoticon });
   }, [dispatch]);
 
   const handleSubmit = useCallback(() => {
@@ -297,18 +302,15 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
             </p>
           )}
 
-          <InputText
-            className="mb-0"
-            label={lang('FilterNameHint')}
-            value={state.folder.title.text}
-            onChange={handleChange}
-            error={state.error && state.error === ERROR_NO_TITLE ? ERROR_NO_TITLE : undefined}
-          />
           <ComposerNew
-            onChange={console.log}
+            className="mb-0"
+            onChange={handleChange}
+            value={state.folder.title.text}
             canSendSymbols
             label={lang('FilterNameHint')}
             error={state.error && state.error === ERROR_NO_TITLE ? ERROR_NO_TITLE : undefined}
+            onSymbolSelect={handleEmoticonSelect}
+            symbolSelectMode="insert-to-text"
           />
         </div>
 

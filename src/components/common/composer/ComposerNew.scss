@@ -23,6 +23,14 @@
     .Button {
       flex-shrink: 0;
       background: none !important;
+      --custom-emoji-size: 1.75rem;
+      padding: 0;
+      width: 28px;
+      height: 28px;
+
+      .icon {
+        transform: translateY(-0.125rem);
+      }
     }
 
     .Menu {

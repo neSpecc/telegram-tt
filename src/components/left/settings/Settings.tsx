@@ -202,9 +202,9 @@ const Settings: FC<OwnProps> = ({
     onReset();
   });
 
-  useEffect(() => {
-    onScreenSelect(SettingsScreens.FoldersCreateFolder);
-  });
+  // useEffect(() => {
+  // onScreenSelect(SettingsScreens.FoldersCreateFolder);
+  // });
 
   function renderCurrentSectionContent(isScreenActive: boolean, activeScreen: SettingsScreens) {
     const privacyAllowScreens: Record<number, boolean> = {

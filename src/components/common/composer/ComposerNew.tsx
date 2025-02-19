@@ -8,6 +8,7 @@ import type { FC } from '../../../lib/teact/teact';
 import React, {
   memo,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from '../../../lib/teact/teact';
@@ -21,6 +22,7 @@ import SymbolMenuButton from '../../middle/composer/SymbolMenuButton';
 import useFlag from '../../../hooks/useFlag';
 import { selectIsCurrentUserPremium } from '../../../global/selectors';
 import useCustomEmojiPremiumNotification from '../hooks/useCustomEmojiPremiumNotification';
+import { isMessageEmpty } from '../../middle/composer/utils/isMessageEmpty';
 
 export enum ComposerMode {
   Plain = 'plain',
@@ -28,6 +30,7 @@ export enum ComposerMode {
 }
 
 type InputTextProps = {
+  value?: string;
   label?: string;
   error?: string;
 };
@@ -36,6 +39,9 @@ type OwnProps = InputTextProps & {
   onChange?: (textFormatted: ApiFormattedText) => void;
   mode?: ComposerMode;
   canSendSymbols?: boolean;
+  className?: string;
+  symbolSelectMode?: 'insert-to-text' | 'store-separately';
+  onSymbolSelect?: (symbol: string) => void;
 };
 
 type StateProps = {
@@ -44,12 +50,16 @@ type StateProps = {
 };
 
 const Composer: FC<OwnProps & StateProps> = ({
+  value,
   label,
   error,
   onChange,
   canSendSymbols,
   currentUserId,
   isCurrentUserPremium,
+  className,
+  symbolSelectMode = 'insert-to-text',
+  onSymbolSelect,
 }) => {
   // eslint-disable-next-line no-null/no-null
   const inputRef = useRef<HTMLDivElement>(null);
@@ -57,13 +67,22 @@ const Composer: FC<OwnProps & StateProps> = ({
   const [isSymbolMenuOpen, openSymbolMenu, closeSymbolMenu] = useFlag();
   const [isFocused, markFocused, unmarkFocused] = useFlag();
   const labelText = error || label;
+  const currentValue = useRef('');
+  const [isEmpty, setIsEmpty] = useState(true);
+  const [customEmoji, setCustomEmoji] = useState<ApiSticker | undefined>(undefined);
 
   const updateCallback = useLastCallback((textFormatted: ApiFormattedText) => {
+    currentValue.current = textFormatted.text;
+    setIsEmpty(isMessageEmpty(textFormatted));
     onChange?.(textFormatted);
   });
 
   const handleRemoveSymbol = useLastCallback(() => {
-    console.log('handleRemoveSymbol');
+    if (symbolSelectMode === 'insert-to-text') {
+      inputApi!.deleteLastSymbol();
+    } else {
+      setCustomEmoji(undefined);
+    }
   });
 
   const insertText = useLastCallback((text: string) => {
@@ -78,7 +97,13 @@ const Composer: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    insertText(`[${emoji.emoji}](doc:${emoji.id})`);
+    if (symbolSelectMode === 'insert-to-text') {
+      insertText(`[${emoji.emoji}](doc:${emoji.id})`);
+    } else {
+      setCustomEmoji(emoji);
+      onSymbolSelect?.(emoji.emoji || '');
+    }
+
     closeSymbolMenu();
   });
 
@@ -96,13 +121,14 @@ const Composer: FC<OwnProps & StateProps> = ({
   });
 
   const handleClick = useLastCallback(() => {
-    console.log('handleClick', inputApi);
-
     inputApi!.focus();
   });
 
   useEffect(() => {
+    console.log('setupInput', value);
+
     const input = setupInput({
+      value,
       mode: ComposerMode.Rich,
       input: inputRef.current!,
       onUpdate: updateCallback,
@@ -116,6 +142,9 @@ const Composer: FC<OwnProps & StateProps> = ({
   const fullClassName = buildClassName(
     'ComposerNew',
     'input-group',
+    className,
+    !isEmpty && 'touched',
+    error && 'error',
   );
 
   const getTriggerElement = useLastCallback(() => inputRef.current);
@@ -132,7 +161,6 @@ const Composer: FC<OwnProps & StateProps> = ({
           'ComposerNew-input-wrapper',
           'form-control',
           isFocused && 'focus',
-          error && 'error',
         )}
         onClick={handleClick}
       >
@@ -168,10 +196,11 @@ const Composer: FC<OwnProps & StateProps> = ({
             inputCssSelector=".ComposerNew .form-control"
             idPrefix="ComposerNew"
             getTriggerElement={getTriggerElement}
+            customEmojiToggler={customEmoji}
             positionOptions={{
               anchor: {
                 x: 300,
-                y: 270,
+                y: 222,
               },
             }}
           />
