@@ -18,8 +18,14 @@ import { useInputOperations } from '../helpers/useInputOperations';
 
 import { BLOCK_GROUP_ATTR, FOCUSED_NODE_CLASS, HIGHLIGHTABLE_NODE_CLASS } from '../ast/Renderer';
 
+export enum TextEditorMode {
+  Rich,
+  Plain,
+}
+
 export function useTextEditor({
   value,
+  mode = TextEditorMode.Rich,
   input,
   onUpdate,
   onHtmlUpdate,
@@ -33,7 +39,7 @@ export function useTextEditor({
   previewHtml?: HTMLElement;
   previewMarkdown?: HTMLElement;
 }): TextEditorApi {
-  const parser = new MarkdownParser();
+  const parser = new MarkdownParser(mode === TextEditorMode.Rich);
   let currentText = '';
   let focusedNode: ASTNode | null = null;
   let selectionChangeMutex = false;
@@ -79,22 +85,30 @@ export function useTextEditor({
       switch (event.key.toLowerCase()) {
         case 'b': {
           event.preventDefault();
-          handleFormatting('bold');
+          if (mode === TextEditorMode.Rich) {
+            handleFormatting('bold');
+          }
           break;
         }
         case 'i': {
           event.preventDefault();
-          handleFormatting('italic');
+          if (mode === TextEditorMode.Rich) {
+            handleFormatting('italic');
+          }
           break;
         }
         case 'u': {
           event.preventDefault();
-          handleFormatting('underline');
+          if (mode === TextEditorMode.Rich) {
+            handleFormatting('underline');
+          }
           break;
         }
         case 's': {
           event.preventDefault();
-          handleFormatting('strikethrough');
+          if (mode === TextEditorMode.Rich) {
+            handleFormatting('strikethrough');
+          }
           break;
         }
       }
@@ -322,7 +336,10 @@ export function useTextEditor({
           .toLowerCase() as 'bold' | 'italic' | 'underline' | 'strikethrough';
 
         event.preventDefault();
-        handleFormatting(nodeName);
+
+        if (mode === TextEditorMode.Rich) {
+          handleFormatting(nodeName);
+        }
         break;
       }
       default: {

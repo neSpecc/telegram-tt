@@ -20,19 +20,14 @@ import useFlag from '../../../hooks/useFlag';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useInputCustomEmojis from '../../middle/composer/hooks/useInputCustomEmojis';
 import useCustomEmojiPremiumNotification from '../hooks/useCustomEmojiPremiumNotification';
-import { useTextEditor } from './hooks/useTextEditor';
+import { TextEditorMode, useTextEditor } from './hooks/useTextEditor';
 
 import SymbolMenuButton from '../../middle/composer/SymbolMenuButton';
-
-export enum ComposerMode {
-  Plain = 'plain',
-  Rich = 'rich',
-}
 
 type OwnProps = {
   value?: ApiFormattedText;
   onChange?: (textFormatted: ApiFormattedText) => void;
-  mode?: ComposerMode;
+  mode?: TextEditorMode;
   canSendSymbols?: boolean;
   className?: string;
   setEditorApi?: (editorApi: TextEditorApi) => void;
@@ -49,6 +44,7 @@ type StateProps = {
 };
 
 const Composer: FC<OwnProps & StateProps> = ({
+  mode = TextEditorMode.Rich,
   value,
   onChange,
   canSendSymbols,
@@ -134,7 +130,7 @@ const Composer: FC<OwnProps & StateProps> = ({
     // eslint-disable-next-line react-hooks/rules-of-hooks
     editorApiRef.current = useTextEditor({
       value,
-      mode: ComposerMode.Rich,
+      mode,
       input: inputRef.current!,
       onUpdate: updateCallback,
       onHtmlUpdate: (html: string) => {

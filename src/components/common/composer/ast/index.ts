@@ -1,8 +1,11 @@
-import type { ApiFormattedText } from './ApiFormattedText';
+/* eslint-disable no-null/no-null */
+import type { ApiFormattedText } from '../../../../api/types';
 import type { ASTNode } from './entities/ASTNode';
 import type { OffsetMappingRecord } from './entities/OffsetMapping';
 import type { RendererOptions } from './Renderer';
+
 import { generateNodeId } from '../helpers/node';
+
 import { ApiFormattedParser } from './ApiFormattedParser';
 import { Parser } from './Parser';
 import { Renderer } from './Renderer';
@@ -10,11 +13,14 @@ import { tokenize } from './Tokenizer';
 
 export class MarkdownParser {
   private renderer: Renderer;
+
   private ast: ASTNode | null = null;
+
   private parentMap = new WeakMap<ASTNode, ASTNode>();
+
   private nodeIdMap = new Map<string, ASTNode>();
 
-  constructor() {
+  constructor(private readonly isRich: boolean = true) {
     this.renderer = new Renderer();
   }
 
@@ -34,6 +40,16 @@ export class MarkdownParser {
 
   public fromString(markdown: string) {
     const ast = this.parse(markdown);
+
+    this.setAST(ast);
+
+    return this.ast;
+  }
+
+  public fromApiFormattedText(apiFormattedText: ApiFormattedText) {
+    const apiParser = new ApiFormattedParser(this.isRich);
+
+    const ast = apiParser.fromApiFormattedToAst(apiFormattedText);
 
     this.setAST(ast);
 
@@ -88,21 +104,11 @@ export class MarkdownParser {
     return apiParser.fromAstToApiFormatted(ast);
   }
 
-  public fromApiFormattedText(apiFormattedText: ApiFormattedText) {
-    const apiParser = new ApiFormattedParser();
-
-    const ast = apiParser.fromApiFormattedToAst(apiFormattedText);
-
-    this.setAST(ast);
-
-    return this.ast;
-  }
-
   /**
    * Parses markdown text and returns AST
    */
   public parse(markdown: string): ASTNode {
-    const tokens = tokenize(markdown);
+    const tokens = tokenize(markdown, this.isRich);
     return new Parser(tokens).parse();
   }
 
@@ -118,7 +124,7 @@ export class MarkdownParser {
     const parent: ASTNode | null = this.getParentNode(node);
 
     if (parent && 'children' in parent && Array.isArray(parent.children)) {
-      parent.children = parent.children.map((child: ASTNode) => child === node ? newNode : child);
+      parent.children = parent.children.map((child: ASTNode) => (child === node ? newNode : child));
     }
   }
 
@@ -140,7 +146,7 @@ export class MarkdownParser {
 
   private assingNodeIds(node: ASTNode): ASTNode {
     if ('children' in node) {
-      node.children?.forEach(child => this.assingNodeIds(child));
+      node.children?.forEach((child) => this.assingNodeIds(child));
     }
 
     node.id = generateNodeId();

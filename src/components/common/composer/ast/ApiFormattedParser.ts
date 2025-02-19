@@ -1,12 +1,25 @@
-import type { ApiFormattedText, ApiMessageEntity, ApiMessageEntityBlockquote, ApiMessageEntityMentionName, ApiMessageEntityPre } from './ApiFormattedText';
-import type { ASTFormattingNode, ASTInlineNode, ASTLinkNode, ASTNode, ASTParagraphBlockNode, ASTTextNode } from './entities/ASTNode';
-import { ApiMessageEntityTypes } from './ApiFormattedText';
+/* eslint-disable no-null/no-null */
+import type {
+  ASTFormattingNode, ASTInlineNode, ASTLinkNode, ASTNode, ASTParagraphBlockNode, ASTTextNode,
+} from './entities/ASTNode';
+import {
+  type ApiFormattedText,
+  type ApiMessageEntity,
+  type ApiMessageEntityBlockquote,
+  type ApiMessageEntityMentionName,
+  type ApiMessageEntityPre,
+  ApiMessageEntityTypes,
+} from '../../../../api/types';
 
 export class ApiFormattedParser {
+  constructor(private readonly isRich: boolean = true) {
+  }
+
   /**
    * Converts ApiFormattedText to AST
    */
   public fromApiFormattedToAst(formatted: ApiFormattedText): ASTNode {
+    // eslint-disable-next-line prefer-const
     let { text, entities = [] } = formatted;
 
     /**
@@ -48,23 +61,19 @@ export class ApiFormattedParser {
     };
 
     // Instead of always creating initial paragraph
-    const startsWithBlock = sortedEntities.some(e =>
-      e.offset === 0 && (
-        e.type === ApiMessageEntityTypes.Pre
+    const startsWithBlock = sortedEntities.some((e) => e.offset === 0 && (
+      e.type === ApiMessageEntityTypes.Pre
         || e.type === ApiMessageEntityTypes.Blockquote
-      ),
-    );
+    ));
 
     if (!startsWithBlock) {
       beginParagraph(); // Only start with paragraph if not starting with block
     }
 
-    function handleNewline(offset: number, sortedEntities: ApiMessageEntity[]): boolean {
-      const nextEntity = sortedEntities.find(e => e.offset === offset + 1);
-      const prevEntity = sortedEntities.find(e =>
-        e.offset + e.length === offset
-        && (e.type === ApiMessageEntityTypes.Pre || e.type === ApiMessageEntityTypes.Blockquote),
-      );
+    function handleNewline(offset: number): boolean {
+      const nextEntity = sortedEntities.find((e) => e.offset === offset + 1);
+      const prevEntity = sortedEntities.find((e) => e.offset + e.length === offset
+        && (e.type === ApiMessageEntityTypes.Pre || e.type === ApiMessageEntityTypes.Blockquote));
 
       const isBlock = nextEntity && (
         nextEntity.type === ApiMessageEntityTypes.Pre
@@ -80,8 +89,11 @@ export class ApiFormattedParser {
       return isBlock || isAfterBlock;
     }
 
+    const isOffsetEqual = (e: ApiMessageEntity) => e.offset === currentOffset;
+    const isOffsetGreater = (e: ApiMessageEntity) => e.offset > currentOffset;
+
     while (currentOffset < text.length) {
-      const currentEntities = sortedEntities.filter(e => e.offset === currentOffset);
+      const currentEntities = sortedEntities.filter(isOffsetEqual);
 
       if (currentEntities.length > 0) {
         const entity = currentEntities[0];
@@ -92,7 +104,7 @@ export class ApiFormattedParser {
           const node = this.convertEntityToNode(
             entity,
             entityText,
-            this.getNestedEntities(entity, sortedEntities),
+            getNestedEntities(entity, sortedEntities),
           );
           if (entity.type === ApiMessageEntityTypes.Pre) {
             root.raw = root.raw.replace(
@@ -101,28 +113,27 @@ export class ApiFormattedParser {
             );
           }
           root.children.push(node);
-        }
-        else {
+        } else {
           const paragraph = currentParagraph || beginParagraph();
           const node = this.convertEntityToNode(
             entity,
             entityText,
-            this.getNestedEntities(entity, sortedEntities),
+            getNestedEntities(entity, sortedEntities),
           );
           paragraph.children.push(node as ASTInlineNode);
           paragraph.raw += node.raw;
         }
 
         currentOffset += entity.length;
-      }
-      else {
-        const nextEntity = sortedEntities.find(e => e.offset > currentOffset);
+      } else {
+        const nextEntity = sortedEntities.find(isOffsetGreater);
         const textEnd = nextEntity ? nextEntity.offset : text.length;
         const plainText = text.slice(currentOffset, textEnd);
 
         if (plainText) {
           const parts = plainText.split('\n');
 
+          // eslint-disable-next-line @typescript-eslint/no-loop-func
           parts.forEach((part, index) => {
             const paragraph = currentParagraph || beginParagraph();
 
@@ -133,7 +144,7 @@ export class ApiFormattedParser {
 
             if (index < parts.length - 1) {
               currentOffset += part.length + 1; // +1 for newline
-              handleNewline(currentOffset - 1, sortedEntities); // Handle newline at its position
+              handleNewline(currentOffset - 1); // Handle newline at its position
             }
           });
         }
@@ -145,14 +156,17 @@ export class ApiFormattedParser {
     flushParagraph(); // Flush final paragraph even if empty
 
     if (root.children.length > 0) {
-      root.raw = root.children.map(child => child.raw).join('\n');
+      root.raw = root.children.map((child) => child.raw).join('\n');
     }
 
     return root;
   }
 
   private createFormattedNode(
-    type: Exclude<ASTNode['type'], 'root' | 'paragraph' | 'text' | 'link' | 'pre' | 'monospace' | 'mention' | 'customEmoji' | 'quote'>,
+    type: Exclude<
+    ASTNode['type'],
+    'root' | 'paragraph' | 'text' | 'link' | 'pre' | 'monospace' | 'mention' | 'customEmoji' | 'quote'
+    >,
     text: string,
     entity: ApiMessageEntity,
     nestedEntities: ApiMessageEntity[],
@@ -161,7 +175,7 @@ export class ApiFormattedParser {
     const children = nestedEntities.length > 0
       ? this.processNestedEntities(text, entity.offset, nestedEntities)
       : [this.createTextNode(text)];
-    const childrenRaw = children.map(child => child.raw).join('');
+    const childrenRaw = children.map((child) => child.raw).join('');
     return {
       type,
       raw: `${marker.start}${childrenRaw}${marker.end}`,
@@ -169,6 +183,7 @@ export class ApiFormattedParser {
     };
   }
 
+  // eslint-disable-next-line class-methods-use-this
   private createTextNode(value: string): ASTNode {
     return {
       type: 'text' as const,
@@ -185,8 +200,11 @@ export class ApiFormattedParser {
     const children: ASTInlineNode[] = [];
     let currentOffset = 0;
 
+    const isOffsetEqual = (e: ApiMessageEntity) => e.offset === startOffset + currentOffset;
+    const isOffsetGreater = (e: ApiMessageEntity) => e.offset > startOffset + currentOffset;
+
     while (currentOffset < parentText.length) {
-      const entity = nestedEntities.find(e => e.offset === startOffset + currentOffset);
+      const entity = nestedEntities.find(isOffsetEqual);
 
       if (entity) {
         const entityText = parentText.slice(
@@ -196,13 +214,12 @@ export class ApiFormattedParser {
         const nestedNode = this.convertEntityToNode(
           entity,
           entityText,
-          this.getNestedEntities(entity, nestedEntities),
+          getNestedEntities(entity, nestedEntities),
         );
         children.push(nestedNode as ASTInlineNode);
         currentOffset += entityText.length;
-      }
-      else {
-        const nextEntity = nestedEntities.find(e => e.offset > startOffset + currentOffset);
+      } else {
+        const nextEntity = nestedEntities.find(isOffsetGreater);
         const textEnd = nextEntity
           ? nextEntity.offset - startOffset
           : parentText.length;
@@ -223,6 +240,19 @@ export class ApiFormattedParser {
     text: string,
     nestedEntities: ApiMessageEntity[],
   ): ASTNode {
+    // In non-rich mode, only allow text and custom emoji
+    if (!this.isRich) {
+      if (entity.type === ApiMessageEntityTypes.CustomEmoji) {
+        return {
+          type: 'customEmoji',
+          value: text,
+          documentId: entity.documentId,
+          raw: `[${text}](doc:${entity.documentId})`,
+        };
+      }
+      return this.createTextNode(text);
+    }
+
     switch (entity.type) {
       case ApiMessageEntityTypes.Bold:
         return this.createFormattedNode('bold', text, entity, nestedEntities, { start: '**', end: '**' });
@@ -243,7 +273,7 @@ export class ApiFormattedParser {
         const children = nestedEntities.length > 0
           ? this.processNestedEntities(text, entity.offset, nestedEntities)
           : [this.createTextNode(text)];
-        const childrenRaw = children.map(child => child.raw).join('');
+        const childrenRaw = children.map((child) => child.raw).join('');
         return {
           type: 'quote',
           raw: `>${childrenRaw}`,
@@ -271,7 +301,7 @@ export class ApiFormattedParser {
         const children = nestedEntities.length > 0
           ? this.processNestedEntities(text, entity.offset, nestedEntities)
           : [this.createTextNode(text)];
-        const childrenRaw = children.map(child => child.raw).join('');
+        const childrenRaw = children.map((child) => child.raw).join('');
         return {
           type: 'link',
           href: entity.url,
@@ -305,6 +335,7 @@ export class ApiFormattedParser {
     }
   }
 
+  // eslint-disable-next-line class-methods-use-this
   public fromAstToApiFormatted(ast: ASTNode): ApiFormattedText {
     let text = '';
     const entities: ApiMessageEntity[] = [];
@@ -316,7 +347,7 @@ export class ApiFormattedParser {
       extraProps: Partial<ApiMessageEntity> = {},
     ): { offset: number; length: number } {
       const startOffset = currentOffset;
-      node.children?.forEach(child => processNode(child));
+      node.children?.forEach((child) => processNode(child));
       const length = currentOffset - startOffset;
 
       entities.push({
@@ -327,7 +358,7 @@ export class ApiFormattedParser {
       } as ApiMessageEntity);
 
       return { offset: startOffset, length };
-    };
+    }
 
     processNode(ast);
 
@@ -359,7 +390,7 @@ export class ApiFormattedParser {
 
         case 'quote': {
           const startOffset = currentOffset;
-          node.children.forEach(child => processNode(child));
+          node.children.forEach((child) => processNode(child));
           const length = currentOffset - startOffset;
 
           entities.push({
@@ -452,16 +483,14 @@ export class ApiFormattedParser {
           break;
         }
       }
-    };
+    }
   }
+}
 
-  private getNestedEntities(
-    parentEntity: ApiMessageEntity,
-    allEntities: ApiMessageEntity[],
-  ): ApiMessageEntity[] {
-    return allEntities.filter(e =>
-      e.offset > parentEntity.offset
-      && e.offset + e.length <= parentEntity.offset + parentEntity.length,
-    );
-  }
+function getNestedEntities(
+  parentEntity: ApiMessageEntity,
+  allEntities: ApiMessageEntity[],
+): ApiMessageEntity[] {
+  return allEntities.filter((e) => e.offset > parentEntity.offset
+    && e.offset + e.length <= parentEntity.offset + parentEntity.length);
 }

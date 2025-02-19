@@ -240,8 +240,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const messageRef = useRef(getApiFormattedText());
 
   useLayoutEffect(() => {
-    console.log('useLayoutEffect, setConten', getApiFormattedText());
-
     const message = isActive ? getApiFormattedText() : { text: '' };
 
     if (areMessagesEqual(message, messageRef.current)) {
@@ -251,8 +249,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     if (!editorApiRef.current) {
       return;
     }
-
-    console.log('set content');
 
     editorApiRef.current.setContent(message);
     editorApiRef.current.focus();

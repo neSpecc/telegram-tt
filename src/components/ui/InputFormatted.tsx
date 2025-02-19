@@ -13,6 +13,7 @@ import { isMessageEmpty } from '../middle/composer/utils/isMessageEmpty';
 import useFlag from '../../hooks/useFlag';
 import useLastCallback from '../../hooks/useLastCallback';
 import useOldLang from '../../hooks/useOldLang';
+import { TextEditorMode } from '../common/composer/hooks/useTextEditor';
 
 import Composer from '../common/composer/ComposerNew';
 import { MenuPositionOptions } from './Menu';
@@ -90,7 +91,7 @@ const InputFormatted: FC<OwnProps> = ({
       >
         <Composer
           value={value}
-          // disabled={disabled}
+          mode={TextEditorMode.Plain}
           onChange={updateCallback}
           onFocus={markFocused}
           onBlur={unmarkFocused}

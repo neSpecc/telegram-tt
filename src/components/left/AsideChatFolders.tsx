@@ -55,13 +55,12 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
 
   const getIconName = useMemo(() => {
     return (folder: ApiChatFolder): IconName | undefined => {
-      // Check for custom emoji in title entities
       if (folder.title && typeof folder.title !== 'string' && folder.title.entities) {
         const customEmojiEntity = folder.title.entities.find(
           (entity) => entity.type === ApiMessageEntityTypes.CustomEmoji,
         );
         if (customEmojiEntity && 'documentId' in customEmojiEntity) {
-          return undefined; // Return undefined to indicate we should use custom emoji
+          return undefined;
         }
       }
 
@@ -89,15 +88,11 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
         contacts: 'user',
       };
 
-      Object.entries(propertyToIcon).forEach(([property, icon]) => {
-        if (folder[property as keyof ApiChatFolder]) {
-          return icon;
-        }
-      });
-
-      return 'folder-badge';
+      return Object.entries(propertyToIcon).find(([property]) => {
+        return folder[property as keyof ApiChatFolder];
+      })?.[1] || 'folder-badge';
     };
-  }, []); // No dependencies since the logic is static
+  }, []);
 
   const allChatsFolder: ApiChatFolder = useMemo(() => {
     return {
@@ -110,7 +105,6 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
     };
   }, [lang]);
 
-  // Load folders on mount
   useEffect(() => {
     loadChatFolders();
   }, []);

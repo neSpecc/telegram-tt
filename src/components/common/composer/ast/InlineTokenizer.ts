@@ -13,17 +13,37 @@ const inlineRegex = {
 
 export class InlineTokenizer {
   private pos = 0;
+
   private currentText = '';
+
   private tokens: InlineToken[] = [];
+
   private formatStack: Array<'bold' | 'italic'> = [];
 
-  constructor(private readonly text: string) {
+  constructor(private readonly text: string, private readonly isRich: boolean = true) {
   }
 
   public tokenize(isPlainText = false): InlineToken[] {
+    console.log('this.isRich', this.isRich);
     while (this.pos < this.text.length) {
       const remaining = this.text.slice(this.pos);
 
+      // If not rich mode, only handle text and custom emoji
+      if (!this.isRich && !isPlainText) {
+        const customEmojiMatch = remaining.match(inlineRegex.customEmoji);
+        if (customEmojiMatch) {
+          this.handleCustomEmoji(customEmojiMatch);
+          this.pos += customEmojiMatch[0].length;
+          continue;
+        }
+
+        // Treat everything else as plain text
+        this.currentText += this.text[this.pos];
+        this.pos++;
+        continue;
+      }
+
+      // Rich mode - handle all tokens
       if (isPlainText) {
         this.tokens.push({ type: 'text', value: remaining, raw: remaining });
         this.pos = this.text.length;
@@ -47,8 +67,7 @@ export class InlineTokenizer {
           this.tokens.push({ type: 'bold', raw: '**' });
           this.tokens.push({ type: 'italic', raw: '*' });
           this.formatStack.push('bold', 'italic');
-        }
-        else {
+        } else {
           // Closing: italic then bold
           if (this.formatStack.includes('italic')) {
             this.tokens.push({ type: 'italic', raw: '*' });
@@ -87,13 +106,11 @@ export class InlineTokenizer {
             // No closing tag found, treat as plain text
             this.currentText += marker;
             this.pos += marker.length;
-          }
-          else {
+          } else {
             this.handleFormatting('underline', marker);
             this.pos += marker.length;
           }
-        }
-        else {
+        } else {
           const textBefore = this.text.slice(0, this.pos);
           const openTagCount = (textBefore.match(/<u>/g) || []).length;
           const closeTagCount = (textBefore.match(/<\/u>/g) || []).length;
@@ -102,8 +119,7 @@ export class InlineTokenizer {
             // We have an unclosed opening tag, handle closing tag
             this.handleFormatting('underline', marker);
             this.pos += marker.length;
-          }
-          else {
+          } else {
             // No matching opening tag, treat as plain text
             this.currentText += marker;
             this.pos += marker.length;

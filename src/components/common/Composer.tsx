@@ -2139,4 +2139,7 @@ export default memo(withGlobal<OwnProps>(
 
 /**
  * @todo check all places of parseHtmlAsFormattedText — can we get rid of it?
+ * @todo Remove link by TextFormatter icon click
+ * @todo Attachement Model should have text from input when opened
+ * @todo ComposerNew — Plain mode
  */
