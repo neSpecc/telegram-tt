@@ -29,6 +29,7 @@ import GroupChatInfo from '../../../common/GroupChatInfo';
 import Icon from '../../../common/icons/Icon';
 import PrivateChatInfo from '../../../common/PrivateChatInfo';
 import FloatingActionButton from '../../../ui/FloatingActionButton';
+import InputFormatted from '../../../ui/InputFormatted';
 import InputText from '../../../ui/InputText';
 import ListItem from '../../../ui/ListItem';
 import Spinner from '../../../ui/Spinner';
@@ -156,10 +157,6 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
     if (textFormatted.text.length > 0) {
       dispatch({ type: 'setTitle', payload: textFormatted });
     }
-  }, [dispatch]);
-
-  const handleEmoticonSelect = useCallback((emoticon: string) => {
-    dispatch({ type: 'setEmoticon', payload: emoticon });
   }, [dispatch]);
 
   const handleSubmit = useCallback(() => {
@@ -302,15 +299,19 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
             </p>
           )}
 
-          <ComposerNew
+          <InputFormatted
             className="mb-0"
             onChange={handleChange}
-            value={state.folder.title.text}
+            value={state.folder.title}
             canSendSymbols
             label={lang('FilterNameHint')}
             error={state.error && state.error === ERROR_NO_TITLE ? ERROR_NO_TITLE : undefined}
-            onSymbolSelect={handleEmoticonSelect}
-            symbolSelectMode="insert-to-text"
+            customEmojiMenuPosition={{
+              anchor: {
+                x: 300,
+                y: 222,
+              },
+            }}
           />
         </div>
 

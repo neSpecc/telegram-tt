@@ -63,3 +63,9 @@
     @include mixins.animated-menu-icon();
   }
 }
+
+.theme-dark {
+  .AsideChatFolders {
+    background-color: var(--color-background-secondary);
+  }
+}

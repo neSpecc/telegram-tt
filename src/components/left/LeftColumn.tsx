@@ -487,9 +487,9 @@ function LeftColumn({
     return orderedFolderIds.length > 1;
   }, [orderedFolderIds, isDesktop]);
 
-  // useEffect(() => {
-  //   setContent(LeftColumnContent.Settings);
-  // }, []);
+  useEffect(() => {
+    setContent(LeftColumnContent.Settings);
+  }, []);
 
   function renderContent(isActive: boolean) {
     switch (contentType) {

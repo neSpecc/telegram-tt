@@ -115,6 +115,7 @@ const SymbolMenuButton: FC<OwnProps> = ({
     const triggerEl = triggerRef.current;
     if (!triggerEl) return;
     const { x, y } = triggerEl.getBoundingClientRect();
+
     setContextMenuAnchor({ x, y });
   });
 
@@ -174,20 +175,24 @@ const SymbolMenuButton: FC<OwnProps> = ({
           ariaLabel="Choose emoji, sticker or GIF"
         >
           <div ref={triggerRef} className="symbol-menu-trigger" />
-          <Transition
-            name="slideVertical"
-            activeKey={customEmojiToggler ? Number(customEmojiToggler.id) : 0}
-          >
-            {customEmojiToggler ? (
-              <CustomEmoji
-                documentId={customEmojiToggler.id}
-                size={28}
-                className="symbol-menu-trigger-emoji"
-              />
-            ) : (
-              <Icon name="smile" />
-            )}
-          </Transition>
+          { customEmojiToggler ? (
+            <Transition
+              name="slideVertical"
+              activeKey={customEmojiToggler ? Number(customEmojiToggler.id) : 0}
+            >
+              {customEmojiToggler ? (
+                <CustomEmoji
+                  documentId={customEmojiToggler.id}
+                  size={28}
+                  className="symbol-menu-trigger-emoji"
+                />
+              ) : (
+                <Icon name="smile" />
+              )}
+            </Transition>
+          ) : (
+            <Icon name="smile" />
+          )}
         </ResponsiveHoverButton>
       )}
 

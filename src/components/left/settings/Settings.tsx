@@ -203,7 +203,7 @@ const Settings: FC<OwnProps> = ({
   });
 
   // useEffect(() => {
-  // onScreenSelect(SettingsScreens.FoldersCreateFolder);
+  //   onScreenSelect(SettingsScreens.FoldersCreateFolder);
   // });
 
   function renderCurrentSectionContent(isScreenActive: boolean, activeScreen: SettingsScreens) {

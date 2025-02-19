@@ -5,39 +5,31 @@
   word-break: break-word;
   overflow-wrap: anywhere;
   text-rendering: optimizelegibility;
-  text-align: left;
 
-  .ComposerNew-input-wrapper {
-    display: flex;
-    align-items: center;
-    position: relative;
-    cursor: text;
-    padding-inline-end: 0.5rem;
+  display: flex;
+  align-items: center;
+  position: relative;
+  cursor: text;
 
-    .composer-input {
-      flex: 1;
-      outline: none;
-      -webkit-appearance: none;
-    }
+  .composer-input {
+    flex: 1;
+    outline: none;
+    -webkit-appearance: none;
+  }
 
-    .Button {
-      flex-shrink: 0;
-      background: none !important;
-      --custom-emoji-size: 1.75rem;
-      padding: 0;
-      width: 28px;
-      height: 28px;
+  .Button {
+    flex-shrink: 0;
+    background: none !important;
+    --custom-emoji-size: 1.75rem;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+  }
 
-      .icon {
-        transform: translateY(-0.125rem);
-      }
-    }
-
-    .Menu {
-      .bubble {
-        --offset-y: 100%;
-        --offset-x: -4.125rem;
-      }
+  .Menu {
+    .bubble {
+      --offset-y: 100%;
+      --offset-x: -4.125rem;
     }
   }
 
@@ -156,6 +148,14 @@
 
       font-size: 0.625rem;
     }
+  }
+
+  .custom-emoji {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    vertical-align: text-top;
+    pointer-events: none;
   }
 
 }

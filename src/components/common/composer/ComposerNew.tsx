@@ -8,8 +8,8 @@ import type { FC } from '../../../lib/teact/teact';
 import React, {
   memo,
   useEffect,
-  useMemo,
   useRef,
+  useSignal,
   useState,
 } from '../../../lib/teact/teact';
 import { withGlobal } from '../../../global';
@@ -22,71 +22,69 @@ import SymbolMenuButton from '../../middle/composer/SymbolMenuButton';
 import useFlag from '../../../hooks/useFlag';
 import { selectIsCurrentUserPremium } from '../../../global/selectors';
 import useCustomEmojiPremiumNotification from '../hooks/useCustomEmojiPremiumNotification';
-import { isMessageEmpty } from '../../middle/composer/utils/isMessageEmpty';
+import type { MenuPositionOptions } from '../../ui/Menu';
+import useAppLayout from '../../../hooks/useAppLayout';
+import useInputCustomEmojis from '../../middle/composer/hooks/useInputCustomEmojis';
 
 export enum ComposerMode {
   Plain = 'plain',
   Rich = 'rich',
 }
 
-type InputTextProps = {
-  value?: string;
-  label?: string;
-  error?: string;
-};
-
-type OwnProps = InputTextProps & {
+type OwnProps = {
+  value?: ApiFormattedText;
   onChange?: (textFormatted: ApiFormattedText) => void;
   mode?: ComposerMode;
   canSendSymbols?: boolean;
   className?: string;
-  symbolSelectMode?: 'insert-to-text' | 'store-separately';
-  onSymbolSelect?: (symbol: string) => void;
+  setInputApi?: (inputApi: InputApi) => void;
+  onFocus?: NoneToVoidFunction;
+  onBlur?: NoneToVoidFunction;
+  ariaLabel?: string;
+  tabIndex?: number;
+  customEmojiMenuPosition?: MenuPositionOptions;
 };
 
 type StateProps = {
-  currentUserId: string;
+  currentUserId: string | undefined;
   isCurrentUserPremium: boolean;
 };
 
 const Composer: FC<OwnProps & StateProps> = ({
   value,
-  label,
-  error,
   onChange,
   canSendSymbols,
   currentUserId,
   isCurrentUserPremium,
   className,
-  symbolSelectMode = 'insert-to-text',
-  onSymbolSelect,
+  setInputApi,
+  onFocus,
+  onBlur,
+  ariaLabel,
+  tabIndex,
+  customEmojiMenuPosition,
 }) => {
   // eslint-disable-next-line no-null/no-null
   const inputRef = useRef<HTMLDivElement>(null);
-  const [inputApi, setInputApi] = useState<InputApi | undefined>(undefined);
+  const inputApiRef = useRef<InputApi | undefined>(undefined);
   const [isSymbolMenuOpen, openSymbolMenu, closeSymbolMenu] = useFlag();
-  const [isFocused, markFocused, unmarkFocused] = useFlag();
-  const labelText = error || label;
-  const currentValue = useRef('');
-  const [isEmpty, setIsEmpty] = useState(true);
+  const [getCurrentValue, setCurrentValue] = useSignal<ApiFormattedText | undefined>(undefined);
   const [customEmoji, setCustomEmoji] = useState<ApiSticker | undefined>(undefined);
+  const [isReady, setIsReady] = useState(false);
+  const { isMobile } = useAppLayout();
 
   const updateCallback = useLastCallback((textFormatted: ApiFormattedText) => {
-    currentValue.current = textFormatted.text;
-    setIsEmpty(isMessageEmpty(textFormatted));
+    setCurrentValue(textFormatted);
     onChange?.(textFormatted);
   });
 
   const handleRemoveSymbol = useLastCallback(() => {
-    if (symbolSelectMode === 'insert-to-text') {
-      inputApi!.deleteLastSymbol();
-    } else {
-      setCustomEmoji(undefined);
-    }
+    inputApiRef.current!.deleteLastSymbol();
+    setCustomEmoji(undefined);
   });
 
   const insertText = useLastCallback((text: string) => {
-    inputApi!.insert(text, inputApi!.getCaretOffset().end);
+    inputApiRef.current!.insert(text, inputApiRef.current!.getCaretOffset().end);
   });
 
   const { showCustomEmojiPremiumNotification } = useCustomEmojiPremiumNotification(currentUserId!);
@@ -97,13 +95,8 @@ const Composer: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    if (symbolSelectMode === 'insert-to-text') {
-      insertText(`[${emoji.emoji}](doc:${emoji.id})`);
-    } else {
-      setCustomEmoji(emoji);
-      onSymbolSelect?.(emoji.emoji || '');
-    }
-
+    insertText(`[${emoji.emoji}](doc:${emoji.id})`);
+    setCustomEmoji(emoji);
     closeSymbolMenu();
   });
 
@@ -120,14 +113,27 @@ const Composer: FC<OwnProps & StateProps> = ({
     closeSymbolMenu();
   });
 
-  const handleClick = useLastCallback(() => {
-    inputApi!.focus();
-  });
+  // eslint-disable-next-line no-null/no-null
+  const sharedCanvasRef = useRef<HTMLCanvasElement>(null);
+  // eslint-disable-next-line no-null/no-null
+  const sharedCanvasHqRef = useRef<HTMLCanvasElement>(null);
+  // eslint-disable-next-line no-null/no-null
+  const absoluteContainerRef = useRef<HTMLDivElement>(null);
+
+  useInputCustomEmojis(
+    getCurrentValue,
+    inputRef,
+    sharedCanvasRef,
+    sharedCanvasHqRef,
+    absoluteContainerRef,
+    'ComposerNew',
+    true,
+    isReady,
+    true,
+  );
 
   useEffect(() => {
-    console.log('setupInput', value);
-
-    const input = setupInput({
+    inputApiRef.current = setupInput({
       value,
       mode: ComposerMode.Rich,
       input: inputRef.current!,
@@ -136,79 +142,58 @@ const Composer: FC<OwnProps & StateProps> = ({
       },
     });
 
-    setInputApi(input);
+    setInputApi?.(inputApiRef.current);
+    setIsReady(true);
   }, []);
 
   const fullClassName = buildClassName(
     'ComposerNew',
-    'input-group',
     className,
-    !isEmpty && 'touched',
-    error && 'error',
   );
 
   const getTriggerElement = useLastCallback(() => inputRef.current);
-  // const getRootElement = useLastCallback(() => ref.current!.closest('.custom-scroll, .no-scrollbar'));
-  // const getMenuElement = useLastCallback(() => {
-  //   return isStatusPicker ? menuRef.current : ref.current!.querySelector('.sticker-context-menu .bubble');
-  // });
-  // const getLayout = useLastCallback(() => ({ withPortal: isStatusPicker, shouldAvoidNegativePosition: true }));
 
   return (
     <div className={fullClassName}>
       <div
-        className={buildClassName(
-          'ComposerNew-input-wrapper',
-          'form-control',
-          isFocused && 'focus',
-        )}
-        onClick={handleClick}
-      >
-        <div
-          ref={inputRef}
-          className="composer-input"
-          contentEditable
-          role="textbox"
-          dir="auto"
-          aria-label={labelText}
-          tabIndex={0}
-          onFocus={markFocused}
-          onBlur={unmarkFocused}
+        ref={inputRef}
+        className="composer-input"
+        contentEditable
+        role="textbox"
+        dir="auto"
+        tabIndex={tabIndex}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        aria-label={ariaLabel}
+      />
+      {(canSendSymbols) && (
+        <SymbolMenuButton
+          chatId=""
+          threadId=""
+          isMobile={isMobile}
+          isReady
+          isSymbolMenuOpen={isSymbolMenuOpen}
+          openSymbolMenu={handleSymbolMenuOpen}
+          closeSymbolMenu={handleSymbolMenuClose}
+          canSendStickers={false}
+          canSendGifs={false}
+          isMessageComposer={false}
+          onCustomEmojiSelect={handleCustomEmojiSelect}
+          onRemoveSymbol={handleRemoveSymbol}
+          onEmojiSelect={insertEmoji}
+          isAttachmentModal={!isMobile}
+          isSymbolMenuForced={false}
+          canSendPlainText
+          inputCssSelector=".ComposerNew .form-control"
+          idPrefix="ComposerNew"
+          getTriggerElement={getTriggerElement}
+          customEmojiToggler={customEmoji}
+          positionOptions={isMobile ? undefined : customEmojiMenuPosition}
         />
-        {(canSendSymbols) && (
-          <SymbolMenuButton
-            chatId=""
-            threadId=""
-            isMobile={false}
-            isReady={false}
-            isSymbolMenuOpen={isSymbolMenuOpen}
-            openSymbolMenu={handleSymbolMenuOpen}
-            closeSymbolMenu={handleSymbolMenuClose}
-            canSendStickers={false}
-            canSendGifs={false}
-            isMessageComposer={false}
-            onCustomEmojiSelect={handleCustomEmojiSelect}
-            onRemoveSymbol={handleRemoveSymbol}
-            onEmojiSelect={insertEmoji}
-            isAttachmentModal
-            isSymbolMenuForced={false}
-            canSendPlainText
-            inputCssSelector=".ComposerNew .form-control"
-            idPrefix="ComposerNew"
-            getTriggerElement={getTriggerElement}
-            customEmojiToggler={customEmoji}
-            positionOptions={{
-              anchor: {
-                x: 300,
-                y: 222,
-              },
-            }}
-          />
-        )}
-      </div>
-      {labelText && (
-        <label htmlFor="ComposerNew">{labelText}</label>
       )}
+      <canvas ref={sharedCanvasRef} className="shared-canvas" />
+      <canvas ref={sharedCanvasHqRef} className="shared-canvas" />
+      <div ref={absoluteContainerRef} className="absolute-video-container" />
     </div>
   );
 };
