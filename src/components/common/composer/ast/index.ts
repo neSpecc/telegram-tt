@@ -1,34 +1,42 @@
 /* eslint-disable no-null/no-null */
 import type { ApiFormattedText } from '../../../../api/types';
-import type { ASTNode } from './entities/ASTNode';
+import type { ASTNode, ASTRootNode } from './entities/ASTNode';
 import type { OffsetMappingRecord } from './entities/OffsetMapping';
-import type { RendererOptions } from './Renderer';
+import type { RendererOptions } from './RendererHtml';
 
 import { generateNodeId } from '../helpers/node';
 
 import { ApiFormattedParser } from './ApiFormattedParser';
 import { Parser } from './Parser';
-import { Renderer } from './Renderer';
+import { RendererHtml } from './RendererHtml';
 import { tokenize } from './Tokenizer';
 
 export class MarkdownParser {
-  private renderer: Renderer;
+  private renderer: RendererHtml;
 
-  private ast: ASTNode | null = null;
+  private ast: ASTRootNode | null = null;
 
   private parentMap = new WeakMap<ASTNode, ASTNode>();
 
   private nodeIdMap = new Map<string, ASTNode>();
 
   constructor(private readonly isRich: boolean = true) {
-    this.renderer = new Renderer();
+    this.renderer = new RendererHtml();
   }
 
-  public getAST(): ASTNode | null {
+  public getAST(): ASTRootNode {
+    if (!this.ast) {
+      return {
+        type: 'root',
+        children: [],
+        raw: '',
+      };
+    }
+
     return this.ast;
   }
 
-  public setAST(ast: ASTNode) {
+  public setAST(ast: ASTRootNode) {
     this.ast = ast;
 
     this.nodeIdMap = new Map();
@@ -39,7 +47,7 @@ export class MarkdownParser {
   }
 
   public fromString(markdown: string) {
-    const ast = this.parse(markdown);
+    const ast = this.parse(markdown) as ASTRootNode;
 
     this.setAST(ast);
 
@@ -49,7 +57,7 @@ export class MarkdownParser {
   public fromApiFormattedText(apiFormattedText: ApiFormattedText) {
     const apiParser = new ApiFormattedParser(this.isRich);
 
-    const ast = apiParser.fromApiFormattedToAst(apiFormattedText);
+    const ast = apiParser.fromApiFormattedToAst(apiFormattedText) as ASTRootNode;
 
     this.setAST(ast);
 

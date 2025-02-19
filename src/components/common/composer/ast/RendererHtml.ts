@@ -1,3 +1,4 @@
+import type { ApiMessageEntityCustomEmoji } from '../../../../api/types';
 import type {
   ASTBlockNode, ASTInlineNode, ASTMonospaceNode, ASTNode, ASTParagraphBlockNode, ASTUnderlineNode,
 } from './entities/ASTNode';
@@ -7,6 +8,7 @@ import { buildCustomEmojiHtmlFromEntity } from '../../../middle/composer/helpers
 // import { buildCustomEmojiHtmlFromEntity } from '../../../telegram-tt/src/components/middle/composer/helpers/customEmoji';
 import { escapeAttribute, escapeHTML } from '../helpers/escape';
 import { getFocusedNode } from '../helpers/getFocusedNode';
+import { isBlockNode, isNodeClosed } from '../helpers/node';
 
 export interface RendererOptions {
   mode: 'html' | 'markdown' | 'api';
@@ -22,9 +24,10 @@ function previewSpan(char: string): string {
   return `<span class="md-preview-char">${char}</span>`;
 }
 
-export class Renderer {
+export class RendererHtml {
   private offsetMapping: OffsetMapping = [];
 
+  // eslint-disable-next-line no-null/no-null
   private focusedNode: ASTNode | null = null;
 
   private currentHtmlOffset = 0;
@@ -91,7 +94,7 @@ export class Renderer {
       return blocks.join(joiner);
     }
 
-    if (this.isBlockNode(node)) {
+    if (isBlockNode(node)) {
       return this.renderBlockNode(node);
     }
 
@@ -119,7 +122,12 @@ export class Renderer {
         const prefix = isPreview ? previewSpan('>') : '';
 
         blockHtml = this.options.mode === 'html'
-          ? `<div class="paragraph paragraph--quote ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}"><div class="md-quote">${prefix}${children.length > 0 ? children : '<br>'}</div></div>`
+          ? [
+            // eslint-disable-next-line max-len
+            `<div class="paragraph paragraph--quote ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
+            `<div class="md-quote">${prefix}${children.length > 0 ? children : '<br>'}</div>`,
+            '</div>',
+          ].join('')
           : `>${children}`;
 
         break;
@@ -127,13 +135,24 @@ export class Renderer {
       case 'pre': {
         if (this.options.mode === 'markdown') {
           const prefixLinebreak = node.language || (node.value !== '' && node.value !== '\n');
-          return `\`\`\`${node.language ? `${node.language}` : ''}${prefixLinebreak ? '\n' : ''}${node.value}${node.closed ? '\n```' : ''}`;
+          return [
+            '```',
+            node.language ? `${node.language}` : '',
+            prefixLinebreak ? '\n' : '',
+            node.value,
+            node.closed ? '\n```' : '',
+          ].join('');
         }
 
         const groupId = Math.random().toString(36).substring(2, 15);
 
         const createLine = (text: string) => {
-          return `<div ${BLOCK_GROUP_ATTR}="${groupId}" class="paragraph paragraph-pre ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">${text}</div>`;
+          return [
+            // eslint-disable-next-line max-len
+            `<div ${BLOCK_GROUP_ATTR}="${groupId}" class="paragraph paragraph-pre ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
+            text,
+            '</div>',
+          ].join('');
         };
 
         const content = node.value;
@@ -188,7 +207,7 @@ export class Renderer {
   public renderInlineNode(node: ASTInlineNode | ASTParagraphBlockNode, isFocusedOverride?: boolean) {
     const { mode = 'html', isPreview = false } = this.options;
     const isFocused = isFocusedOverride !== undefined ? isFocusedOverride : this.isNodeFocused(node);
-    const isClosed = this.isNodeClosed(node);
+    const isClosed = isNodeClosed(node);
 
     const grammar = {
       bold: {
@@ -232,7 +251,11 @@ export class Renderer {
         const markerLength = grammatic.markdown.length;
 
         // Skip nested formatting nodes of the same type
-        if ('children' in node && Array.isArray(node.children) && node.children.length === 1 && node.children[0].type === node.type) {
+        if (
+          'children' in node
+          && Array.isArray(node.children)
+          && node.children.length === 1 && node.children[0].type === node.type
+        ) {
           return this.renderChildren(node.children as ASTNode[], isFocused);
         }
 
@@ -248,7 +271,9 @@ export class Renderer {
         this.currentHtmlOffset = savedHtmlOffset + (isPreview ? markerLength : 0);
         this.currentMdOffset = savedMdOffset + markerLength;
 
-        const content = 'children' in node ? this.renderChildren(node.children as ASTNode[], isFocused) : (node as ASTMonospaceNode).value;
+        const content = 'children' in node
+          ? this.renderChildren(node.children as ASTNode[], isFocused)
+          : (node as ASTMonospaceNode).value;
 
         this.currentHtmlOffset = savedHtmlOffset + node.raw.length;
         this.currentMdOffset = savedMdOffset + node.raw.length;
@@ -257,7 +282,12 @@ export class Renderer {
         const suffix = isPreview && isClosed ? previewSpan(grammatic.markdown) : '';
 
         if (mode === 'html') {
-          return `<${grammatic.tag} class="md-${node.type} ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">${prefix}${content}${suffix}</${grammatic.tag}>`;
+          return [
+            // eslint-disable-next-line max-len
+            `<${grammatic.tag} class="md-${node.type} ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
+            `${prefix}${content}${suffix}`,
+            `</${grammatic.tag}>`,
+          ].join('');
         } else {
           return `${grammatic.markdown}${content}${isClosed ? grammatic.markdown : ''}`;
         }
@@ -285,7 +315,11 @@ export class Renderer {
         if (mode === 'html') {
           const prefix = isPreview ? previewSpan('&lt;u&gt;') : '';
           const suffix = isPreview ? previewSpan('&lt;/u&gt;') : '';
-          return `<span class="md-underline ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">${prefix}${content}${suffix}</span>`;
+          return [
+            `<span class="md-underline ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
+            `${prefix}${content}${suffix}`,
+            '</span>',
+          ].join('');
         } else {
           return `<u>${content}</u>`;
         }
@@ -340,7 +374,14 @@ export class Renderer {
           const imgTagLength = 1;
           this.addToMapping(imgTagLength, mdText.length, node);
           if (typeof window !== 'undefined' && window.location.port === '5173') {
-            return '<img class="custom-emoji emoji emoji-small placeholder" draggable="false" alt="😎" data-document-id="5071170261227667457" data-entity-type="MessageEntityCustomEmoji" src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f604/512.gif" />';
+            return [
+              '<img class="custom-emoji emoji emoji-small placeholder" ',
+              'draggable="false" ',
+              'alt="😎" ',
+              'data-document-id="5071170261227667457" ',
+              'data-entity-type="MessageEntityCustomEmoji" ',
+              'src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f604/512.gif" />',
+            ].join('');
           }
           return buildCustomEmojiHtmlFromEntity(node.value, node as unknown as ApiMessageEntityCustomEmoji);
         } else {
@@ -359,19 +400,12 @@ export class Renderer {
 
   private renderChildren(children: ASTNode[], isFocusedOverride?: boolean): string {
     if (!children) {
-      console.error('No children to render');
+      return '';
     }
 
     return children
       .map((child) => this.renderInlineNode(child as ASTInlineNode, isFocusedOverride))
       .join('');
-  }
-
-  private isNodeClosed(node: ASTNode): boolean {
-    if ('closed' in node) {
-      return node.closed ?? true;
-    }
-    return true;
   }
 
   /**
@@ -388,9 +422,5 @@ export class Renderer {
     }
 
     return false;
-  }
-
-  private isBlockNode(node: ASTNode): node is ASTBlockNode {
-    return ['paragraph', 'quote', 'pre'].includes(node.type);
   }
 }

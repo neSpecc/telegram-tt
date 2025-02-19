@@ -4,13 +4,14 @@ import React, {
   getIsHeavyAnimating,
   memo,
   useEffect, useLayoutEffect,
-  useRef, useState,
+  useRef, useSignal, useState,
 } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
 
 import type { ApiFormattedText, ApiInputMessageReplyInfo } from '../../../api/types';
 import type { IAnchorPosition, ISettings, ThreadId } from '../../../types';
 import type { Signal } from '../../../util/signals';
+import type { ASTRootNode } from '../../common/composer/ast/entities/ASTNode';
 import type { TextEditorApi } from '../../common/composer/TextEditorApi';
 
 import { EDITABLE_INPUT_ID } from '../../../config';
@@ -37,6 +38,7 @@ import useOldLang from '../../../hooks/useOldLang';
 import { useTextEditor } from '../../common/composer/hooks/useTextEditor';
 import useInputCustomEmojis from './hooks/useInputCustomEmojis';
 
+import RendererTeact from '../../common/composer/ast/RendererTeact';
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import TextTimer from '../../ui/TextTimer';
@@ -551,9 +553,12 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   const inputScrollerContentClass = buildClassName('input-scroller-content', isNeedPremium && 'is-need-premium');
 
-  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText) => {
+  const [getAst, setAst] = useSignal<ASTRootNode | undefined>(undefined);
+
+  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode) => {
     messageRef.current = apiFormattedText;
     onUpdate(apiFormattedText);
+    setAst(ast);
   });
 
   useEffect(() => {
@@ -601,7 +606,11 @@ const MessageInput: FC<OwnProps & StateProps> = ({
             onTouchCancel={IS_ANDROID ? processSelectionWithTimeout : undefined}
             onFocus={!isNeedPremium ? onFocus : undefined}
             onBlur={!isNeedPremium ? onBlur : undefined}
-          />
+          >
+            <RendererTeact
+              getAst={getAst}
+            />
+          </div>
           {!forcedPlaceholder && (
             <span
               className={buildClassName(

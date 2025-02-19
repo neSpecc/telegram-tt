@@ -2,6 +2,7 @@
 import type { ApiFormattedText } from '../ast/ApiFormattedText';
 import type {
   ASTFormattingInlineNodeBase, ASTFormattingNode, ASTLinkNode, ASTMonospaceNode, ASTNode, ASTPreBlockNode,
+  ASTRootNode,
 } from '../ast/entities/ASTNode';
 import type { OffsetMappingRecord } from '../ast/entities/OffsetMapping';
 import type { LinkFormattingOptions, TextEditorApi } from '../TextEditorApi';
@@ -16,7 +17,7 @@ import { createHistory } from '../helpers/history';
 import { htmlToMdOffset, mdToHtmlOffset } from '../helpers/offsetMapping';
 import { useInputOperations } from '../helpers/useInputOperations';
 
-import { BLOCK_GROUP_ATTR, FOCUSED_NODE_CLASS, HIGHLIGHTABLE_NODE_CLASS } from '../ast/Renderer';
+import { BLOCK_GROUP_ATTR, FOCUSED_NODE_CLASS, HIGHLIGHTABLE_NODE_CLASS } from '../ast/RendererHtml';
 
 export enum TextEditorMode {
   Rich,
@@ -29,15 +30,12 @@ export function useTextEditor({
   input,
   onUpdate,
   onHtmlUpdate,
-  previewHtml,
-  previewMarkdown,
 }: {
   input: HTMLDivElement;
-  onUpdate: (apiFormattedText: ApiFormattedText) => void;
+  mode?: TextEditorMode;
+  onUpdate: (apiFormattedText: ApiFormattedText, ast: ASTRootNode) => void;
   onHtmlUpdate: (html: string) => void;
   value?: ApiFormattedText;
-  previewHtml?: HTMLElement;
-  previewMarkdown?: HTMLElement;
 }): TextEditorApi {
   const parser = new MarkdownParser(mode === TextEditorMode.Rich);
   let currentText = '';
@@ -131,25 +129,23 @@ export function useTextEditor({
       currentText = parser.toMarkdown();
     }
 
-    const html = parser.render({
-      mode: 'html',
-      previewNodeOffset: mdOffset,
-      isPreview: true,
-    });
+    // const html = parser.render({
+    //   mode: 'html',
+    //   previewNodeOffset: mdOffset,
+    //   isPreview: true,
+    // });
     const apiFormattedText = parser.toApiFormattedText();
     offsetMapping = parser.getOffsetMapping();
-    input.innerHTML = html;
+    // input.innerHTML = html;
 
-    onHtmlUpdate(html);
+    // onHtmlUpdate(html);
 
     const htmlOffset = mdToHtmlOffset(offsetMapping, mdOffset);
 
     setCaretOffset(input, Math.max(0, htmlOffset));
 
-    updatePreview();
-
     if (!updateCallbackMutex) {
-      onUpdate(apiFormattedText);
+      onUpdate(apiFormattedText, parser.getAST());
     }
 
     if (onAfterUpdateDebouncer) {
@@ -482,9 +478,9 @@ export function useTextEditor({
     return true;
   }
 
-  function findNodeMapping(node: ASTNode, offsetMapping: OffsetMappingRecord[]): OffsetMappingRecord | undefined {
+  function findNodeMapping(node: ASTNode, mapping: OffsetMappingRecord[]): OffsetMappingRecord | undefined {
     if ('id' in node && node.id) {
-      const exactMatch = offsetMapping.find((m) => m.nodeId === node.id);
+      const exactMatch = mapping.find((m) => m.nodeId === node.id);
       if (exactMatch) {
         return exactMatch;
       }
@@ -502,8 +498,8 @@ export function useTextEditor({
 
     function traverse(node: ASTNode): void {
       if (['paragraph', 'root'].includes(node.type) === false) {
-        const offsetMapping = parser.getOffsetMapping();
-        const nodeMapping = findNodeMapping(node, offsetMapping);
+        const mapping = parser.getOffsetMapping();
+        const nodeMapping = findNodeMapping(node, mapping);
         if (nodeMapping) {
           const nodeStart = nodeMapping.mdStart;
           const nodeEnd = nodeMapping.mdEnd;
@@ -762,17 +758,6 @@ export function useTextEditor({
     //     selectionChangeMutex = false;
     //   });
     // }
-  }
-
-  function updatePreview() {
-    // return;
-    if (!previewHtml || !previewMarkdown) {
-      return;
-    }
-
-    const html = parser.render({ mode: 'html', isPreview: true });
-    previewHtml.textContent = html.replace(/\n/g, '🤡');
-    previewMarkdown.textContent = parser.render({ mode: 'markdown' }).replace(/\n/g, '\\n');
   }
 
   function setContent(apiFormattedText: ApiFormattedText | undefined) {
