@@ -17,6 +17,7 @@ import { MEMO_EMPTY_ARRAY } from '../../util/memo';
 import { buildCustomEmojiHtml } from '../middle/composer/helpers/customEmoji';
 
 import useFlag from '../../hooks/useFlag';
+import { useFolderManagerForUnreadCounters } from '../../hooks/useFolderManager';
 import useLang from '../../hooks/useLang';
 import useLastCallback from '../../hooks/useLastCallback';
 
@@ -50,6 +51,7 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
 }) => {
   const { loadChatFolders, setActiveChatFolder } = getActions();
   const lang = useLang();
+  const folderCountersById = useFolderManagerForUnreadCounters();
 
   const getIconName = useMemo(() => {
     return (folder: ApiChatFolder): IconName | undefined => {
@@ -188,6 +190,9 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
       <div className="folder-items">
         {displayedFolders.map((folder, index) => {
           const { titleText, icon } = getFolderTitleAndIcon(folder);
+          const counter = folderCountersById[folder.id];
+          const badgeCount = counter?.notificationsCount;
+
           return (
             <div
               key={folder.id}
@@ -196,6 +201,9 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
             >
               {icon}
               {titleText}
+              {Boolean(badgeCount) && folder.id !== ALL_FOLDER_ID && (
+                <div className="badge">{badgeCount}</div>
+              )}
             </div>
           );
         })}
