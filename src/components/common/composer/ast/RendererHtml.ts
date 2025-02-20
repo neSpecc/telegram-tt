@@ -118,8 +118,24 @@ export class RendererHtml {
         break;
       }
       case 'quote': {
+        const savedHtmlOffset = this.currentHtmlOffset;
+        const savedMdOffset = this.currentMdOffset;
+
+        this.addToMapping(
+          node.raw.length,
+          node.raw.length,
+          node,
+        );
+
+        // Move past '>' for children
+        this.currentHtmlOffset = savedHtmlOffset + 1;
+        this.currentMdOffset = savedMdOffset + 1;
+
         const children = node.children.map((child) => this.renderNode(child)).join('');
         const prefix = isPreview ? previewSpan('>') : '';
+
+        this.currentHtmlOffset = savedHtmlOffset + node.raw.length;
+        this.currentMdOffset = savedMdOffset + node.raw.length;
 
         blockHtml = this.options.mode === 'html'
           ? [
@@ -144,12 +160,16 @@ export class RendererHtml {
           ].join('');
         }
 
-        const groupId = Math.random().toString(36).substring(2, 15);
+        this.addToMapping(
+          node.raw.length,
+          node.raw.length,
+          node,
+        );
 
         const createLine = (text: string) => {
           return [
             // eslint-disable-next-line max-len
-            `<div ${BLOCK_GROUP_ATTR}="${groupId}" class="paragraph paragraph-pre ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
+            `<div ${BLOCK_GROUP_ATTR}="${node.id}" class="paragraph paragraph-pre ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
             text,
             '</div>',
           ].join('');

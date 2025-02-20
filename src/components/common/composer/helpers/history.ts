@@ -1,3 +1,4 @@
+/* eslint-disable no-null/no-null */
 export function createHistory() {
   return {
     undoStack: [] as Array<{ text: string; caretOffset: number }>,
@@ -39,8 +40,7 @@ export function createHistory() {
       this.undoStack.push(lastOperation);
       this.redoStack = [];
 
-      if (this.undoStack.length > this.maxSize)
-        this.undoStack.shift();
+      if (this.undoStack.length > this.maxSize) this.undoStack.shift();
 
       this.pendingOperations = [];
       this.batchTimeout = null;
@@ -61,8 +61,7 @@ export function createHistory() {
     redo(): { text: string; caretOffset: number } | null {
       this.commitBatch();
 
-      if (!this.redoStack.length)
-        return null;
+      if (!this.redoStack.length) return null;
 
       const state = this.redoStack.pop()!;
       this.undoStack.push(state);

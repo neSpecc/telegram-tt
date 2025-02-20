@@ -14,3 +14,15 @@ export function isNodeClosed(node: ASTNode): boolean {
   }
   return true;
 }
+
+export function areNodesEqual(node1: ASTNode, node2: ASTNode): boolean {
+  return node1.id === node2.id;
+}
+
+export function createTextNode(value: string): ASTNode {
+  return {
+    type: 'text' as const,
+    value,
+    raw: value,
+  };
+}

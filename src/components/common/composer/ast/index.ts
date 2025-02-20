@@ -72,6 +72,16 @@ export class MarkdownParser {
     return this.renderer.render(this.ast, options);
   }
 
+  public computeOffsetMapping(): OffsetMappingRecord[] {
+    if (!this.ast) {
+      return [];
+    }
+
+    this.renderer.render(this.ast, { mode: 'html', isPreview: true });
+
+    return this.renderer.getOffsetMapping();
+  }
+
   /**
    * Parses markdown text and returns HTML
    */

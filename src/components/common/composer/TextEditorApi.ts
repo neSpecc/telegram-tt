@@ -12,6 +12,7 @@ export type FormatOperation = 'bold' | 'italic' | 'underline' | 'strikethrough' 
 export interface TextEditorApi {
   setContent: (formattedText: ApiFormattedText | undefined) => void;
   getCaretOffset: () => { start: number; end: number };
+  setCaretOffset: (offset: number) => void;
   focus: () => void;
   insert: (text: string, offset: number) => void;
   getMarkdown: () => string;

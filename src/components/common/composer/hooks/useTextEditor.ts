@@ -1,5 +1,5 @@
 /* eslint-disable no-null/no-null */
-import type { ApiFormattedText } from '../ast/ApiFormattedText';
+import type { ApiFormattedText } from '../../../../api/types';
 import type {
   ASTFormattingInlineNodeBase, ASTFormattingNode, ASTLinkNode, ASTMonospaceNode, ASTNode, ASTPreBlockNode,
   ASTRootNode,
@@ -9,6 +9,7 @@ import type { LinkFormattingOptions, TextEditorApi } from '../TextEditorApi';
 
 import { MarkdownParser } from '../ast';
 import {
+  blurContenteditable,
   getCaretOffset, getSelectionRange, setCaretOffset, setCaretToNode,
 } from '../helpers/caret';
 import { getClosingMarker, getFocusedNode } from '../helpers/getFocusedNode';
@@ -43,6 +44,7 @@ export function useTextEditor({
   let selectionChangeMutex = false;
   let updateCallbackMutex = false;
   let offsetMapping: OffsetMappingRecord[] = [];
+  let currentMdRange = [0, 0];
   let onAfterUpdateDebouncer: ReturnType<typeof setTimeout> | null = null;
 
   if (value) {
@@ -129,32 +131,41 @@ export function useTextEditor({
       currentText = parser.toMarkdown();
     }
 
+    const mapping = parser.computeOffsetMapping();
+
     // const html = parser.render({
     //   mode: 'html',
     //   previewNodeOffset: mdOffset,
     //   isPreview: true,
     // });
     const apiFormattedText = parser.toApiFormattedText();
-    offsetMapping = parser.getOffsetMapping();
-    // input.innerHTML = html;
+    offsetMapping = mapping;
 
+    // input.innerHTML = html;
     // onHtmlUpdate(html);
 
     const htmlOffset = mdToHtmlOffset(offsetMapping, mdOffset);
 
-    setCaretOffset(input, Math.max(0, htmlOffset));
+    currentMdRange = [mdOffset, mdOffset]; // Update tracked offset
 
     if (!updateCallbackMutex) {
-      onUpdate(apiFormattedText, parser.getAST());
+      onUpdate(apiFormattedText, parser.getAST(), htmlOffset);
     }
 
     if (onAfterUpdateDebouncer) {
       clearTimeout(onAfterUpdateDebouncer);
     }
 
+    // wait Teact to finish rendering
+    requestAnimationFrame(() => {
+      // wait for browser to finish painting
+      requestAnimationFrame(() => {
+        hightlightFocusedNode();
+      });
+    });
     onAfterUpdateDebouncer = setTimeout(() => {
       onAfterUpdate();
-    }, 300);
+    }, 100);
   }
 
   function onAfterUpdate() {
@@ -181,10 +192,33 @@ export function useTextEditor({
     isDelete: boolean = false,
     deleteDirection?: 'forward' | 'backward',
   ): { start: number; end: number } {
-    const { start: htmlStart, end: htmlEnd } = getSelectionRange(input);
-    let mdStart = htmlToMdOffset(offsetMapping, htmlStart);
-    let mdEnd = htmlToMdOffset(offsetMapping, htmlEnd);
-    const isRange = mdStart !== mdEnd;
+    const {
+      start: htmlStart, end: htmlEnd,
+    } = getSelectionRange(input);
+    const mdStart = htmlToMdOffset(offsetMapping, htmlStart);
+    const mdEnd = htmlToMdOffset(offsetMapping, htmlEnd);
+
+    return { start: mdStart, end: mdEnd };
+  }
+
+  /**
+   * @todo - support composition events
+   */
+  function onBeforeInput(event: InputEvent) {
+    event.preventDefault();
+    /**
+     * Remove real caret to prevent jumping to the start because of re-rendering
+     * It will be set back manualy after renderer do its job
+     */
+    blurContenteditable(input);
+    input.style.caretColor = 'transparent';
+    selectionChangeMutex = true;
+
+    // Use tracked offset instead of selection
+    let [mdStart, mdEnd] = currentMdRange;
+
+    const isDelete = event.inputType.startsWith('delete');
+    const direction = event.inputType.includes('Forward') ? 'forward' : 'backward';
 
     /**
      * Special case for delete operations:
@@ -197,41 +231,40 @@ export function useTextEditor({
           || (mdStart === m.mdEnd)
       ));
 
+      const customEmojiRecord = offsetMapping.find((m) => m.nodeType === 'customEmoji' && (
+        (mdStart >= m.mdStart && mdStart <= m.mdEnd)
+          || (mdStart === m.mdEnd)
+      ));
+
       if (mentionRecord) {
         mdStart = mentionRecord.mdStart;
         mdEnd = Math.max(mdEnd, mentionRecord.mdEnd);
-      } else if (deleteDirection) {
-        const prevCharIndex = mdStart - 1;
-        const prevVisibleCharIndex = htmlToMdOffset(offsetMapping, htmlStart - 1);
+      } else if (customEmojiRecord) {
+        mdStart = customEmojiRecord.mdStart;
+        mdEnd = Math.max(mdEnd, customEmojiRecord.mdEnd);
+      } else if (direction) {
+        // const prevCharIndex = mdStart - 1;
+        // const prevVisibleCharIndex =
 
-        const nextCharIndex = mdEnd + 1;
-        const nextVisibleCharIndex = htmlToMdOffset(offsetMapping, htmlEnd + 1);
+        // const nextCharIndex = mdEnd + 1;
+        // const nextVisibleCharIndex = htmlToMdOffset(offsetMapping, htmlEnd + 1);
 
-        if (isDelete && !isRange) {
-          if (deleteDirection === 'forward' && nextCharIndex !== nextVisibleCharIndex) {
-            mdEnd = nextVisibleCharIndex;
-          } else if (deleteDirection === 'backward' && prevCharIndex !== prevVisibleCharIndex) {
-            mdStart = prevVisibleCharIndex;
-          }
-        }
+        // if (isDelete && !isRange) {
+        //   if (deleteDirection === 'forward' && nextCharIndex !== nextVisibleCharIndex) {
+        //     mdEnd = nextVisibleCharIndex;
+        //   } else if (deleteDirection === 'backward' && prevCharIndex !== prevVisibleCharIndex) {
+        //     mdStart = prevVisibleCharIndex;
+        //   }
+        // }
       }
     }
 
-    return { start: mdStart, end: mdEnd };
-  }
-
-  /**
-   * @todo - support composition events
-   */
-  function onBeforeInput(event: InputEvent) {
-    // console.log('onBeforeInput', event);
-
-    event.preventDefault();
-    selectionChangeMutex = true;
-
-    const isDelete = event.inputType.startsWith('delete');
-    const direction = event.inputType.includes('Forward') ? 'forward' : 'backward';
-    const { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange(isDelete, direction);
+    console.log('before input:', {
+      inputType: event.inputType,
+      text: currentText,
+      mdStart,
+      mdEnd,
+    });
 
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const utils = useInputOperations({
@@ -260,7 +293,6 @@ export function useTextEditor({
       case 'insertParagraph':
       case 'insertLineBreak': {
         const { node } = getFocusedNode(mdStart, parser.getAST()!);
-
         /**
          * If the caret is at the end of a pre block, get out of the pre block
          * Also, if pre is not empty, remove the last line break
@@ -274,10 +306,11 @@ export function useTextEditor({
           }
 
           currentText = `${currentText.slice(0, preEnd)}\n${currentText.slice(preEnd)}`;
-          mdNewPosition = preEnd + 1;
+          mdNewPosition = preEnd;
         } else {
           [currentText, mdNewPosition] = utils[event.inputType]();
         }
+
         break;
       }
       case 'insertReplacementText': {
@@ -465,8 +498,14 @@ export function useTextEditor({
 
   function onInputSelectionChange() {
     if (selectionChangeMutex) {
-      return true;
+      return;
     }
+
+    const { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange();
+    console.log('mdStart', mdStart, htmlToMdOffset(offsetMapping, mdStart));
+
+    currentMdRange = [mdStart, mdEnd];
+
     const caretOffset = getCaretOffset(input);
     const { node } = getFocusedNode(caretOffset, parser.getAST()!);
 
@@ -766,17 +805,23 @@ export function useTextEditor({
         return;
       }
 
+      console.log('setContent', apiFormattedText);
+
       // parser.fromApiFormattedText(apiFormattedText);
       // text = parser.toMarkdown();
     }
 
-    updateCallbackMutex = true;
+    // updateCallbackMutex = true;
     updateContent(apiFormattedText || '', 0);
   }
 
   const api: TextEditorApi = {
     setContent,
     getCaretOffset: () => getInputOperationMarkdownRange(),
+    setCaretOffset: (offset: number) => {
+      input.style.caretColor = 'initial';
+      setCaretOffset(input, Math.max(0, offset));
+    },
     getMarkdown: () => currentText,
     insert: (text: string, offset: number) => {
       let start = 0;

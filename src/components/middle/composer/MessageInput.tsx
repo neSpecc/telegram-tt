@@ -3,6 +3,7 @@ import type { FC } from '../../../lib/teact/teact';
 import React, {
   getIsHeavyAnimating,
   memo,
+  useCallback,
   useEffect, useLayoutEffect,
   useRef, useSignal, useState,
 } from '../../../lib/teact/teact';
@@ -169,6 +170,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const [textFormatterAnchorPosition, setTextFormatterAnchorPosition] = useState<IAnchorPosition>();
   const [selectedRange, setSelectedRange] = useState<Range>();
   const [isTextFormatterDisabled, setIsTextFormatterDisabled] = useState<boolean>(false);
+
   const { isMobile } = useAppLayout();
   const isMobileDevice = isMobile && (IS_IOS || IS_ANDROID);
 
@@ -282,7 +284,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   const handleCloseTextFormatter = useLastCallback(() => {
     closeTextFormatter();
-    // clearSelection();
+    // window.getSelection()?.removeAllRanges();
   });
 
   function checkSelection() {
@@ -554,12 +556,29 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const inputScrollerContentClass = buildClassName('input-scroller-content', isNeedPremium && 'is-need-premium');
 
   const [getAst, setAst] = useSignal<ASTRootNode | undefined>(undefined);
+  const [getHtmlOffset, setHtmlOffset] = useSignal<number | undefined>(undefined);
 
-  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode) => {
+  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => {
     messageRef.current = apiFormattedText;
     onUpdate(apiFormattedText);
     setAst(ast);
+    // console.log('updateCallback', htmlOffset);
+
+    setHtmlOffset(htmlOffset);
   });
+
+  const onAfterUpdate = useCallback(() => {
+    // console.warn('onAfterUpdate');
+    cloneRef.current!.innerHTML = inputRef.current!.innerHTML;
+    updateInputHeight(!inputRef.current!.innerHTML);
+
+    const htmlOffset = getHtmlOffset();
+    if (htmlOffset !== undefined && editorApiRef.current) {
+      console.log('setCaretOffset', htmlOffset);
+
+      editorApiRef.current.setCaretOffset(htmlOffset);
+    }
+  }, [getHtmlOffset]);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -609,6 +628,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
           >
             <RendererTeact
               getAst={getAst}
+              onAfterUpdate={onAfterUpdate}
             />
           </div>
           {!forcedPlaceholder && (

@@ -71,6 +71,8 @@ const TextFormatter: FC<OwnProps> = ({
     containerRef,
     onClose,
     true,
+    undefined,
+    false,
   );
 
   useEffect(() => {

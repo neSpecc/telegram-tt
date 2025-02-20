@@ -159,7 +159,8 @@
     height: 1.25rem;
     margin: 0;
     vertical-align: text-top;
-    pointer-events: none;
+    user-select: text;
+    // pointer-events: none;
   }
 
 }

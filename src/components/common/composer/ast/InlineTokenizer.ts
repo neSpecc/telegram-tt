@@ -24,7 +24,6 @@ export class InlineTokenizer {
   }
 
   public tokenize(isPlainText = false): InlineToken[] {
-    console.log('this.isRich', this.isRich);
     while (this.pos < this.text.length) {
       const remaining = this.text.slice(this.pos);
 
