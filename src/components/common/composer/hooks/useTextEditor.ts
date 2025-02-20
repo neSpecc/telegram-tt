@@ -18,6 +18,7 @@ import { createHistory } from '../helpers/history';
 import { htmlToMdOffset, mdToHtmlOffset } from '../helpers/offsetMapping';
 import { useInputOperations } from '../helpers/useInputOperations';
 
+import { FORMATTING_REGEX } from '../ast/InlineTokenizer';
 import { BLOCK_GROUP_ATTR, FOCUSED_NODE_CLASS, HIGHLIGHTABLE_NODE_CLASS } from '../ast/RendererHtml';
 
 export enum TextEditorMode {
@@ -567,6 +568,14 @@ export function useTextEditor({
     let { start, end } = getInputOperationMarkdownRange();
     const ast = parser.getAST()!;
 
+    /**
+     * Disallow formatting inside nodes with "value"
+     */
+    const { node: currentNode } = getFocusedNode(start, parser.getAST());
+    if (currentNode && currentNode?.type !== 'text' && 'value' in currentNode && type !== currentNode.type) {
+      return;
+    }
+
     if (type === 'link') {
       start = options?.start ?? start;
       end = options?.end ?? end;
@@ -824,6 +833,17 @@ export function useTextEditor({
     },
     getMarkdown: () => currentText,
     insert: (text: string, offset: number) => {
+      /**
+       * Disallow inserting custom emoji to "pre", add it after
+       */
+      if (FORMATTING_REGEX.customEmoji.test(text)) {
+        const { node } = getFocusedNode(offset, parser.getAST());
+        if (node?.type === 'pre') {
+          const preMapping = findNodeMapping(node, parser.getOffsetMapping());
+          offset = preMapping?.mdEnd ?? 0;
+        }
+      }
+
       let start = 0;
       let end = 0;
 

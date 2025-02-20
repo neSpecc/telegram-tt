@@ -1,3 +1,4 @@
+/* eslint-disable no-null/no-null */
 import type { FC, RefObject } from '../../../lib/teact/teact';
 import React, {
   memo, useEffect, useRef, useState,
@@ -155,9 +156,22 @@ const TextFormatter: FC<OwnProps> = ({
     updateInputStyles();
   }
 
+  function isInsidePre() {
+    const selection = window.getSelection();
+    const range = selection?.getRangeAt(0);
+
+    return range?.commonAncestorContainer.nodeType === Node.TEXT_NODE
+      ? (range?.commonAncestorContainer as Text).parentElement?.closest('.md-pre') !== null
+      : (range?.commonAncestorContainer as Element)?.closest('.md-pre') !== null;
+  }
+
   function getFormatButtonClassName(key: keyof ISelectedTextFormats) {
     if (selectedTextFormats[key]) {
       return 'active';
+    }
+
+    if (isInsidePre()) {
+      return 'disabled';
     }
 
     if (key === 'monospace' || key === 'strikethrough') {
@@ -277,6 +291,10 @@ const TextFormatter: FC<OwnProps> = ({
       return;
     }
 
+    if (isInsidePre()) {
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
     handler();
@@ -378,7 +396,12 @@ const TextFormatter: FC<OwnProps> = ({
           <Icon name="monospace" />
         </Button>
         <div className="TextFormatter-divider" />
-        <Button color="translucent" ariaLabel={lang('TextFormat.AddLinkTitle')} onClick={openLinkControl}>
+        <Button
+          color="translucent"
+          className={getFormatButtonClassName('link')}
+          ariaLabel={lang('TextFormat.AddLinkTitle')}
+          onClick={openLinkControl}
+        >
           <Icon name="link" />
         </Button>
       </div>

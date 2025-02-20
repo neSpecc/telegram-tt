@@ -1,6 +1,6 @@
 import type { InlineToken } from './entities/Token';
 
-const inlineRegex = {
+export const FORMATTING_REGEX = {
   underlineMarker: /^<u>|^<\/u>/,
   strikethroughMarker: /^~~/,
   monospaceMarker: /^`([^`]+)`/, // Match content between backticks
@@ -29,7 +29,7 @@ export class InlineTokenizer {
 
       // If not rich mode, only handle text and custom emoji
       if (!this.isRich && !isPlainText) {
-        const customEmojiMatch = remaining.match(inlineRegex.customEmoji);
+        const customEmojiMatch = remaining.match(FORMATTING_REGEX.customEmoji);
         if (customEmojiMatch) {
           this.handleCustomEmoji(customEmojiMatch);
           this.pos += customEmojiMatch[0].length;
@@ -49,7 +49,7 @@ export class InlineTokenizer {
         continue;
       }
 
-      const escapeMatch = remaining.match(inlineRegex.escape);
+      const escapeMatch = remaining.match(FORMATTING_REGEX.escape);
       if (escapeMatch) {
         this.currentText += escapeMatch[1];
         this.pos += 2;
@@ -96,7 +96,7 @@ export class InlineTokenizer {
         continue;
       }
 
-      const underlineMatch = remaining.match(inlineRegex.underlineMarker);
+      const underlineMatch = remaining.match(FORMATTING_REGEX.underlineMarker);
       if (underlineMatch) {
         const marker = underlineMatch[0];
         if (marker === '<u>') {
@@ -127,42 +127,52 @@ export class InlineTokenizer {
         continue;
       }
 
-      const monospaceMatch = remaining.match(inlineRegex.monospaceMarker);
+      const monospaceMatch = remaining.match(FORMATTING_REGEX.monospaceMarker);
       if (monospaceMatch) {
-        this.handleMonospace(monospaceMatch);
-        this.pos += monospaceMatch[0].length;
+        // Check if content between backticks contains custom emoji
+        const content = monospaceMatch[1];
+        const hasCustomEmoji = content.match(FORMATTING_REGEX.customEmoji);
+
+        if (!hasCustomEmoji) {
+          this.handleMonospace(monospaceMatch);
+          this.pos += monospaceMatch[0].length;
+          continue;
+        }
+        // If contains custom emoji, treat backticks as plain text
+        this.currentText += '`';
+        this.pos++;
         continue;
       }
 
-      const linkMatch = remaining.match(inlineRegex.link);
+      const linkMatch = remaining.match(FORMATTING_REGEX.link);
       if (linkMatch) {
         this.handleLink(linkMatch);
         this.pos += linkMatch[0].length;
         continue;
       }
 
-      const customEmojiMatch = remaining.match(inlineRegex.customEmoji);
+      const customEmojiMatch = remaining.match(FORMATTING_REGEX.customEmoji);
       if (customEmojiMatch) {
         this.handleCustomEmoji(customEmojiMatch);
         this.pos += customEmojiMatch[0].length;
         continue;
       }
 
-      const mentionMatch = remaining.match(inlineRegex.mention);
+      const mentionMatch = remaining.match(FORMATTING_REGEX.mention);
       if (mentionMatch) {
         this.handleMention(mentionMatch);
         this.pos += mentionMatch[0].length;
         continue;
       }
 
-      const strikeMatch = remaining.match(inlineRegex.strikethroughMarker);
+      const strikeMatch = remaining.match(FORMATTING_REGEX.strikethroughMarker);
       if (strikeMatch) {
         this.handleFormatting('strikethrough', strikeMatch[0]);
         this.pos += 2; // Skip ~~
         continue;
       }
 
-      const spoilerMatch = remaining.match(inlineRegex.spoilerMarker);
+      const spoilerMatch = remaining.match(FORMATTING_REGEX.spoilerMarker);
       if (spoilerMatch) {
         this.handleFormatting('spoiler', spoilerMatch[0]);
         this.pos += 2; // Skip ||
