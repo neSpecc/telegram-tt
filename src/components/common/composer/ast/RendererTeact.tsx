@@ -1,7 +1,6 @@
 import type { FC } from '../../../../lib/teact/teact';
 import React, {
   memo,
-  useEffect,
   useLayoutEffect,
   useState,
 } from '../../../../lib/teact/teact';
