@@ -3,7 +3,6 @@ import React, {
   memo,
   useEffect,
   useLayoutEffect,
-  useRef,
   useState,
 } from '../../../../lib/teact/teact';
 
@@ -14,36 +13,27 @@ import type {
   ASTPreBlockNode,
   ASTQuoteBlockNode,
   ASTRootNode,
-  ASTTextNode,
 } from './entities/ASTNode';
-import type { OffsetMapping } from './entities/OffsetMapping';
 
 import buildClassName from '../../../../util/buildClassName';
-import { escapeHTML } from '../helpers/escape';
 import { getClosingMarker, getOpeningMarker } from '../helpers/getFocusedNode';
 import { areNodesEqual, isBlockNode } from '../helpers/node';
 
 import CustomEmoji from '../../CustomEmoji';
 
 const HIGHLIGHTABLE_NODE_CLASS = 'md-node-highlightable';
-const FOCUSED_NODE_CLASS = 'md-node-focused';
 
 interface TeactRendererProps {
   getAst: Signal<ASTRootNode | undefined>;
-  previewNodeOffset?: number;
   onAfterUpdate?: () => void;
   getAstLastModified: Signal<number | undefined>;
 }
 
 const RendererTeact: FC<TeactRendererProps> = ({
   getAst,
-  isPreview,
-  previewNodeOffset,
   onAfterUpdate,
   getAstLastModified,
 }) => {
-  const [offsetMapping, setOffsetMapping] = useState<OffsetMapping>([]);
-  const [focusedNode, setFocusedNode] = useState<ASTNode>();
   const [currentAst, setCurrentAst] = useState<ASTRootNode>();
   const [lastModified, setLastModified] = useState<number | undefined>();
 
@@ -84,15 +74,13 @@ const RendererTeact: FC<TeactRendererProps> = ({
   }
 
   function renderBlockNode(node: ASTBlockNode): React.ReactNode {
-    const isFocused = node === focusedNode;
-
     switch (node.type) {
       case 'paragraph':
         return renderParagraph(node as ASTParagraphBlockNode);
       case 'quote':
-        return renderQuote(node, isFocused);
+        return renderQuote(node);
       case 'pre':
-        return renderPre(node, isFocused);
+        return renderPre(node);
       default:
         return undefined;
     }
@@ -108,12 +96,11 @@ const RendererTeact: FC<TeactRendererProps> = ({
     );
   }
 
-  function renderQuote(node: ASTQuoteBlockNode, isFocused: boolean) {
+  function renderQuote(node: ASTQuoteBlockNode) {
     return (
       <div className={buildClassName(
         'paragraph paragraph--quote',
         HIGHLIGHTABLE_NODE_CLASS,
-        isFocused && FOCUSED_NODE_CLASS,
       )}
       >
         <div className="md-quote">
@@ -128,7 +115,6 @@ const RendererTeact: FC<TeactRendererProps> = ({
     content: React.JSX.Element | string,
     groupId: string,
     key: string,
-    isFocused: boolean,
   ) {
     return (
       <div
@@ -137,7 +123,6 @@ const RendererTeact: FC<TeactRendererProps> = ({
         className={buildClassName(
           'paragraph paragraph-pre',
           HIGHLIGHTABLE_NODE_CLASS,
-          isFocused && FOCUSED_NODE_CLASS,
         )}
       >
         {content || <br />}
@@ -145,7 +130,7 @@ const RendererTeact: FC<TeactRendererProps> = ({
     );
   }
 
-  function renderPre(node: ASTPreBlockNode, isFocused: boolean) {
+  function renderPre(node: ASTPreBlockNode) {
     const groupId = Math.random().toString(36).substring(2, 15);
     const content = node.value;
 
@@ -170,35 +155,31 @@ const RendererTeact: FC<TeactRendererProps> = ({
             </span>,
             groupId,
             `${groupId}-opening-tag`,
-            isFocused,
           )
         }
         {lines.map((line, i) => {
-          return renderPreLine(line, groupId, `${groupId}-${i}`, isFocused);
+          return renderPreLine(line, groupId, `${groupId}-${i}`);
         })}
         {node.closed && renderPreLine(
           <span className="md-preview-char">```</span>,
           groupId,
           `${groupId}-closing-tag`,
-          isFocused,
         )}
       </div>
     );
   }
 
   function renderInlineNode(node: ASTInlineNode): React.ReactNode {
-    const isFocused = node === focusedNode;
-
     switch (node.type) {
       case 'text': {
         // Clean the text value of BOM and zero-width spaces
         const cleanValue = node.value?.replace(/[\u200B\uFEFF]/g, '');
-        return (
-          <span data-node-id={node.id}>
-            {cleanValue}
-          </span>
-        );
-        // return cleanValue || undefined;
+        // return (
+        //   <span data-node-id={node.id}>
+        //     {cleanValue}
+        //   </span>
+        // );
+        return cleanValue || undefined;
       }
       case 'bold':
       case 'italic':
@@ -206,29 +187,15 @@ const RendererTeact: FC<TeactRendererProps> = ({
       case 'strikethrough':
       case 'spoiler':
       case 'monospace':
-        return renderFormatting(node as ASTFormattingNode, isFocused);
+        return renderFormatting(node as ASTFormattingNode);
 
       case 'link':
-        return renderLink(node as ASTLinkNode, isFocused);
+        return renderLink(node as ASTLinkNode);
       case 'mention':
-        return renderMention(node as ASTMentionNode, isFocused);
+        return renderMention(node as ASTMentionNode);
 
       case 'customEmoji':
         return (
-        // <div style={`
-        //   display: inline-block;
-        //   width: 20px;
-        //   height: 20px;
-        //   background-color: rgba(255, 0, 0, 0.);
-        // `}
-        // >
-        //   <img src={`/assets/custom-emoji/${node.documentId}.png`} alt="" />
-        //   <canvas style={`
-        //     width: 20px;
-        //     height: 20px;
-        //   `}
-        //   />
-        // </div>
           <CustomEmoji
             documentId={node.documentId}
             size={20}
@@ -241,8 +208,8 @@ const RendererTeact: FC<TeactRendererProps> = ({
     }
   }
 
-  function renderFormatting(node: ASTFormattingNode, isFocused: boolean) {
-    const className = getFormattingClassName(node, isFocused);
+  function renderFormatting(node: ASTFormattingNode) {
+    const className = getFormattingClassName(node);
     const openingMarker = getOpeningMarker(node.type);
     const closingMarker = node.closed ? getClosingMarker(node.type) : '';
 
@@ -265,20 +232,18 @@ const RendererTeact: FC<TeactRendererProps> = ({
     );
   }
 
-  function getFormattingClassName(node: ASTFormattingNode, isFocused: boolean) {
+  function getFormattingClassName(node: ASTFormattingNode) {
     return buildClassName(
       `md-${node.type}`,
       HIGHLIGHTABLE_NODE_CLASS,
-      isFocused && FOCUSED_NODE_CLASS,
     );
   }
 
-  function renderLink(node: ASTLinkNode, isFocused: boolean) {
+  function renderLink(node: ASTLinkNode) {
     return (
       <span
         className={buildClassName(
           HIGHLIGHTABLE_NODE_CLASS,
-          isFocused && FOCUSED_NODE_CLASS,
         )}
       >
         <span className="md-preview-char">{getOpeningMarker('link')}</span>
@@ -293,7 +258,7 @@ const RendererTeact: FC<TeactRendererProps> = ({
     );
   }
 
-  function renderMention(node: ASTMentionNode, isFocused: boolean) {
+  function renderMention(node: ASTMentionNode) {
     return (
       <span className={buildClassName('md-mention')}>
         {node.value}
