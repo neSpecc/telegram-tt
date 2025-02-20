@@ -13,6 +13,7 @@ import type {
   ASTInlineNode, ASTLinkNode, ASTMentionNode, ASTMonospaceNode, ASTNode, ASTParagraphBlockNode,
   ASTPreBlockNode,
   ASTQuoteBlockNode,
+  ASTRootNode,
   ASTTextNode,
 } from './entities/ASTNode';
 import type { OffsetMapping } from './entities/OffsetMapping';
@@ -28,9 +29,10 @@ const HIGHLIGHTABLE_NODE_CLASS = 'md-node-highlightable';
 const FOCUSED_NODE_CLASS = 'md-node-focused';
 
 interface TeactRendererProps {
-  getAst: Signal<ASTNode | undefined>;
+  getAst: Signal<ASTRootNode | undefined>;
   previewNodeOffset?: number;
   onAfterUpdate?: () => void;
+  getAstLastModified: Signal<number | undefined>;
 }
 
 const RendererTeact: FC<TeactRendererProps> = ({
@@ -38,25 +40,30 @@ const RendererTeact: FC<TeactRendererProps> = ({
   isPreview,
   previewNodeOffset,
   onAfterUpdate,
+  getAstLastModified,
 }) => {
   const [offsetMapping, setOffsetMapping] = useState<OffsetMapping>([]);
   const [focusedNode, setFocusedNode] = useState<ASTNode>();
-  const [currentAst, setCurrentAst] = useState<ASTNode>();
+  const [currentAst, setCurrentAst] = useState<ASTRootNode>();
+  const [lastModified, setLastModified] = useState<number | undefined>();
 
   useLayoutEffect(() => {
     const newAst = getAst();
     if (!newAst) return;
 
-    if (!currentAst || !areNodesEqual(newAst, currentAst)) {
+    const areEqual = currentAst && areNodesEqual(newAst, currentAst) && getAstLastModified() === lastModified;
+
+    if (!currentAst || !areEqual) {
       setCurrentAst(newAst);
+      setLastModified(getAstLastModified());
     }
-  }, [getAst, currentAst]);
+  }, [getAst, currentAst, getAstLastModified, lastModified]);
 
   useLayoutEffect(() => {
     if (currentAst && onAfterUpdate) {
       onAfterUpdate();
     }
-  }, [currentAst, onAfterUpdate]);
+  }, [currentAst, onAfterUpdate, lastModified]);
 
   function renderNode(node: ASTNode | undefined): React.ReactNode {
     if (!node) return '';
@@ -186,7 +193,12 @@ const RendererTeact: FC<TeactRendererProps> = ({
       case 'text': {
         // Clean the text value of BOM and zero-width spaces
         const cleanValue = node.value?.replace(/[\u200B\uFEFF]/g, '');
-        return cleanValue || undefined;
+        return (
+          <span data-node-id={node.id}>
+            {cleanValue}
+          </span>
+        );
+        // return cleanValue || undefined;
       }
       case 'bold':
       case 'italic':

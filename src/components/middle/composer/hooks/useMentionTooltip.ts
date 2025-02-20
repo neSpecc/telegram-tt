@@ -51,7 +51,8 @@ export default function useMentionTooltip(
 
     const { node: currentNode } = editorApi.getCurrentNode();
 
-    if (currentNode && 'value' in currentNode) {
+    // prevent triggering in pre, code
+    if (currentNode && 'value' in currentNode && currentNode.type !== 'text') {
       return undefined;
     }
 

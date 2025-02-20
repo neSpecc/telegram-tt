@@ -527,12 +527,15 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const inputScrollerContentClass = buildClassName('input-scroller-content', isNeedPremium && 'is-need-premium');
 
   const [getAst, setAst] = useSignal<ASTRootNode | undefined>(undefined);
+  const [getAstLastModified, setAstLastModified] = useSignal<number | undefined>(undefined);
   const [getHtmlOffset, setHtmlOffset] = useSignal<number | undefined>(undefined);
 
   const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => {
     messageRef.current = apiFormattedText;
+
     onUpdate(apiFormattedText);
     setAst(ast);
+    setAstLastModified(ast.lastModified);
     setHtmlOffset(htmlOffset);
   });
 
@@ -541,6 +544,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     updateInputHeight(!inputRef.current!.innerHTML);
 
     const htmlOffset = getHtmlOffset();
+
     if (htmlOffset !== undefined && editorApiRef.current) {
       editorApiRef.current.setCaretOffset(htmlOffset);
     }
@@ -592,6 +596,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
             {isActive && (
               <RendererTeact
                 getAst={getAst}
+                getAstLastModified={getAstLastModified}
                 onAfterUpdate={onAfterUpdate}
               />
             )}

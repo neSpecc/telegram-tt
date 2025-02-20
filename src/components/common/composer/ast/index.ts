@@ -1,6 +1,6 @@
 /* eslint-disable no-null/no-null */
 import type { ApiFormattedText } from '../../../../api/types';
-import type { ASTNode, ASTRootNode } from './entities/ASTNode';
+import type { ASTNode, ASTRootNode, ASTTextNode } from './entities/ASTNode';
 import type { OffsetMappingRecord } from './entities/OffsetMapping';
 import type { RendererOptions } from './RendererHtml';
 
@@ -174,5 +174,14 @@ export class MarkdownParser {
     this.nodeIdMap.set(node.id, node);
 
     return node;
+  }
+
+  public updateTextNodeValue(node: ASTTextNode, value: string) {
+    if (node && 'value' in node) {
+      node.value = value;
+      node.raw = value;
+
+      this.ast!.lastModified = Date.now();
+    }
   }
 }

@@ -31,7 +31,8 @@ export default function useChatCommandTooltip(
 
     const { node: currentNode } = getEditorApi()?.getCurrentNode() || { node: undefined };
 
-    if (currentNode && 'value' in currentNode) {
+    // prevent triggering in pre, code
+    if (currentNode && 'value' in currentNode && currentNode.type !== 'text') {
       return undefined;
     }
 

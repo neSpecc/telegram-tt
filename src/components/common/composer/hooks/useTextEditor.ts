@@ -3,6 +3,7 @@ import type { ApiFormattedText } from '../../../../api/types';
 import type {
   ASTFormattingInlineNodeBase, ASTFormattingNode, ASTLinkNode, ASTMonospaceNode, ASTNode, ASTPreBlockNode,
   ASTRootNode,
+  ASTTextNode,
 } from '../ast/entities/ASTNode';
 import type { OffsetMappingRecord } from '../ast/entities/OffsetMapping';
 import type { LinkFormattingOptions, TextEditorApi } from '../TextEditorApi';
@@ -16,7 +17,7 @@ import { getClosingMarker, getFocusedNode } from '../helpers/getFocusedNode';
 import { highlightLinksAsMarkown } from '../helpers/highlightLinks';
 import { createHistory } from '../helpers/history';
 import { htmlToMdOffset, mdToHtmlOffset } from '../helpers/offsetMapping';
-import { useInputOperations } from '../helpers/useInputOperations';
+import { insertText, useInputOperations } from '../helpers/useInputOperations';
 
 import { FORMATTING_REGEX } from '../ast/InlineTokenizer';
 import { BLOCK_GROUP_ATTR, FOCUSED_NODE_CLASS, HIGHLIGHTABLE_NODE_CLASS } from '../ast/RendererHtml';
@@ -123,13 +124,15 @@ export function useTextEditor({
     }
   }
 
-  function updateContent(text: string | ApiFormattedText, mdOffset: number) {
+  function updateContent(text: string | ApiFormattedText | ASTRootNode, mdOffset: number) {
     // input.style.caretColor = 'transparent';
     if (typeof text === 'string') {
       parser.fromString(text);
       currentText = text;
-    } else {
+    } else if (typeof text === 'object' && 'text' in text) {
       parser.fromApiFormattedText(text);
+      currentText = parser.toMarkdown();
+    } else {
       currentText = parser.toMarkdown();
     }
 
@@ -204,6 +207,8 @@ export function useTextEditor({
      * It will be set back manualy after renderer do its job
      */
     // blurContenteditable(input);
+    // console.log('set caret color to transparent');
+
     // input.style.caretColor = 'transparent';
     selectionChangeMutex = true;
 
@@ -278,6 +283,34 @@ export function useTextEditor({
         if (mode === TextEditorMode.Rich && hasSpecialInsertBehavior(textToInsert, currentText, mdStart)) {
           [currentText, mdNewPosition] = handleSpecialInsertion(textToInsert, currentText, mdStart);
         } else {
+          /**
+           * [BETA] Performance optimization:
+           * - Incremental update of a single node, not the whole AST
+           * (only for plain text nodes for now)
+           */
+          const { node } = getFocusedNode(mdStart, parser.getAST()!);
+          const char = event.data[0];
+          const isPlainChar = ['*', '`', '|', '~', '<', '[', ']', '(', ')', '\n'].includes(char) === false;
+          const prevChar = currentText[mdStart - 1];
+          const nextChar = currentText[mdStart];
+          const isInsideValueNode = (ch: string) => ['`', '[', ']', '(', ')'].includes(ch);
+
+          if (
+            node?.type === 'text' && isPlainChar
+            && isInsideValueNode(prevChar) === false
+            && isInsideValueNode(nextChar) === false
+          ) {
+            const nodeMapping = findNodeMapping(node, parser.getOffsetMapping());
+            const nodeStart = nodeMapping?.mdStart ?? 0;
+            const offsetWithinNode = mdStart - nodeStart;
+
+            const [newTextValue, newPositionWithinNode] = insertText(node.value, textToInsert, offsetWithinNode);
+
+            parser.updateTextNodeValue(node as ASTTextNode, newTextValue);
+            ofAfterInput(parser.getAST(), nodeStart + newPositionWithinNode);
+            return;
+          }
+
           [currentText, mdNewPosition] = utils.insertText(textToInsert);
         }
 
@@ -370,17 +403,15 @@ export function useTextEditor({
       }
     }
 
-    ofAfterInput(mdNewPosition);
+    ofAfterInput(currentText, mdNewPosition);
   }
 
-  /**
-   * @todo accept new text as a parameter
-   */
-  function ofAfterInput(newMdOffset: number) {
-    const newText = currentText;
+  function ofAfterInput(newValue: string | ASTRootNode, newMdOffset: number) {
+    const newText = typeof newValue === 'string' ? newValue : parser.toMarkdown(newValue);
+
     const caretOffset = newMdOffset;
     history.push(newText, caretOffset);
-    updateContent(newText, caretOffset);
+    updateContent(newValue, caretOffset);
   }
 
   /**
@@ -690,7 +721,7 @@ export function useTextEditor({
       }
     }
 
-    ofAfterInput(newCaretOffset);
+    ofAfterInput(currentText, newCaretOffset);
   }
 
   /**
@@ -801,7 +832,7 @@ export function useTextEditor({
         return;
       }
 
-      console.log('setContent', apiFormattedText, input);
+      // console.log('setContent', apiFormattedText, input);
 
       // parser.fromApiFormattedText(apiFormattedText);
       // text = parser.toMarkdown();
@@ -815,8 +846,9 @@ export function useTextEditor({
     setContent,
     getCaretOffset: () => getInputOperationMarkdownRange(),
     setCaretOffset: (offset: number) => {
-      // input.style.caretColor = 'initial';
       setCaretOffset(input, Math.max(0, offset));
+      // input.style.caretColor = 'initial';
+      // console.log('set caret color to initial');
     },
     getMarkdown: () => currentText,
     insert: (text: string, offset: number) => {
@@ -853,9 +885,7 @@ export function useTextEditor({
 
       const [newText, newPosition] = utils.insertText(text);
 
-      currentText = newText;
-
-      ofAfterInput(newPosition);
+      ofAfterInput(newText, newPosition);
     },
     replace: (start: number, end: number, text: string) => {
       // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -866,13 +896,11 @@ export function useTextEditor({
       });
 
       const [newText, newPosition] = utils.replaceSlice(text);
-      currentText = newText;
-
-      ofAfterInput(newPosition);
+      ofAfterInput(newText, newPosition);
     },
     getLeftSlice: () => {
       const { start } = getInputOperationMarkdownRange();
-      return currentText.slice(0, start);
+      return start > 0 ? currentText.slice(0, start) : currentText;
     },
     deleteLastSymbol: () => {
       const { start, end } = getInputOperationMarkdownRange(true, 'backward');
@@ -885,9 +913,7 @@ export function useTextEditor({
       });
 
       const [newText, newPosition] = utils.deleteContentBackward();
-      currentText = newText;
-
-      ofAfterInput(newPosition);
+      ofAfterInput(newText, newPosition);
     },
     format: (formatting: ASTFormattingNode['type'], options?: LinkFormattingOptions) => {
       handleFormatting(formatting, options);
@@ -932,8 +958,6 @@ export function useTextEditor({
       ofAfterInput(dimensions ? dimensions.mdEnd + newHrefDist + 1 : 0);
     },
     focus: () => {
-      console.warn('focus', input);
-
       setCaretOffset(input, htmlToMdOffset(offsetMapping, currentText.length));
     },
     getCurrentNode: () => {
