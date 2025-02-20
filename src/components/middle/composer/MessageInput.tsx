@@ -17,7 +17,7 @@ import type { TextEditorApi } from '../../common/composer/TextEditorApi';
 
 import { EDITABLE_INPUT_ID } from '../../../config';
 import { requestForcedReflow, requestMutation } from '../../../lib/fasterdom/fasterdom';
-import { selectCanPlayAnimatedEmojis, selectDraft, selectIsInSelectMode } from '../../../global/selectors';
+import { selectDraft, selectIsInSelectMode } from '../../../global/selectors';
 import buildClassName from '../../../util/buildClassName';
 import captureKeyboardListeners from '../../../util/captureKeyboardListeners';
 import { getIsDirectTextInputDisabled } from '../../../util/directInputManager';
@@ -37,7 +37,6 @@ import useFlag from '../../../hooks/useFlag';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
 import { useTextEditor } from '../../common/composer/hooks/useTextEditor';
-import useInputCustomEmojis from './hooks/useInputCustomEmojis';
 
 import RendererTeact from '../../common/composer/ast/RendererTeact';
 import Icon from '../../common/icons/Icon';
@@ -246,7 +245,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
     editorApiRef.current.setContent(message);
 
-    focusInput();
+    // focusInput();
 
     messageRef.current = message;
 
@@ -465,21 +464,21 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         ((key.startsWith('Arrow') || (e.shiftKey && key === 'Shift')) && !isSelectionCollapsed)
         || (e.code === 'KeyC' && (e.ctrlKey || e.metaKey) && target.tagName !== 'INPUT')
       ) {
-        return;
+
       }
 
-      if (
-        input
-        && target !== input
-        && target.tagName !== 'INPUT'
-        && target.tagName !== 'TEXTAREA'
-        && !target.isContentEditable
-      ) {
-        editorApiRef.current?.focus();
+      // if (
+      //   input
+      //   && target !== input
+      //   && target.tagName !== 'INPUT'
+      //   && target.tagName !== 'TEXTAREA'
+      //   && !target.isContentEditable
+      // ) {
+      //   editorApiRef.current?.focus();
 
-        const newEvent = new KeyboardEvent(e.type, e as any);
-        input.dispatchEvent(newEvent);
-      }
+      //   const newEvent = new KeyboardEvent(e.type, e as any);
+      //   input.dispatchEvent(newEvent);
+      // }
     };
 
     document.addEventListener('keydown', handleDocumentKeyDown, true);

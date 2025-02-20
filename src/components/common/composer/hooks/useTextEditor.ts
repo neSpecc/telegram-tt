@@ -29,15 +29,17 @@ export enum TextEditorMode {
 export function useTextEditor({
   value,
   mode = TextEditorMode.Rich,
+  isSingleLine = false,
   input,
   onUpdate,
 }: {
   input: HTMLDivElement;
   mode?: TextEditorMode;
+  isSingleLine?: boolean;
   onUpdate: (apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => void;
   value?: ApiFormattedText;
 }): TextEditorApi {
-  const parser = new MarkdownParser(mode === TextEditorMode.Rich);
+  const parser = new MarkdownParser(mode === TextEditorMode.Rich, isSingleLine);
   let currentText = '';
   let focusedNode: ASTNode | null = null;
   let selectionChangeMutex = false;
@@ -200,7 +202,7 @@ export function useTextEditor({
      * Remove real caret to prevent jumping to the start because of re-rendering
      * It will be set back manualy after renderer do its job
      */
-    blurContenteditable(input);
+    // blurContenteditable(input);
     input.style.caretColor = 'transparent';
     selectionChangeMutex = true;
 
@@ -272,7 +274,7 @@ export function useTextEditor({
           break;
         }
 
-        if (hasSpecialInsertBehavior(textToInsert, currentText, mdStart)) {
+        if (mode === TextEditorMode.Rich && hasSpecialInsertBehavior(textToInsert, currentText, mdStart)) {
           [currentText, mdNewPosition] = handleSpecialInsertion(textToInsert, currentText, mdStart);
         } else {
           [currentText, mdNewPosition] = utils.insertText(textToInsert);
@@ -928,7 +930,7 @@ export function useTextEditor({
       ofAfterInput(dimensions ? dimensions.mdEnd + newHrefDist + 1 : 0);
     },
     focus: () => {
-      console.warn('focus');
+      console.warn('focus', input);
 
       setCaretOffset(input, htmlToMdOffset(offsetMapping, currentText.length));
     },

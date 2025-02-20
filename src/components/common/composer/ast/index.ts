@@ -20,7 +20,10 @@ export class MarkdownParser {
 
   private nodeIdMap = new Map<string, ASTNode>();
 
-  constructor(private readonly isRich: boolean = true) {
+  constructor(
+    private readonly isRich: boolean = true,
+    private readonly isSingleLine: boolean = false,
+  ) {
     this.renderer = new RendererHtml();
   }
 
@@ -126,7 +129,7 @@ export class MarkdownParser {
    * Parses markdown text and returns AST
    */
   public parse(markdown: string): ASTNode {
-    const tokens = tokenize(markdown, this.isRich);
+    const tokens = tokenize(markdown, this.isRich, this.isSingleLine);
     return new Parser(tokens).parse();
   }
 
