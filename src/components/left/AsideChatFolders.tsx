@@ -180,6 +180,7 @@ const AsideChatFolders: FC<OwnProps & StateProps> = ({
         onSelectSettings={handleSelectSettings}
         content={content}
         onReset={onReset}
+        disableBackButton
       />
       <div className="folder-items">
         {displayedFolders.map((folder, index) => {

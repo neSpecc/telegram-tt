@@ -25,6 +25,7 @@ interface OwnProps {
   content: LeftColumnContent;
   onReset: NoneToVoidFunction;
   shouldSkipTransition?: boolean;
+  disableBackButton?: boolean;
 }
 
 const MainDropdownMenu: FC<OwnProps> = ({
@@ -35,6 +36,7 @@ const MainDropdownMenu: FC<OwnProps> = ({
   content,
   onReset,
   shouldSkipTransition,
+  disableBackButton,
 }) => {
   const oldLang = useOldLang();
   const isFullscreen = useFullscreenStatus();
@@ -45,6 +47,7 @@ const MainDropdownMenu: FC<OwnProps> = ({
 
   const MainButton: FC<{ onTrigger: () => void; isOpen?: boolean }> = useMemo(() => {
     return ({ onTrigger, isOpen }) => (
+
       <Button
         round
         ripple={hasMenu && !isMobile}
@@ -52,18 +55,18 @@ const MainDropdownMenu: FC<OwnProps> = ({
         color="translucent"
         className={isOpen ? 'active' : ''}
         // eslint-disable-next-line react/jsx-no-bind
-        onClick={hasMenu ? onTrigger : () => onReset()}
-        ariaLabel={hasMenu ? oldLang('AccDescrOpenMenu2') : 'Return to chat list'}
+        onClick={hasMenu || disableBackButton ? onTrigger : () => onReset()}
+        ariaLabel={hasMenu || disableBackButton ? oldLang('AccDescrOpenMenu2') : 'Return to chat list'}
       >
         <div className={buildClassName(
           'animated-menu-icon',
-          !hasMenu && 'state-back',
+          !hasMenu && !disableBackButton && 'state-back',
           shouldSkipTransition && 'no-animation',
         )}
         />
       </Button>
     );
-  }, [hasMenu, isMobile, oldLang, onReset, shouldSkipTransition]);
+  }, [hasMenu, isMobile, oldLang, onReset, shouldSkipTransition, disableBackButton]);
 
   // Disable dropdown menu RTL animation for resize
   const {

@@ -245,8 +245,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
     editorApiRef.current.setContent(message);
 
-    // focusInput();
-
     messageRef.current = message;
 
     updateInputHeight(!message);
@@ -464,21 +462,21 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         ((key.startsWith('Arrow') || (e.shiftKey && key === 'Shift')) && !isSelectionCollapsed)
         || (e.code === 'KeyC' && (e.ctrlKey || e.metaKey) && target.tagName !== 'INPUT')
       ) {
-
+        return;
       }
 
-      // if (
-      //   input
-      //   && target !== input
-      //   && target.tagName !== 'INPUT'
-      //   && target.tagName !== 'TEXTAREA'
-      //   && !target.isContentEditable
-      // ) {
-      //   editorApiRef.current?.focus();
+      if (
+        input
+        && target !== input
+        && target.tagName !== 'INPUT'
+        && target.tagName !== 'TEXTAREA'
+        && !target.isContentEditable
+      ) {
+        editorApiRef.current?.focus();
 
-      //   const newEvent = new KeyboardEvent(e.type, e as any);
-      //   input.dispatchEvent(newEvent);
-      // }
+        const newEvent = new KeyboardEvent(e.type, e as any);
+        input.dispatchEvent(newEvent);
+      }
     };
 
     document.addEventListener('keydown', handleDocumentKeyDown, true);

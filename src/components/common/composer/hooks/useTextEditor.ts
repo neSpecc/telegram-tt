@@ -124,6 +124,7 @@ export function useTextEditor({
   }
 
   function updateContent(text: string | ApiFormattedText, mdOffset: number) {
+    // input.style.caretColor = 'transparent';
     if (typeof text === 'string') {
       parser.fromString(text);
       currentText = text;
@@ -203,7 +204,7 @@ export function useTextEditor({
      * It will be set back manualy after renderer do its job
      */
     // blurContenteditable(input);
-    input.style.caretColor = 'transparent';
+    // input.style.caretColor = 'transparent';
     selectionChangeMutex = true;
 
     // Use tracked offset instead of selection
@@ -632,7 +633,8 @@ export function useTextEditor({
 
       if (isRange) {
         if (type === 'link') {
-          const zeroWidthSpace = '\u200B';
+          // const zeroWidthSpace = '\u200B';
+          const zeroWidthSpace = '';
           const newText = parser.toMarkdown({
             type: 'link',
             raw: '',
@@ -806,14 +808,14 @@ export function useTextEditor({
     }
 
     // updateCallbackMutex = true;
-    updateContent(apiFormattedText || '', 0);
+    updateContent(apiFormattedText || '', htmlToMdOffset(offsetMapping, apiFormattedText?.text.length ?? 0));
   }
 
   const api: TextEditorApi = {
     setContent,
     getCaretOffset: () => getInputOperationMarkdownRange(),
     setCaretOffset: (offset: number) => {
-      input.style.caretColor = 'initial';
+      // input.style.caretColor = 'initial';
       setCaretOffset(input, Math.max(0, offset));
     },
     getMarkdown: () => currentText,
