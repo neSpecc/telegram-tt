@@ -31,12 +31,10 @@ export function useTextEditor({
   mode = TextEditorMode.Rich,
   input,
   onUpdate,
-  onHtmlUpdate,
 }: {
   input: HTMLDivElement;
   mode?: TextEditorMode;
-  onUpdate: (apiFormattedText: ApiFormattedText, ast: ASTRootNode) => void;
-  onHtmlUpdate: (html: string) => void;
+  onUpdate: (apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => void;
   value?: ApiFormattedText;
 }): TextEditorApi {
   const parser = new MarkdownParser(mode === TextEditorMode.Rich);
@@ -133,21 +131,12 @@ export function useTextEditor({
     }
 
     const mapping = parser.computeOffsetMapping();
-
-    // const html = parser.render({
-    //   mode: 'html',
-    //   previewNodeOffset: mdOffset,
-    //   isPreview: true,
-    // });
     const apiFormattedText = parser.toApiFormattedText();
     offsetMapping = mapping;
 
-    // input.innerHTML = html;
-    // onHtmlUpdate(html);
-
     const htmlOffset = mdToHtmlOffset(offsetMapping, mdOffset);
 
-    currentMdRange = [mdOffset, mdOffset]; // Update tracked offset
+    currentMdRange = [mdOffset, mdOffset];
 
     if (!updateCallbackMutex) {
       onUpdate(apiFormattedText, parser.getAST(), htmlOffset);
@@ -260,12 +249,12 @@ export function useTextEditor({
       }
     }
 
-    console.log('before input:', {
-      inputType: event.inputType,
-      text: currentText,
-      mdStart,
-      mdEnd,
-    });
+    // console.log('before input:', {
+    //   inputType: event.inputType,
+    //   text: currentText,
+    //   mdStart,
+    //   mdEnd,
+    // });
 
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const utils = useInputOperations({
@@ -503,7 +492,6 @@ export function useTextEditor({
     }
 
     const { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange();
-    console.log('mdStart', mdStart, htmlToMdOffset(offsetMapping, mdStart));
 
     currentMdRange = [mdStart, mdEnd];
 
@@ -514,8 +502,6 @@ export function useTextEditor({
       focusedNode = node;
       hightlightFocusedNode();
     }
-
-    return true;
   }
 
   function findNodeMapping(node: ASTNode, mapping: OffsetMappingRecord[]): OffsetMappingRecord | undefined {
@@ -597,9 +583,6 @@ export function useTextEditor({
         return;
       }
 
-      /**
-       * @todo - using paragraph works now (they cleaned on reparsing) but it is not the best solution since only one level of paragraph is supported
-       */
       const newNode = 'children' in targetNode
         ? {
           type: 'paragraph',
@@ -624,8 +607,8 @@ export function useTextEditor({
           }, 0)
           : ((targetNode as ASTMonospaceNode).value).length;
 
-        const offsetMapping = parser.getOffsetMapping();
-        const nodeMapping = findNodeMapping(targetNode, offsetMapping);
+        const om = parser.getOffsetMapping();
+        const nodeMapping = findNodeMapping(targetNode, om);
 
         const nodeStart = nodeMapping?.mdStart ?? start;
 
@@ -814,7 +797,7 @@ export function useTextEditor({
         return;
       }
 
-      console.log('setContent', apiFormattedText);
+      console.log('setContent', apiFormattedText, input);
 
       // parser.fromApiFormattedText(apiFormattedText);
       // text = parser.toMarkdown();
@@ -945,7 +928,27 @@ export function useTextEditor({
       ofAfterInput(dimensions ? dimensions.mdEnd + newHrefDist + 1 : 0);
     },
     focus: () => {
+      console.warn('focus');
+
       setCaretOffset(input, htmlToMdOffset(offsetMapping, currentText.length));
+    },
+    getCurrentNode: () => {
+      const { start } = getInputOperationMarkdownRange();
+      const { node } = getFocusedNode(start, parser.getAST()!);
+
+      if (!node) {
+        return {
+          node: null,
+          parentNode: null,
+        };
+      }
+
+      const parentNode = parser.getParentNode(node);
+
+      return {
+        node,
+        parentNode,
+      };
     },
   };
 

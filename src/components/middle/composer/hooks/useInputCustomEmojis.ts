@@ -38,6 +38,9 @@ type CustomEmojiPlayer = {
   updatePosition: (x: number, y: number) => void;
 };
 
+/**
+ * @deprecated
+ */
 export default function useInputCustomEmojis(
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
   inputRef: React.RefObject<HTMLDivElement>,

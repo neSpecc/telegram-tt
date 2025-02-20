@@ -684,8 +684,6 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
               chatId={chatId}
               threadId={threadId}
               isAttachmentModalInput
-              customEmojiPrefix="attachment"
-              isReady={isReady}
               isActive={isOpen}
               getApiFormattedText={getApiFormattedText}
               setEditorApi={setEditorApi}

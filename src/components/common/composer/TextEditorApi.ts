@@ -1,5 +1,5 @@
-import type { ApiFormattedText } from './ast/ApiFormattedText';
-import type { ASTFormattingInlineNodeBase, ASTFormattingNode } from './ast/entities/ASTNode';
+import type { ApiFormattedText } from '../../../api/types';
+import type { ASTFormattingInlineNodeBase, ASTFormattingNode, ASTNode } from './ast/entities/ASTNode';
 
 export interface LinkFormattingOptions {
   href?: string;
@@ -23,4 +23,5 @@ export interface TextEditorApi {
   getActiveFormattingsForRange: () => ASTFormattingInlineNodeBase['type'][];
   getFormattingNodes: () => ASTFormattingNode[];
   updateFormattingNode: (id: string, options?: { href: string }) => void;
+  getCurrentNode: () => { node: ASTNode | null; parentNode: ASTNode | null };
 }

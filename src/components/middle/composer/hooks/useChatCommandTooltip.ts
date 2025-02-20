@@ -2,6 +2,7 @@ import { useEffect, useState } from '../../../../lib/teact/teact';
 
 import type { ApiBotCommand, ApiFormattedText, ApiQuickReply } from '../../../../api/types';
 import type { Signal } from '../../../../util/signals';
+import type { TextEditorApi } from '../../../common/composer/TextEditorApi';
 
 import { prepareForRegExp } from '../helpers/prepareForRegExp';
 
@@ -16,6 +17,7 @@ const THROTTLE = 300;
 export default function useChatCommandTooltip(
   isEnabled: boolean,
   getApiFormattedText: Signal<ApiFormattedText | undefined>,
+  getEditorApi: () => TextEditorApi | undefined,
   botCommands?: ApiBotCommand[] | false,
   chatBotCommands?: ApiBotCommand[],
   quickReplies?: Record<number, ApiQuickReply>,
@@ -27,8 +29,14 @@ export default function useChatCommandTooltip(
   const detectCommandThrottled = useThrottledResolver(() => {
     const { text } = getApiFormattedText() || { text: '' };
 
+    const { node: currentNode } = getEditorApi()?.getCurrentNode() || { node: undefined };
+
+    if (currentNode && 'value' in currentNode) {
+      return undefined;
+    }
+
     return isEnabled && text.startsWith('/') ? prepareForRegExp(text).match(RE_COMMAND)?.[0].trim() : undefined;
-  }, [getApiFormattedText, isEnabled], THROTTLE);
+  }, [getApiFormattedText, isEnabled, getEditorApi], THROTTLE);
 
   const getCommand = useDerivedSignal(
     detectCommandThrottled, [detectCommandThrottled, getApiFormattedText], true,
