@@ -49,6 +49,13 @@ export default function useMentionTooltip(
     const isCollapsed = range.start === range.end;
     if (!isCollapsed || !text.includes('@')) return undefined;
 
+    const { node: currentNode } = editorApi.getCurrentNode();
+
+    // prevent triggering in pre, code
+    if (currentNode && 'value' in currentNode && currentNode.type !== 'text') {
+      return undefined;
+    }
+
     const beforeCaret = editorApi.getLeftSlice();
 
     return beforeCaret.match(RE_USERNAME_SEARCH)?.[0].trim();

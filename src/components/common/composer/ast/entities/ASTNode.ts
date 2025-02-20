@@ -3,10 +3,18 @@ export type ASTNode = ASTRootNode | ASTInlineNode | ASTBlockNode;
 export interface ASTRootNode extends ASTNodeBase {
   type: 'root';
   children: ASTNode[];
+  lastModified: number;
 }
 
 export type ASTInlineNode = ASTTextNode | ASTFormattingNode | ASTMentionNode | ASTCustomEmojiNode;
-export type ASTFormattingNode = ASTBoldNode | ASTItalicNode | ASTUnderlineNode | ASTStrikethroughNode | ASTMonospaceNode | ASTSpoilerNode | ASTLinkNode;
+export type ASTFormattingNode =
+  | ASTBoldNode
+  | ASTItalicNode
+  | ASTUnderlineNode
+  | ASTStrikethroughNode
+  | ASTMonospaceNode
+  | ASTSpoilerNode
+  | ASTLinkNode;
 export type ASTBlockNode = ASTParagraphBlockNode | ASTQuoteBlockNode | ASTPreBlockNode;
 
 export interface ASTQuoteBlockNode extends ASTBlockNodeBase {
@@ -81,6 +89,7 @@ export interface ASTFormattingInlineNodeBase extends ASTNodeBase {
 }
 
 export interface ASTNodeBase {
+  type: string;
   raw: string;
   id?: string;
 }

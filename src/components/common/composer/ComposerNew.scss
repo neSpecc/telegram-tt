@@ -11,9 +11,14 @@
   position: relative;
   cursor: text;
 
+  .composer-input-container {
+    flex: 1;
+    &.single-line {
+      overflow: scroll;
+    }
+  }
 
   .composer-input {
-    flex: 1;
     outline: none;
     -webkit-appearance: none;
   }
@@ -31,6 +36,13 @@
     .bubble {
       --offset-y: 100%;
       --offset-x: -4.125rem;
+    }
+  }
+
+  .symbol-menu-button {
+    i::before {
+      display: inline-flex;
+      transform: translateY(-1.8px);
     }
   }
 
@@ -159,7 +171,8 @@
     height: 1.25rem;
     margin: 0;
     vertical-align: text-top;
-    pointer-events: none;
+    user-select: text;
+    // pointer-events: none;
   }
 
 }

@@ -1,9 +1,7 @@
-import type {
-  ChangeEvent, FormEvent, RefObject,
-} from 'react';
+/* eslint-disable no-null/no-null */
 import type { ApiFormattedText } from "ast/src/ast/ApiFormattedText";
 import type { FC } from '../../lib/teact/teact';
-import React, { memo, useState } from '../../lib/teact/teact';
+import React, { memo, useRef,useState } from '../../lib/teact/teact';
 
 import type { TextEditorApi } from '../common/composer/TextEditorApi';
 
@@ -11,6 +9,7 @@ import buildClassName from '../../util/buildClassName';
 import { isMessageEmpty } from '../middle/composer/utils/isMessageEmpty';
 
 import useFlag from '../../hooks/useFlag';
+import useHorizontalScroll from '../../hooks/useHorizontalScroll';
 import useLastCallback from '../../hooks/useLastCallback';
 import useOldLang from '../../hooks/useOldLang';
 import { TextEditorMode } from '../common/composer/hooks/useTextEditor';
@@ -84,8 +83,10 @@ const InputFormatted: FC<OwnProps> = ({
       <div
         className={buildClassName(
           'form-control',
+          'input-formatted',
           'form-control-with-emoji',
           isFocused && 'focus',
+          'no-scrollbar',
         )}
         onClick={handleClick}
       >
@@ -100,6 +101,7 @@ const InputFormatted: FC<OwnProps> = ({
           aria-label={labelText}
           tabIndex={tabIndex}
           customEmojiMenuPosition={customEmojiMenuPosition}
+          isSingleLine
         />
       </div>
       {labelText && (

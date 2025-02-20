@@ -669,6 +669,7 @@ const Composer: FC<OwnProps & StateProps> = ({
       && isForCurrentMessageList
       && ((botCommands && botCommands?.length) || chatBotCommands?.length || (hasQuickReplies && canSendQuickReplies))),
     getApiFormattedText,
+    getEditorApi,
     botCommands,
     chatBotCommands,
     canSendQuickReplies ? quickReplies : undefined,
@@ -1737,12 +1738,10 @@ const Composer: FC<OwnProps & StateProps> = ({
             ref={inputRef}
             id={inputId}
             editableInputId={editableInputId}
-            customEmojiPrefix={type}
             isStoryInput={isInStoryViewer}
             chatId={chatId}
             canSendPlainText={!isComposerBlocked}
             threadId={threadId}
-            isReady={isReady}
             isActive={!hasAttachments}
             getApiFormattedText={getApiFormattedText}
             placeholder={
@@ -2141,5 +2140,12 @@ export default memo(withGlobal<OwnProps>(
  * @todo check all places of parseHtmlAsFormattedText — can we get rid of it?
  * @todo Remove link by TextFormatter icon click
  * @todo Attachement Model should have text from input when opened
- * @todo ComposerNew — Plain mode
+ * @todo Editing - set focus
+ * @todo Editing - editing message with custom emoji should work
+ * @todo resize works wrong
+ * @todo remove old canvas-workaround
+ * @todo links sending
+ * @todo fix autofocus
+
+ *
  */

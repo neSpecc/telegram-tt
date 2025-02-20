@@ -2,10 +2,13 @@ import type { BlockToken } from './entities/Token';
 
 export class BlockTokenizer {
   private pos = 0;
+
   private blocks: BlockToken[] = [];
+
+  // eslint-disable-next-line no-null/no-null
   private currentBlock: BlockToken | null = null;
 
-  constructor(private readonly text: string) {
+  constructor(private readonly text: string, private readonly options: { isSingleLine?: boolean } = {}) {
     /**
      * Normalize line endings to ensure consistent parsing
      * This handles both Windows (\r\n) and Unix (\n) line endings
@@ -14,6 +17,10 @@ export class BlockTokenizer {
   }
 
   public tokenize(): BlockToken[] {
+    if (this.options.isSingleLine) {
+      return this.tokenizeSingleLine();
+    }
+
     while (this.pos < this.text.length) {
       if (this.text.startsWith('```', this.pos)) {
         this.flushCurrentBlock();
@@ -61,6 +68,20 @@ export class BlockTokenizer {
 
     this.flushCurrentBlock();
     return this.blocks;
+  }
+
+  private tokenizeSingleLine(): BlockToken[] {
+    // Create single paragraph with all content
+    const content = this.text
+      .replace(/\n+/g, ' ') // Replace newlines with spaces
+      .replace(/\s+/g, ' '); // Normalize multiple spaces
+
+    return [{
+      type: 'paragraph',
+      raw: content,
+      content,
+      tokens: [],
+    }];
   }
 
   private beginParagraph() {
@@ -114,13 +135,11 @@ export class BlockTokenizer {
         const prevChar = this.text[this.pos - 1];
         if (prevChar === '\n') {
           contentEnd = this.pos + 1;
-        }
-        else {
+        } else {
           contentEnd = this.pos;
         }
         closed = true;
-      }
-      else {
+      } else {
         contentEnd = this.pos + 1;
       }
       this.pos++;

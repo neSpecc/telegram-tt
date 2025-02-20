@@ -3,6 +3,14 @@ import { isEmoji } from './char';
 
 export type InputResult = [string, number];
 
+// eslint-disable-next-line no-inner-declarations
+export function insertText(originalText: string, newText: string, start: number): [string, number] {
+  return [
+    originalText.slice(0, start) + newText + originalText.slice(start),
+    start + newText.length,
+  ];
+}
+
 export function useInputOperations({
   text,
   start,
@@ -24,11 +32,8 @@ export function useInputOperations({
     return [text, start];
   }
 
-  function insertText(textToInsert: string): InputResult {
-    return [
-      text.slice(0, start) + textToInsert + text.slice(end),
-      start + textToInsert.length,
-    ];
+  function insert(textToInsert: string): InputResult {
+    return insertText(text, textToInsert, start);
   }
 
   function insertReplacementText(dataTransfer: DataTransfer | null): InputResult {
@@ -42,11 +47,11 @@ export function useInputOperations({
       return [text, start];
     }
 
-    return insertText(replacementText);
+    return insert(replacementText);
   }
 
   function insertParagraph(): InputResult {
-    return insertText('\n');
+    return insert('\n');
   }
 
   function insertLineBreak(): InputResult {
@@ -192,7 +197,7 @@ export function useInputOperations({
   }
 
   return {
-    insertText,
+    insertText: insert,
     insertReplacementText,
     insertParagraph,
     insertLineBreak,

@@ -1,22 +1,26 @@
 /* eslint-disable no-null/no-null */
-import type { ApiFormattedText } from '../ast/ApiFormattedText';
+import type { ApiFormattedText } from '../../../../api/types';
 import type {
   ASTFormattingInlineNodeBase, ASTFormattingNode, ASTLinkNode, ASTMonospaceNode, ASTNode, ASTPreBlockNode,
+  ASTRootNode,
+  ASTTextNode,
 } from '../ast/entities/ASTNode';
 import type { OffsetMappingRecord } from '../ast/entities/OffsetMapping';
 import type { LinkFormattingOptions, TextEditorApi } from '../TextEditorApi';
 
 import { MarkdownParser } from '../ast';
 import {
+  blurContenteditable,
   getCaretOffset, getSelectionRange, setCaretOffset, setCaretToNode,
 } from '../helpers/caret';
 import { getClosingMarker, getFocusedNode } from '../helpers/getFocusedNode';
 import { highlightLinksAsMarkown } from '../helpers/highlightLinks';
 import { createHistory } from '../helpers/history';
 import { htmlToMdOffset, mdToHtmlOffset } from '../helpers/offsetMapping';
-import { useInputOperations } from '../helpers/useInputOperations';
+import { insertText, useInputOperations } from '../helpers/useInputOperations';
 
-import { BLOCK_GROUP_ATTR, FOCUSED_NODE_CLASS, HIGHLIGHTABLE_NODE_CLASS } from '../ast/Renderer';
+import { FORMATTING_REGEX } from '../ast/InlineTokenizer';
+import { BLOCK_GROUP_ATTR, FOCUSED_NODE_CLASS, HIGHLIGHTABLE_NODE_CLASS } from '../ast/RendererHtml';
 
 export enum TextEditorMode {
   Rich,
@@ -26,25 +30,23 @@ export enum TextEditorMode {
 export function useTextEditor({
   value,
   mode = TextEditorMode.Rich,
+  isSingleLine = false,
   input,
   onUpdate,
-  onHtmlUpdate,
-  previewHtml,
-  previewMarkdown,
 }: {
   input: HTMLDivElement;
-  onUpdate: (apiFormattedText: ApiFormattedText) => void;
-  onHtmlUpdate: (html: string) => void;
+  mode?: TextEditorMode;
+  isSingleLine?: boolean;
+  onUpdate: (apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => void;
   value?: ApiFormattedText;
-  previewHtml?: HTMLElement;
-  previewMarkdown?: HTMLElement;
 }): TextEditorApi {
-  const parser = new MarkdownParser(mode === TextEditorMode.Rich);
+  const parser = new MarkdownParser(mode === TextEditorMode.Rich, isSingleLine);
   let currentText = '';
   let focusedNode: ASTNode | null = null;
   let selectionChangeMutex = false;
   let updateCallbackMutex = false;
   let offsetMapping: OffsetMappingRecord[] = [];
+  let currentMdRange = [0, 0];
   let onAfterUpdateDebouncer: ReturnType<typeof setTimeout> | null = null;
 
   if (value) {
@@ -122,43 +124,44 @@ export function useTextEditor({
     }
   }
 
-  function updateContent(text: string | ApiFormattedText, mdOffset: number) {
+  function updateContent(text: string | ApiFormattedText | ASTRootNode, mdOffset: number) {
+    // input.style.caretColor = 'transparent';
     if (typeof text === 'string') {
       parser.fromString(text);
       currentText = text;
-    } else {
+    } else if (typeof text === 'object' && 'text' in text) {
       parser.fromApiFormattedText(text);
+      currentText = parser.toMarkdown();
+    } else {
       currentText = parser.toMarkdown();
     }
 
-    const html = parser.render({
-      mode: 'html',
-      previewNodeOffset: mdOffset,
-      isPreview: true,
-    });
+    const mapping = parser.computeOffsetMapping();
     const apiFormattedText = parser.toApiFormattedText();
-    offsetMapping = parser.getOffsetMapping();
-    input.innerHTML = html;
-
-    onHtmlUpdate(html);
+    offsetMapping = mapping;
 
     const htmlOffset = mdToHtmlOffset(offsetMapping, mdOffset);
 
-    setCaretOffset(input, Math.max(0, htmlOffset));
-
-    updatePreview();
+    currentMdRange = [mdOffset, mdOffset];
 
     if (!updateCallbackMutex) {
-      onUpdate(apiFormattedText);
+      onUpdate(apiFormattedText, parser.getAST(), htmlOffset);
     }
 
     if (onAfterUpdateDebouncer) {
       clearTimeout(onAfterUpdateDebouncer);
     }
 
+    // wait Teact to finish rendering
+    requestAnimationFrame(() => {
+      // wait for browser to finish painting
+      requestAnimationFrame(() => {
+        hightlightFocusedNode();
+      });
+    });
     onAfterUpdateDebouncer = setTimeout(() => {
       onAfterUpdate();
-    }, 300);
+    }, 100);
   }
 
   function onAfterUpdate() {
@@ -185,10 +188,35 @@ export function useTextEditor({
     isDelete: boolean = false,
     deleteDirection?: 'forward' | 'backward',
   ): { start: number; end: number } {
-    const { start: htmlStart, end: htmlEnd } = getSelectionRange(input);
-    let mdStart = htmlToMdOffset(offsetMapping, htmlStart);
-    let mdEnd = htmlToMdOffset(offsetMapping, htmlEnd);
-    const isRange = mdStart !== mdEnd;
+    const {
+      start: htmlStart, end: htmlEnd,
+    } = getSelectionRange(input);
+    const mdStart = htmlToMdOffset(offsetMapping, htmlStart);
+    const mdEnd = htmlToMdOffset(offsetMapping, htmlEnd);
+
+    return { start: mdStart, end: mdEnd };
+  }
+
+  /**
+   * @todo - support composition events
+   */
+  function onBeforeInput(event: InputEvent) {
+    event.preventDefault();
+    /**
+     * Remove real caret to prevent jumping to the start because of re-rendering
+     * It will be set back manualy after renderer do its job
+     */
+    // blurContenteditable(input);
+    // console.log('set caret color to transparent');
+
+    // input.style.caretColor = 'transparent';
+    selectionChangeMutex = true;
+
+    // Use tracked offset instead of selection
+    let [mdStart, mdEnd] = currentMdRange;
+
+    const isDelete = event.inputType.startsWith('delete');
+    const direction = event.inputType.includes('Forward') ? 'forward' : 'backward';
 
     /**
      * Special case for delete operations:
@@ -201,41 +229,40 @@ export function useTextEditor({
           || (mdStart === m.mdEnd)
       ));
 
+      const customEmojiRecord = offsetMapping.find((m) => m.nodeType === 'customEmoji' && (
+        (mdStart >= m.mdStart && mdStart <= m.mdEnd)
+          || (mdStart === m.mdEnd)
+      ));
+
       if (mentionRecord) {
         mdStart = mentionRecord.mdStart;
         mdEnd = Math.max(mdEnd, mentionRecord.mdEnd);
-      } else if (deleteDirection) {
-        const prevCharIndex = mdStart - 1;
-        const prevVisibleCharIndex = htmlToMdOffset(offsetMapping, htmlStart - 1);
+      } else if (customEmojiRecord) {
+        mdStart = customEmojiRecord.mdStart;
+        mdEnd = Math.max(mdEnd, customEmojiRecord.mdEnd);
+      } else if (direction) {
+        // const prevCharIndex = mdStart - 1;
+        // const prevVisibleCharIndex =
 
-        const nextCharIndex = mdEnd + 1;
-        const nextVisibleCharIndex = htmlToMdOffset(offsetMapping, htmlEnd + 1);
+        // const nextCharIndex = mdEnd + 1;
+        // const nextVisibleCharIndex = htmlToMdOffset(offsetMapping, htmlEnd + 1);
 
-        if (isDelete && !isRange) {
-          if (deleteDirection === 'forward' && nextCharIndex !== nextVisibleCharIndex) {
-            mdEnd = nextVisibleCharIndex;
-          } else if (deleteDirection === 'backward' && prevCharIndex !== prevVisibleCharIndex) {
-            mdStart = prevVisibleCharIndex;
-          }
-        }
+        // if (isDelete && !isRange) {
+        //   if (deleteDirection === 'forward' && nextCharIndex !== nextVisibleCharIndex) {
+        //     mdEnd = nextVisibleCharIndex;
+        //   } else if (deleteDirection === 'backward' && prevCharIndex !== prevVisibleCharIndex) {
+        //     mdStart = prevVisibleCharIndex;
+        //   }
+        // }
       }
     }
 
-    return { start: mdStart, end: mdEnd };
-  }
-
-  /**
-   * @todo - support composition events
-   */
-  function onBeforeInput(event: InputEvent) {
-    // console.log('onBeforeInput', event);
-
-    event.preventDefault();
-    selectionChangeMutex = true;
-
-    const isDelete = event.inputType.startsWith('delete');
-    const direction = event.inputType.includes('Forward') ? 'forward' : 'backward';
-    const { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange(isDelete, direction);
+    // console.log('before input:', {
+    //   inputType: event.inputType,
+    //   text: currentText,
+    //   mdStart,
+    //   mdEnd,
+    // });
 
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const utils = useInputOperations({
@@ -253,9 +280,37 @@ export function useTextEditor({
           break;
         }
 
-        if (hasSpecialInsertBehavior(textToInsert, currentText, mdStart)) {
+        if (mode === TextEditorMode.Rich && hasSpecialInsertBehavior(textToInsert, currentText, mdStart)) {
           [currentText, mdNewPosition] = handleSpecialInsertion(textToInsert, currentText, mdStart);
         } else {
+          /**
+           * [BETA] Performance optimization:
+           * - Incremental update of a single node, not the whole AST
+           * (only for plain text nodes for now)
+           */
+          const { node } = getFocusedNode(mdStart, parser.getAST()!);
+          const char = event.data[0];
+          const isPlainChar = ['*', '`', '|', '~', '<', '[', ']', '(', ')', '\n'].includes(char) === false;
+          const prevChar = currentText[mdStart - 1];
+          const nextChar = currentText[mdStart];
+          const isInsideValueNode = (ch: string) => ['`', '[', ']', '(', ')'].includes(ch);
+
+          if (
+            node?.type === 'text' && isPlainChar
+            && isInsideValueNode(prevChar) === false
+            && isInsideValueNode(nextChar) === false
+          ) {
+            const nodeMapping = findNodeMapping(node, parser.getOffsetMapping());
+            const nodeStart = nodeMapping?.mdStart ?? 0;
+            const offsetWithinNode = mdStart - nodeStart;
+
+            const [newTextValue, newPositionWithinNode] = insertText(node.value, textToInsert, offsetWithinNode);
+
+            parser.updateTextNodeValue(node as ASTTextNode, newTextValue);
+            ofAfterInput(parser.getAST(), nodeStart + newPositionWithinNode);
+            return;
+          }
+
           [currentText, mdNewPosition] = utils.insertText(textToInsert);
         }
 
@@ -264,7 +319,6 @@ export function useTextEditor({
       case 'insertParagraph':
       case 'insertLineBreak': {
         const { node } = getFocusedNode(mdStart, parser.getAST()!);
-
         /**
          * If the caret is at the end of a pre block, get out of the pre block
          * Also, if pre is not empty, remove the last line break
@@ -278,10 +332,11 @@ export function useTextEditor({
           }
 
           currentText = `${currentText.slice(0, preEnd)}\n${currentText.slice(preEnd)}`;
-          mdNewPosition = preEnd + 1;
+          mdNewPosition = preEnd;
         } else {
           [currentText, mdNewPosition] = utils[event.inputType]();
         }
+
         break;
       }
       case 'insertReplacementText': {
@@ -348,17 +403,15 @@ export function useTextEditor({
       }
     }
 
-    ofAfterInput(mdNewPosition);
+    ofAfterInput(currentText, mdNewPosition);
   }
 
-  /**
-   * @todo accept new text as a parameter
-   */
-  function ofAfterInput(newMdOffset: number) {
-    const newText = currentText;
+  function ofAfterInput(newValue: string | ASTRootNode, newMdOffset: number) {
+    const newText = typeof newValue === 'string' ? newValue : parser.toMarkdown(newValue);
+
     const caretOffset = newMdOffset;
     history.push(newText, caretOffset);
-    updateContent(newText, caretOffset);
+    updateContent(newValue, caretOffset);
   }
 
   /**
@@ -469,8 +522,13 @@ export function useTextEditor({
 
   function onInputSelectionChange() {
     if (selectionChangeMutex) {
-      return true;
+      return;
     }
+
+    const { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange();
+
+    currentMdRange = [mdStart, mdEnd];
+
     const caretOffset = getCaretOffset(input);
     const { node } = getFocusedNode(caretOffset, parser.getAST()!);
 
@@ -478,13 +536,11 @@ export function useTextEditor({
       focusedNode = node;
       hightlightFocusedNode();
     }
-
-    return true;
   }
 
-  function findNodeMapping(node: ASTNode, offsetMapping: OffsetMappingRecord[]): OffsetMappingRecord | undefined {
+  function findNodeMapping(node: ASTNode, mapping: OffsetMappingRecord[]): OffsetMappingRecord | undefined {
     if ('id' in node && node.id) {
-      const exactMatch = offsetMapping.find((m) => m.nodeId === node.id);
+      const exactMatch = mapping.find((m) => m.nodeId === node.id);
       if (exactMatch) {
         return exactMatch;
       }
@@ -502,8 +558,8 @@ export function useTextEditor({
 
     function traverse(node: ASTNode): void {
       if (['paragraph', 'root'].includes(node.type) === false) {
-        const offsetMapping = parser.getOffsetMapping();
-        const nodeMapping = findNodeMapping(node, offsetMapping);
+        const mapping = parser.getOffsetMapping();
+        const nodeMapping = findNodeMapping(node, mapping);
         if (nodeMapping) {
           const nodeStart = nodeMapping.mdStart;
           const nodeEnd = nodeMapping.mdEnd;
@@ -532,6 +588,14 @@ export function useTextEditor({
     let { start, end } = getInputOperationMarkdownRange();
     const ast = parser.getAST()!;
 
+    /**
+     * Disallow formatting inside nodes with "value"
+     */
+    const { node: currentNode } = getFocusedNode(start, parser.getAST());
+    if (currentNode && currentNode?.type !== 'text' && 'value' in currentNode && type !== currentNode.type) {
+      return;
+    }
+
     if (type === 'link') {
       start = options?.start ?? start;
       end = options?.end ?? end;
@@ -553,9 +617,6 @@ export function useTextEditor({
         return;
       }
 
-      /**
-       * @todo - using paragraph works now (they cleaned on reparsing) but it is not the best solution since only one level of paragraph is supported
-       */
       const newNode = 'children' in targetNode
         ? {
           type: 'paragraph',
@@ -580,8 +641,8 @@ export function useTextEditor({
           }, 0)
           : ((targetNode as ASTMonospaceNode).value).length;
 
-        const offsetMapping = parser.getOffsetMapping();
-        const nodeMapping = findNodeMapping(targetNode, offsetMapping);
+        const om = parser.getOffsetMapping();
+        const nodeMapping = findNodeMapping(targetNode, om);
 
         const nodeStart = nodeMapping?.mdStart ?? start;
 
@@ -603,7 +664,8 @@ export function useTextEditor({
 
       if (isRange) {
         if (type === 'link') {
-          const zeroWidthSpace = '\u200B';
+          // const zeroWidthSpace = '\u200B';
+          const zeroWidthSpace = '';
           const newText = parser.toMarkdown({
             type: 'link',
             raw: '',
@@ -659,7 +721,7 @@ export function useTextEditor({
       }
     }
 
-    ofAfterInput(newCaretOffset);
+    ofAfterInput(currentText, newCaretOffset);
   }
 
   /**
@@ -764,36 +826,43 @@ export function useTextEditor({
     // }
   }
 
-  function updatePreview() {
-    // return;
-    if (!previewHtml || !previewMarkdown) {
-      return;
-    }
-
-    const html = parser.render({ mode: 'html', isPreview: true });
-    previewHtml.textContent = html.replace(/\n/g, '🤡');
-    previewMarkdown.textContent = parser.render({ mode: 'markdown' }).replace(/\n/g, '\\n');
-  }
-
   function setContent(apiFormattedText: ApiFormattedText | undefined) {
     if (apiFormattedText !== undefined) {
       if (parser.toApiFormattedText() === apiFormattedText) {
         return;
       }
 
+      // console.log('setContent', apiFormattedText, input);
+
       // parser.fromApiFormattedText(apiFormattedText);
       // text = parser.toMarkdown();
     }
 
-    updateCallbackMutex = true;
-    updateContent(apiFormattedText || '', 0);
+    // updateCallbackMutex = true;
+    updateContent(apiFormattedText || '', htmlToMdOffset(offsetMapping, apiFormattedText?.text.length ?? 0));
   }
 
   const api: TextEditorApi = {
     setContent,
     getCaretOffset: () => getInputOperationMarkdownRange(),
+    setCaretOffset: (offset: number) => {
+      setCaretOffset(input, Math.max(0, offset));
+      // input.style.caretColor = 'initial';
+      // console.log('set caret color to initial');
+    },
     getMarkdown: () => currentText,
     insert: (text: string, offset: number) => {
+      /**
+       * Disallow inserting custom emoji to "pre", add it after
+       */
+      if (FORMATTING_REGEX.customEmoji.test(text)) {
+        const { node } = getFocusedNode(offset, parser.getAST());
+        if (node?.type === 'pre') {
+          const preMapping = findNodeMapping(node, parser.getOffsetMapping());
+          offset = preMapping?.mdEnd ?? 0;
+        }
+      }
+
       let start = 0;
       let end = 0;
 
@@ -816,9 +885,7 @@ export function useTextEditor({
 
       const [newText, newPosition] = utils.insertText(text);
 
-      currentText = newText;
-
-      ofAfterInput(newPosition);
+      ofAfterInput(newText, newPosition);
     },
     replace: (start: number, end: number, text: string) => {
       // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -829,13 +896,11 @@ export function useTextEditor({
       });
 
       const [newText, newPosition] = utils.replaceSlice(text);
-      currentText = newText;
-
-      ofAfterInput(newPosition);
+      ofAfterInput(newText, newPosition);
     },
     getLeftSlice: () => {
       const { start } = getInputOperationMarkdownRange();
-      return currentText.slice(0, start);
+      return start > 0 ? currentText.slice(0, start) : currentText;
     },
     deleteLastSymbol: () => {
       const { start, end } = getInputOperationMarkdownRange(true, 'backward');
@@ -848,9 +913,7 @@ export function useTextEditor({
       });
 
       const [newText, newPosition] = utils.deleteContentBackward();
-      currentText = newText;
-
-      ofAfterInput(newPosition);
+      ofAfterInput(newText, newPosition);
     },
     format: (formatting: ASTFormattingNode['type'], options?: LinkFormattingOptions) => {
       handleFormatting(formatting, options);
@@ -896,6 +959,24 @@ export function useTextEditor({
     },
     focus: () => {
       setCaretOffset(input, htmlToMdOffset(offsetMapping, currentText.length));
+    },
+    getCurrentNode: () => {
+      const { start } = getInputOperationMarkdownRange();
+      const { node } = getFocusedNode(start, parser.getAST()!);
+
+      if (!node) {
+        return {
+          node: null,
+          parentNode: null,
+        };
+      }
+
+      const parentNode = parser.getParentNode(node);
+
+      return {
+        node,
+        parentNode,
+      };
     },
   };
 

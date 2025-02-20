@@ -11,6 +11,7 @@ export default function useVirtualBackdrop(
   onClose?: () => void | undefined,
   ignoreRightClick?: boolean,
   excludedClosestSelector?: string,
+  preventDefault: boolean = true,
 ) {
   useEffect(() => {
     if (!isOpen || !onClose) {
@@ -30,8 +31,11 @@ export default function useVirtualBackdrop(
       ) && !(excludedClosestSelector && (
         target.matches(excludedClosestSelector) || target.closest(excludedClosestSelector)
       ))) {
-        e.preventDefault();
-        e.stopPropagation();
+        if (preventDefault) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+
         onClose?.();
       }
     };

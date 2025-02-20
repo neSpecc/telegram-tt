@@ -11,10 +11,9 @@ import {
   ApiMessageEntityTypes,
 } from '../../../../api/types';
 
-export class ApiFormattedParser {
-  constructor(private readonly isRich: boolean = true) {
-  }
+import { createTextNode } from '../helpers/node';
 
+export class ApiFormattedParser {
   /**
    * Converts ApiFormattedText to AST
    */
@@ -37,8 +36,8 @@ export class ApiFormattedParser {
 
     const root: ASTNode = {
       type: 'root',
-      raw: text,
       children: [],
+      raw: '', // Will be computed at the end
     };
 
     let currentOffset = 0;
@@ -60,14 +59,13 @@ export class ApiFormattedParser {
       return currentParagraph;
     };
 
-    // Instead of always creating initial paragraph
     const startsWithBlock = sortedEntities.some((e) => e.offset === 0 && (
       e.type === ApiMessageEntityTypes.Pre
-        || e.type === ApiMessageEntityTypes.Blockquote
+      || e.type === ApiMessageEntityTypes.Blockquote
     ));
 
     if (!startsWithBlock) {
-      beginParagraph(); // Only start with paragraph if not starting with block
+      beginParagraph();
     }
 
     function handleNewline(offset: number): boolean {
@@ -106,12 +104,6 @@ export class ApiFormattedParser {
             entityText,
             getNestedEntities(entity, sortedEntities),
           );
-          if (entity.type === ApiMessageEntityTypes.Pre) {
-            root.raw = root.raw.replace(
-              entityText,
-              `\`\`\`${entity.language || ''}\n${entityText}\n\`\`\``,
-            );
-          }
           root.children.push(node);
         } else {
           const paragraph = currentParagraph || beginParagraph();
@@ -138,13 +130,13 @@ export class ApiFormattedParser {
             const paragraph = currentParagraph || beginParagraph();
 
             if (part.length > 0) {
-              paragraph.children.push(this.createTextNode(part) as ASTTextNode);
+              paragraph.children.push(createTextNode(part) as ASTTextNode);
               paragraph.raw += part;
             }
 
             if (index < parts.length - 1) {
               currentOffset += part.length + 1; // +1 for newline
-              handleNewline(currentOffset - 1); // Handle newline at its position
+              handleNewline(currentOffset - 1);
             }
           });
         }
@@ -153,11 +145,9 @@ export class ApiFormattedParser {
       }
     }
 
-    flushParagraph(); // Flush final paragraph even if empty
+    flushParagraph();
 
-    if (root.children.length > 0) {
-      root.raw = root.children.map((child) => child.raw).join('\n');
-    }
+    root.raw = root.children.map((child) => child.raw).join('\n');
 
     return root;
   }
@@ -174,21 +164,12 @@ export class ApiFormattedParser {
   ): ASTFormattingNode {
     const children = nestedEntities.length > 0
       ? this.processNestedEntities(text, entity.offset, nestedEntities)
-      : [this.createTextNode(text)];
+      : [createTextNode(text)];
     const childrenRaw = children.map((child) => child.raw).join('');
     return {
       type,
       raw: `${marker.start}${childrenRaw}${marker.end}`,
       children,
-    };
-  }
-
-  // eslint-disable-next-line class-methods-use-this
-  private createTextNode(value: string): ASTNode {
-    return {
-      type: 'text' as const,
-      value,
-      raw: value,
     };
   }
 
@@ -226,7 +207,7 @@ export class ApiFormattedParser {
 
         const plainText = parentText.slice(currentOffset, textEnd);
         if (plainText) {
-          children.push(this.createTextNode(plainText) as ASTTextNode);
+          children.push(createTextNode(plainText) as ASTTextNode);
         }
         currentOffset = textEnd;
       }
@@ -240,19 +221,6 @@ export class ApiFormattedParser {
     text: string,
     nestedEntities: ApiMessageEntity[],
   ): ASTNode {
-    // In non-rich mode, only allow text and custom emoji
-    if (!this.isRich) {
-      if (entity.type === ApiMessageEntityTypes.CustomEmoji) {
-        return {
-          type: 'customEmoji',
-          value: text,
-          documentId: entity.documentId,
-          raw: `[${text}](doc:${entity.documentId})`,
-        };
-      }
-      return this.createTextNode(text);
-    }
-
     switch (entity.type) {
       case ApiMessageEntityTypes.Bold:
         return this.createFormattedNode('bold', text, entity, nestedEntities, { start: '**', end: '**' });
@@ -272,7 +240,7 @@ export class ApiFormattedParser {
       case ApiMessageEntityTypes.Blockquote: {
         const children = nestedEntities.length > 0
           ? this.processNestedEntities(text, entity.offset, nestedEntities)
-          : [this.createTextNode(text)];
+          : [createTextNode(text)];
         const childrenRaw = children.map((child) => child.raw).join('');
         return {
           type: 'quote',
@@ -300,7 +268,7 @@ export class ApiFormattedParser {
       case ApiMessageEntityTypes.TextUrl: {
         const children = nestedEntities.length > 0
           ? this.processNestedEntities(text, entity.offset, nestedEntities)
-          : [this.createTextNode(text)];
+          : [createTextNode(text)];
         const childrenRaw = children.map((child) => child.raw).join('');
         return {
           type: 'link',
@@ -331,11 +299,10 @@ export class ApiFormattedParser {
       }
 
       default:
-        return this.createTextNode(text);
+        return createTextNode(text);
     }
   }
 
-  // eslint-disable-next-line class-methods-use-this
   public fromAstToApiFormatted(ast: ASTNode): ApiFormattedText {
     let text = '';
     const entities: ApiMessageEntity[] = [];
@@ -370,12 +337,14 @@ export class ApiFormattedParser {
     function processNode(node: ASTNode) {
       switch (node.type) {
         case 'root': {
-          // Process children with newlines between blocks
           node.children.forEach((child, index) => {
             processNode(child);
-            if (index < node.children.length - 1) {
+            if (index < node.children.length - 1) { // except the last one
+              // pre block already includes trailing newline
               text += '\n';
-              currentOffset += 1;
+              if (child.type !== 'pre') {
+                currentOffset += 1;
+              }
             }
           });
           break;
@@ -407,7 +376,6 @@ export class ApiFormattedParser {
           const length = node.value.length;
           currentOffset += length;
 
-          // Add newline after pre block
           currentOffset += 1;
 
           entities.push({

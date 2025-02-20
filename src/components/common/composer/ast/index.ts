@@ -1,34 +1,45 @@
 /* eslint-disable no-null/no-null */
 import type { ApiFormattedText } from '../../../../api/types';
-import type { ASTNode } from './entities/ASTNode';
+import type { ASTNode, ASTRootNode, ASTTextNode } from './entities/ASTNode';
 import type { OffsetMappingRecord } from './entities/OffsetMapping';
-import type { RendererOptions } from './Renderer';
+import type { RendererOptions } from './RendererHtml';
 
 import { generateNodeId } from '../helpers/node';
 
 import { ApiFormattedParser } from './ApiFormattedParser';
 import { Parser } from './Parser';
-import { Renderer } from './Renderer';
+import { RendererHtml } from './RendererHtml';
 import { tokenize } from './Tokenizer';
 
 export class MarkdownParser {
-  private renderer: Renderer;
+  private renderer: RendererHtml;
 
-  private ast: ASTNode | null = null;
+  private ast: ASTRootNode | null = null;
 
   private parentMap = new WeakMap<ASTNode, ASTNode>();
 
   private nodeIdMap = new Map<string, ASTNode>();
 
-  constructor(private readonly isRich: boolean = true) {
-    this.renderer = new Renderer();
+  constructor(
+    private readonly isRich: boolean = true,
+    private readonly isSingleLine: boolean = false,
+  ) {
+    this.renderer = new RendererHtml();
   }
 
-  public getAST(): ASTNode | null {
+  public getAST(): ASTRootNode {
+    if (!this.ast) {
+      return {
+        type: 'root',
+        children: [],
+        raw: '',
+      };
+    }
+
     return this.ast;
   }
 
-  public setAST(ast: ASTNode) {
+  public setAST(ast: ASTRootNode) {
     this.ast = ast;
 
     this.nodeIdMap = new Map();
@@ -39,7 +50,7 @@ export class MarkdownParser {
   }
 
   public fromString(markdown: string) {
-    const ast = this.parse(markdown);
+    const ast = this.parse(markdown) as ASTRootNode;
 
     this.setAST(ast);
 
@@ -49,7 +60,7 @@ export class MarkdownParser {
   public fromApiFormattedText(apiFormattedText: ApiFormattedText) {
     const apiParser = new ApiFormattedParser(this.isRich);
 
-    const ast = apiParser.fromApiFormattedToAst(apiFormattedText);
+    const ast = apiParser.fromApiFormattedToAst(apiFormattedText) as ASTRootNode;
 
     this.setAST(ast);
 
@@ -62,6 +73,16 @@ export class MarkdownParser {
     }
 
     return this.renderer.render(this.ast, options);
+  }
+
+  public computeOffsetMapping(): OffsetMappingRecord[] {
+    if (!this.ast) {
+      return [];
+    }
+
+    this.renderer.render(this.ast, { mode: 'html', isPreview: true });
+
+    return this.renderer.getOffsetMapping();
   }
 
   /**
@@ -108,7 +129,7 @@ export class MarkdownParser {
    * Parses markdown text and returns AST
    */
   public parse(markdown: string): ASTNode {
-    const tokens = tokenize(markdown, this.isRich);
+    const tokens = tokenize(markdown, this.isRich, this.isSingleLine);
     return new Parser(tokens).parse();
   }
 
@@ -153,5 +174,14 @@ export class MarkdownParser {
     this.nodeIdMap.set(node.id, node);
 
     return node;
+  }
+
+  public updateTextNodeValue(node: ASTTextNode, value: string) {
+    if (node && 'value' in node) {
+      node.value = value;
+      node.raw = value;
+
+      this.ast!.lastModified = Date.now();
+    }
   }
 }

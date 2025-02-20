@@ -3,19 +3,21 @@ import type { FC } from '../../../lib/teact/teact';
 import React, {
   getIsHeavyAnimating,
   memo,
+  useCallback,
   useEffect, useLayoutEffect,
-  useRef, useState,
+  useRef, useSignal, useState,
 } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
 
 import type { ApiFormattedText, ApiInputMessageReplyInfo } from '../../../api/types';
 import type { IAnchorPosition, ISettings, ThreadId } from '../../../types';
 import type { Signal } from '../../../util/signals';
+import type { ASTRootNode } from '../../common/composer/ast/entities/ASTNode';
 import type { TextEditorApi } from '../../common/composer/TextEditorApi';
 
 import { EDITABLE_INPUT_ID } from '../../../config';
 import { requestForcedReflow, requestMutation } from '../../../lib/fasterdom/fasterdom';
-import { selectCanPlayAnimatedEmojis, selectDraft, selectIsInSelectMode } from '../../../global/selectors';
+import { selectDraft, selectIsInSelectMode } from '../../../global/selectors';
 import buildClassName from '../../../util/buildClassName';
 import captureKeyboardListeners from '../../../util/captureKeyboardListeners';
 import { getIsDirectTextInputDisabled } from '../../../util/directInputManager';
@@ -35,8 +37,8 @@ import useFlag from '../../../hooks/useFlag';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
 import { useTextEditor } from '../../common/composer/hooks/useTextEditor';
-import useInputCustomEmojis from './hooks/useInputCustomEmojis';
 
+import RendererTeact from '../../common/composer/ast/RendererTeact';
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import TextTimer from '../../ui/TextTimer';
@@ -59,9 +61,7 @@ type OwnProps = {
   threadId: ThreadId;
   isAttachmentModalInput?: boolean;
   isStoryInput?: boolean;
-  customEmojiPrefix: string;
   editableInputId?: string;
-  isReady: boolean;
   isActive: boolean;
   getApiFormattedText: Signal<ApiFormattedText | undefined>;
   placeholder: string;
@@ -88,7 +88,6 @@ type StateProps = {
   replyInfo?: ApiInputMessageReplyInfo;
   isSelectModeActive?: boolean;
   messageSendKeyCombo?: ISettings['messageSendKeyCombo'];
-  canPlayAnimatedEmojis: boolean;
 };
 
 const MAX_ATTACHMENT_MODAL_INPUT_HEIGHT = 160;
@@ -108,9 +107,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   captionLimit,
   isAttachmentModalInput,
   isStoryInput,
-  customEmojiPrefix,
   editableInputId,
-  isReady,
   isActive,
   getApiFormattedText,
   placeholder,
@@ -124,7 +121,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   shouldSuppressTextFormatter,
   replyInfo,
   isSelectModeActive,
-  canPlayAnimatedEmojis,
   messageSendKeyCombo,
   onUpdate,
   onSuppressedFocus,
@@ -148,18 +144,14 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     inputRef = ref;
   }
 
+  const [isMounted, setIsMounted] = useState(false);
+
   // eslint-disable-next-line no-null/no-null
   const selectionTimeoutRef = useRef<number>(null);
   // eslint-disable-next-line no-null/no-null
   const cloneRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line no-null/no-null
   const scrollerCloneRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line no-null/no-null
-  const sharedCanvasRef = useRef<HTMLCanvasElement>(null);
-  // eslint-disable-next-line no-null/no-null
-  const sharedCanvasHqRef = useRef<HTMLCanvasElement>(null);
-  // eslint-disable-next-line no-null/no-null
-  const absoluteContainerRef = useRef<HTMLDivElement>(null);
 
   const lang = useOldLang();
   const isContextMenuOpenRef = useRef(false);
@@ -167,6 +159,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const [textFormatterAnchorPosition, setTextFormatterAnchorPosition] = useState<IAnchorPosition>();
   const [selectedRange, setSelectedRange] = useState<Range>();
   const [isTextFormatterDisabled, setIsTextFormatterDisabled] = useState<boolean>(false);
+
   const { isMobile } = useAppLayout();
   const isMobileDevice = isMobile && (IS_IOS || IS_ANDROID);
 
@@ -182,18 +175,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const handleTimerEnd = useLastCallback(() => {
     setShouldDisplayTimer(false);
   });
-
-  useInputCustomEmojis(
-    getApiFormattedText,
-    inputRef,
-    sharedCanvasRef,
-    sharedCanvasHqRef,
-    absoluteContainerRef,
-    customEmojiPrefix,
-    canPlayAnimatedEmojis,
-    isReady,
-    isActive,
-  );
 
   const maxInputHeight = isAttachmentModalInput
     ? MAX_ATTACHMENT_MODAL_INPUT_HEIGHT
@@ -237,36 +218,8 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     updateInputHeight(false);
   }, [isAttachmentModalInput, updateInputHeight]);
 
-  const messageRef = useRef(getApiFormattedText());
-
-  useLayoutEffect(() => {
-    const message = isActive ? getApiFormattedText() : { text: '' };
-
-    if (areMessagesEqual(message, messageRef.current)) {
-      return;
-    }
-
-    if (!editorApiRef.current) {
-      return;
-    }
-
-    editorApiRef.current.setContent(message);
-    editorApiRef.current.focus();
-
-    messageRef.current = message;
-
-    updateInputHeight(!message);
-  }, [getApiFormattedText, isActive, updateInputHeight]);
-
-  const chatIdRef = useRef(chatId);
-  chatIdRef.current = chatId;
   const focusInput = useLastCallback(() => {
     if (!inputRef.current || isNeedPremium) {
-      return;
-    }
-
-    const range = editorApiRef.current?.getCaretOffset();
-    if (range?.start === range?.end) {
       return;
     }
 
@@ -278,9 +231,31 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     editorApiRef.current?.focus();
   });
 
+  const messageRef = useRef<ApiFormattedText | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const message = getApiFormattedText();
+    if (areMessagesEqual(message, messageRef.current)) {
+      return;
+    }
+
+    if (!editorApiRef.current) {
+      return;
+    }
+
+    editorApiRef.current.setContent(message);
+
+    messageRef.current = message;
+
+    updateInputHeight(!message);
+  }, [getApiFormattedText, updateInputHeight, isMounted]);
+
+  const chatIdRef = useRef(chatId);
+  chatIdRef.current = chatId;
+
   const handleCloseTextFormatter = useLastCallback(() => {
     closeTextFormatter();
-    // clearSelection();
+    // window.getSelection()?.removeAllRanges();
   });
 
   function checkSelection() {
@@ -551,10 +526,29 @@ const MessageInput: FC<OwnProps & StateProps> = ({
 
   const inputScrollerContentClass = buildClassName('input-scroller-content', isNeedPremium && 'is-need-premium');
 
-  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText) => {
+  const [getAst, setAst] = useSignal<ASTRootNode | undefined>(undefined);
+  const [getAstLastModified, setAstLastModified] = useSignal<number | undefined>(undefined);
+  const [getHtmlOffset, setHtmlOffset] = useSignal<number | undefined>(undefined);
+
+  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => {
     messageRef.current = apiFormattedText;
+
     onUpdate(apiFormattedText);
+    setAst(ast);
+    setAstLastModified(ast.lastModified);
+    setHtmlOffset(htmlOffset);
   });
+
+  const onAfterUpdate = useCallback(() => {
+    cloneRef.current!.innerHTML = inputRef.current!.innerHTML;
+    updateInputHeight(!inputRef.current!.innerHTML);
+
+    const htmlOffset = getHtmlOffset();
+
+    if (htmlOffset !== undefined && editorApiRef.current) {
+      editorApiRef.current.setCaretOffset(htmlOffset);
+    }
+  }, [getHtmlOffset]);
 
   useEffect(() => {
     if (inputRef.current) {
@@ -562,13 +556,10 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       editorApiRef.current = useTextEditor({
         input: inputRef.current,
         onUpdate: updateCallback,
-        onHtmlUpdate: (html: string) => {
-          cloneRef.current!.innerHTML = html;
-          updateInputHeight(!html);
-        },
       });
 
       setEditorApi(editorApiRef.current);
+      setIsMounted(true);
     }
   }, [editableInputId, setEditorApi]);
 
@@ -601,7 +592,15 @@ const MessageInput: FC<OwnProps & StateProps> = ({
             onTouchCancel={IS_ANDROID ? processSelectionWithTimeout : undefined}
             onFocus={!isNeedPremium ? onFocus : undefined}
             onBlur={!isNeedPremium ? onBlur : undefined}
-          />
+          >
+            {isActive && (
+              <RendererTeact
+                getAst={getAst}
+                getAstLastModified={getAstLastModified}
+                onAfterUpdate={onAfterUpdate}
+              />
+            )}
+          </div>
           {!forcedPlaceholder && (
             <span
               className={buildClassName(
@@ -623,9 +622,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
               )}
             </span>
           )}
-          <canvas ref={sharedCanvasRef} className="shared-canvas" />
-          <canvas ref={sharedCanvasHqRef} className="shared-canvas" />
-          <div ref={absoluteContainerRef} className="absolute-video-container" />
         </div>
       </div>
       <div
@@ -664,7 +660,6 @@ export default memo(withGlobal<OwnProps>(
       messageSendKeyCombo,
       replyInfo: chatId && threadId ? selectDraft(global, chatId, threadId)?.replyInfo : undefined,
       isSelectModeActive: selectIsInSelectMode(global),
-      canPlayAnimatedEmojis: selectCanPlayAnimatedEmojis(global),
     };
   },
 )(MessageInput));

@@ -1,4 +1,7 @@
-import type { ASTFormattingNode, ASTLinkNode, ASTMentionNode, ASTNode, ASTRootNode } from '../ast/entities/ASTNode';
+/* eslint-disable no-null/no-null */
+import type {
+  ASTFormattingNode, ASTLinkNode, ASTMentionNode, ASTNode, ASTRootNode,
+} from '../ast/entities/ASTNode';
 
 export interface NodeLocation {
   /**

@@ -1,5 +1,5 @@
-import type { ApiFormattedText } from './ast/ApiFormattedText';
-import type { ASTFormattingInlineNodeBase, ASTFormattingNode } from './ast/entities/ASTNode';
+import type { ApiFormattedText } from '../../../api/types';
+import type { ASTFormattingInlineNodeBase, ASTFormattingNode, ASTNode } from './ast/entities/ASTNode';
 
 export interface LinkFormattingOptions {
   href?: string;
@@ -12,6 +12,7 @@ export type FormatOperation = 'bold' | 'italic' | 'underline' | 'strikethrough' 
 export interface TextEditorApi {
   setContent: (formattedText: ApiFormattedText | undefined) => void;
   getCaretOffset: () => { start: number; end: number };
+  setCaretOffset: (offset: number) => void;
   focus: () => void;
   insert: (text: string, offset: number) => void;
   getMarkdown: () => string;
@@ -22,4 +23,5 @@ export interface TextEditorApi {
   getActiveFormattingsForRange: () => ASTFormattingInlineNodeBase['type'][];
   getFormattingNodes: () => ASTFormattingNode[];
   updateFormattingNode: (id: string, options?: { href: string }) => void;
+  getCurrentNode: () => { node: ASTNode | null; parentNode: ASTNode | null };
 }

@@ -55,6 +55,7 @@ type OwnProps = {
   inputCssSelector?: string;
   positionOptions?: MenuPositionOptions;
   getTriggerElement?: () => HTMLElement | null;
+  getRootElement?: () => HTMLElement | null;
   customEmojiToggler?: ApiSticker | undefined;
 };
 
@@ -85,6 +86,7 @@ const SymbolMenuButton: FC<OwnProps> = ({
   closeSendAsMenu,
   positionOptions,
   getTriggerElement,
+  getRootElement,
   customEmojiToggler,
 }) => {
   const {
@@ -148,7 +150,8 @@ const SymbolMenuButton: FC<OwnProps> = ({
 
   const defaultTriggerElement = useLastCallback(() => triggerRef.current);
   const getFinalTriggerElement = getTriggerElement || defaultTriggerElement;
-  const getRootElement = useLastCallback(() => triggerRef.current?.closest('.custom-scroll, .no-scrollbar'));
+  const defaultRootElement = useLastCallback(() => triggerRef.current?.closest('.custom-scroll, .no-scrollbar'));
+  const getFinalRootElement = getRootElement || defaultRootElement;
   const getMenuElement = useLastCallback(() => document.querySelector('#portals .SymbolMenu .bubble'));
   const getLayout = useLastCallback(() => ({ withPortal: true }));
 
@@ -219,7 +222,7 @@ const SymbolMenuButton: FC<OwnProps> = ({
         className={buildClassName(className, forceDarkTheme && 'component-theme-dark')}
         anchor={isAttachmentModal ? contextMenuAnchor : undefined}
         getTriggerElement={isAttachmentModal ? getFinalTriggerElement : undefined}
-        getRootElement={isAttachmentModal ? getRootElement : undefined}
+        getRootElement={isAttachmentModal ? getFinalRootElement : undefined}
         getMenuElement={isAttachmentModal ? getMenuElement : undefined}
         getLayout={isAttachmentModal ? getLayout : undefined}
         // eslint-disable-next-line react/jsx-props-no-spreading

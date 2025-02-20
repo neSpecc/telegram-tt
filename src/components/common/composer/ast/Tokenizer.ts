@@ -6,8 +6,8 @@ import { InlineTokenizer } from './InlineTokenizer';
 export class Tokenizer {
   private blockTokenizer: BlockTokenizer;
 
-  constructor(input: string, private readonly isRich: boolean = true) {
-    this.blockTokenizer = new BlockTokenizer(input);
+  constructor(input: string, private readonly isRich: boolean = true, isSingleLine: boolean = false) {
+    this.blockTokenizer = new BlockTokenizer(input, { isSingleLine });
   }
 
   public tokenize(): BlockToken[] {
@@ -23,6 +23,6 @@ export class Tokenizer {
   }
 }
 
-export function tokenize(input: string, isRich: boolean = true): BlockToken[] {
-  return new Tokenizer(input, isRich).tokenize();
+export function tokenize(input: string, isRich: boolean = true, isSingleLine: boolean = false): BlockToken[] {
+  return new Tokenizer(input, isRich, isSingleLine).tokenize();
 }

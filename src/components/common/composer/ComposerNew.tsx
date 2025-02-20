@@ -1,7 +1,10 @@
+/* eslint-disable no-null/no-null */
 import type { FC } from '../../../lib/teact/teact';
 import React, {
   memo,
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useSignal,
   useState,
@@ -10,6 +13,7 @@ import { withGlobal } from '../../../global';
 
 import type { ApiFormattedText, ApiSticker } from '../../../api/types';
 import type { MenuPositionOptions } from '../../ui/Menu';
+import type { ASTRootNode } from './ast/entities/ASTNode';
 import type { TextEditorApi } from './TextEditorApi';
 
 import { selectIsCurrentUserPremium } from '../../../global/selectors';
@@ -17,12 +21,15 @@ import buildClassName from '../../../util/buildClassName';
 
 import useAppLayout from '../../../hooks/useAppLayout';
 import useFlag from '../../../hooks/useFlag';
+import useHorizontalScroll from '../../../hooks/useHorizontalScroll';
 import useLastCallback from '../../../hooks/useLastCallback';
-import useInputCustomEmojis from '../../middle/composer/hooks/useInputCustomEmojis';
 import useCustomEmojiPremiumNotification from '../hooks/useCustomEmojiPremiumNotification';
 import { TextEditorMode, useTextEditor } from './hooks/useTextEditor';
 
 import SymbolMenuButton from '../../middle/composer/SymbolMenuButton';
+import RendererTeact from './ast/RendererTeact';
+
+import './ComposerNew.scss';
 
 type OwnProps = {
   value?: ApiFormattedText;
@@ -36,6 +43,7 @@ type OwnProps = {
   ariaLabel?: string;
   tabIndex?: number;
   customEmojiMenuPosition?: MenuPositionOptions;
+  isSingleLine?: boolean;
 };
 
 type StateProps = {
@@ -57,20 +65,30 @@ const Composer: FC<OwnProps & StateProps> = ({
   ariaLabel,
   tabIndex,
   customEmojiMenuPosition,
+  isSingleLine,
 }) => {
-  // eslint-disable-next-line no-null/no-null
   const inputRef = useRef<HTMLDivElement>(null);
   const editorApiRef = useRef<TextEditorApi | undefined>(undefined);
   const [isSymbolMenuOpen, openSymbolMenu, closeSymbolMenu] = useFlag();
-  const [getCurrentValue, setCurrentValue] = useSignal<ApiFormattedText | undefined>(undefined);
   const [customEmoji, setCustomEmoji] = useState<ApiSticker | undefined>(undefined);
-  const [isReady, setIsReady] = useState(false);
   const { isMobile } = useAppLayout();
+  const [getAst, setAst] = useSignal<ASTRootNode | undefined>(undefined);
+  const [getHtmlOffset, setHtmlOffset] = useSignal<number | undefined>(undefined);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputWrapperRef = useRef<HTMLDivElement>(null);
 
-  const updateCallback = useLastCallback((textFormatted: ApiFormattedText) => {
-    setCurrentValue(textFormatted);
-    onChange?.(textFormatted);
+  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => {
+    setAst(ast);
+    setHtmlOffset(htmlOffset);
+    onChange?.(apiFormattedText);
   });
+
+  const onAfterUpdate = useCallback(() => {
+    const htmlOffset = getHtmlOffset();
+    if (htmlOffset !== undefined && editorApiRef.current) {
+      editorApiRef.current.setCaretOffset(htmlOffset);
+    }
+  }, [getHtmlOffset]);
 
   const handleRemoveSymbol = useLastCallback(() => {
     editorApiRef.current!.deleteLastSymbol();
@@ -107,60 +125,74 @@ const Composer: FC<OwnProps & StateProps> = ({
     closeSymbolMenu();
   });
 
-  // eslint-disable-next-line no-null/no-null
-  const sharedCanvasRef = useRef<HTMLCanvasElement>(null);
-  // eslint-disable-next-line no-null/no-null
-  const sharedCanvasHqRef = useRef<HTMLCanvasElement>(null);
-  // eslint-disable-next-line no-null/no-null
-  const absoluteContainerRef = useRef<HTMLDivElement>(null);
-
-  useInputCustomEmojis(
-    getCurrentValue,
-    inputRef,
-    sharedCanvasRef,
-    sharedCanvasHqRef,
-    absoluteContainerRef,
-    'ComposerNew',
-    true,
-    isReady,
-    true,
-  );
-
   useEffect(() => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     editorApiRef.current = useTextEditor({
       value,
       mode,
+      isSingleLine,
       input: inputRef.current!,
       onUpdate: updateCallback,
-      onHtmlUpdate: (html: string) => {
-      },
     });
 
     setEditorApi?.(editorApiRef.current);
-    setIsReady(true);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!isSingleLine) {
+      return;
+    }
+    const scrollWidth = inputWrapperRef.current!.scrollWidth;
+    const innerWidth = inputWrapperRef.current!.clientWidth;
+
+    if (scrollWidth === innerWidth) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      inputWrapperRef.current!.scrollBy(scrollWidth - innerWidth, 0);
+    });
+  }, [getAst, isSingleLine]);
 
   const fullClassName = buildClassName(
     'ComposerNew',
     className,
   );
 
-  const getTriggerElement = useLastCallback(() => inputRef.current);
+  const getTriggerElement = useLastCallback(() => document.querySelector('.ComposerNew .composer-input'));
+  const getRootElement = useLastCallback(() => document.querySelector('#Settings'));
+  useHorizontalScroll(inputWrapperRef, !isSingleLine);
 
   return (
-    <div className={fullClassName}>
+    <div
+      className={fullClassName}
+      ref={containerRef}
+    >
       <div
-        ref={inputRef}
-        className="composer-input"
-        contentEditable
-        role="textbox"
-        dir="auto"
-        tabIndex={tabIndex}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        aria-label={ariaLabel}
-      />
+        ref={inputWrapperRef}
+        className={buildClassName(
+          'composer-input-container',
+          isSingleLine && '_no-scrollbar',
+          isSingleLine && 'single-line',
+        )}
+      >
+        <div
+          ref={inputRef}
+          className="composer-input"
+          contentEditable
+          role="textbox"
+          dir="auto"
+          tabIndex={tabIndex}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          aria-label={ariaLabel}
+        >
+          <RendererTeact
+            getAst={getAst}
+            onAfterUpdate={onAfterUpdate}
+          />
+        </div>
+      </div>
       {(canSendSymbols) && (
         <SymbolMenuButton
           chatId=""
@@ -182,13 +214,11 @@ const Composer: FC<OwnProps & StateProps> = ({
           inputCssSelector=".ComposerNew .form-control"
           idPrefix="ComposerNew"
           getTriggerElement={getTriggerElement}
+          getRootElement={getRootElement}
           customEmojiToggler={customEmoji}
           positionOptions={isMobile ? undefined : customEmojiMenuPosition}
         />
       )}
-      <canvas ref={sharedCanvasRef} className="shared-canvas" />
-      <canvas ref={sharedCanvasHqRef} className="shared-canvas" />
-      <div ref={absoluteContainerRef} className="absolute-video-container" />
     </div>
   );
 };

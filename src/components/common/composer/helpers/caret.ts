@@ -1,20 +1,23 @@
+/* eslint-disable no-null/no-null */
+/* eslint-disable no-console */
 /**
  * We count only text nodes, images and new lines
  */
-function createParagraphWalker(div: Element, filter?: number) {
-  if (filter) {
-    return document.createTreeWalker(div, filter);
+function createParagraphWalker(div: Element, whatToShow?: number, filter?: NodeFilter) {
+  if (whatToShow) {
+    return document.createTreeWalker(div, whatToShow, filter);
   }
 
   return document.createTreeWalker(
     div,
+    // eslint-disable-next-line no-bitwise
     NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
     {
       acceptNode: (node: Node): number => {
         if (node.nodeType === Node.TEXT_NODE) {
           return NodeFilter.FILTER_ACCEPT;
         }
-        if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'IMG') {
+        if (node.nodeType === Node.ELEMENT_NODE && (node as Element).classList.contains('custom-emoji')) {
           return NodeFilter.FILTER_ACCEPT;
         }
         return NodeFilter.FILTER_SKIP;
@@ -41,8 +44,7 @@ function isCaretInParagraph(div: Element, container: Node): boolean {
   let node = walker.nextNode();
 
   while (node) {
-    if (node === container)
-      return true;
+    if (node === container) return true;
 
     node = walker.nextNode();
   }
@@ -85,11 +87,9 @@ export function getCaretOffset(input: HTMLElement, range = getRange(), isEnd = f
   const rangeCurrentContainer = isEnd ? range.endContainer : range.startContainer;
   const rangeCurrentOffset = isEnd ? range.endOffset : range.startOffset;
 
-  // Find all paragraph divs up to the caret
   const paragraphs = Array.from(input.querySelectorAll('div.paragraph'));
-  const caretDiv = paragraphs.find(div => isCaretInParagraph(div, rangeCurrentContainer));
+  const caretDiv = paragraphs.find((div) => isCaretInParagraph(div, rangeCurrentContainer));
 
-  // Process each paragraph up to and including the one with caret
   for (const div of paragraphs) {
     // console.log('processing paragraph', div);
     if (div === caretDiv) {
@@ -154,8 +154,8 @@ export function getCaretOffset(input: HTMLElement, range = getRange(), isEnd = f
     // console.log('incrementing offset by 1 because of div new line ----> %o', offset);
   }
 
-  // console.groupEnd();
   // console.log('offset', offset);
+  // console.groupEnd();
 
   return offset;
 }
@@ -169,12 +169,10 @@ export function setCaretToNode(node: Node, localOffset: number, after = false) {
   if (after) {
     if (node.nodeType === Node.TEXT_NODE) {
       range.setStart(node, localOffset);
-    }
-    else {
+    } else {
       range.setStartAfter(node);
     }
-  }
-  else {
+  } else {
     range.setStart(node, localOffset);
   }
   range.collapse(true);
@@ -190,7 +188,7 @@ export function setCaretToNode(node: Node, localOffset: number, after = false) {
 }
 
 export function setCaretOffset(input: HTMLElement, htmlOffset: number) {
-  // selectionChangeMutex = true;
+  // console.log('set caret offset', htmlOffset);
 
   try {
     // console.groupCollapsed(`setCaretPosition(${htmlOffset})`);
@@ -200,13 +198,32 @@ export function setCaretOffset(input: HTMLElement, htmlOffset: number) {
 
     // Iterate through paragraphs
     const paragraphs = Array.from(input.querySelectorAll('div.paragraph'));
-    let lastNode: Node | null = null;
+    let lastNode: Node | undefined;
     let isParagraphEndsWithBr = false;
 
     for (const div of paragraphs) {
       // console.log('processing paragraph', div);
 
-      const walker = createParagraphWalker(div, NodeFilter.SHOW_ALL);
+      const walker = createParagraphWalker(div, NodeFilter.SHOW_ALL, (node) => {
+        /**
+         * Skip all nodes inside custom emoji because we can't set caret to them (contenteditable=false)
+         */
+        if (node.nodeType === Node.TEXT_NODE) {
+          if ((node as Text).parentElement?.closest('.custom-emoji') !== null) {
+            return NodeFilter.FILTER_SKIP;
+          }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          if (
+            (node as Element).closest('.custom-emoji') !== null
+            && !(node as Element).classList.contains('custom-emoji')
+          ) {
+            return NodeFilter.FILTER_SKIP;
+          }
+        }
+
+        return NodeFilter.FILTER_ACCEPT;
+      });
+
       let node = walker.nextNode();
       let paragraphIsEmpty = true; // Track if paragraph only has BR
 
@@ -214,14 +231,22 @@ export function setCaretOffset(input: HTMLElement, htmlOffset: number) {
         // console.log('processing node', node);
         lastNode = node;
         if (node.nodeType === Node.TEXT_NODE) {
+          // console.log('node is text node');
+
           isParagraphEndsWithBr = false;
 
           paragraphIsEmpty = false; // Has text content
           const text = node.textContent || '';
           const length = text.length;
 
-          // const isInRange = currentOffset <= htmlOffset && htmlOffset <= currentOffset + length;
-          // console.log('isInRange %o | currentOffset %o | htmlOffset %o | currentOffset + length %o', isInRange, currentOffset, htmlOffset, currentOffset + length);
+          const isInRange = currentOffset <= htmlOffset && htmlOffset <= currentOffset + length;
+          // console.log(
+          //   'isInRange %o | currentOffset %o | htmlOffset %o | currentOffset + length %o',
+          //   isInRange,
+          //   currentOffset,
+          //   htmlOffset,
+          //   currentOffset + length,
+          // );
 
           if (currentOffset <= htmlOffset && htmlOffset <= currentOffset + length) {
             const localOffset = htmlOffset - currentOffset;
@@ -232,8 +257,7 @@ export function setCaretOffset(input: HTMLElement, htmlOffset: number) {
           // console.log(' adding node length (%o) to the currentOffset(%o) = %o', length, currentOffset, currentOffset + length);
 
           currentOffset += length;
-        }
-        else if (node.nodeName === 'BR') {
+        } else if (node.nodeName === 'BR') {
           isParagraphEndsWithBr = true;
 
           // console.log('br currentOffset === htmlOffset', currentOffset === htmlOffset, currentOffset, htmlOffset);
@@ -244,8 +268,9 @@ export function setCaretOffset(input: HTMLElement, htmlOffset: number) {
           }
           // console.log('incrementing current offset by 1 because of br. %o + 1 ---> %o', currentOffset, currentOffset + 1);
           currentOffset += 1;
-        }
-        else if (node.nodeName === 'IMG') {
+        } else if (node.nodeType === Node.ELEMENT_NODE && (node as Element).classList.contains('custom-emoji')) {
+          // console.log('node is custom emoji. incrementing currentOffset by 1');
+
           currentOffset += 1;
         }
         node = walker.nextNode();
@@ -275,19 +300,27 @@ export function setCaretOffset(input: HTMLElement, htmlOffset: number) {
 
     // Handle caret at the end
     if (!caretWasSet && lastNode && currentOffset === htmlOffset) {
-      console.warn('setting caret to last node', lastNode);
+      // console.log('setting caret to last node', {
+      //   lastNode,
+      //   nodeType: lastNode.nodeType,
+      //   nodeValue: lastNode.nodeValue,
+      // });
       caretWasSet = setCaretToNode(lastNode, 0, true);
-    }
-    else if (!caretWasSet) {
-      if (lastNode === null) {
+    } else if (!caretWasSet) {
+      if (!lastNode) {
         if (htmlOffset === 0) {
-          const zeroWidthSpace = '\u200B';
-          const newLastNode = document.createTextNode(zeroWidthSpace);
+          // Create an empty text node without any special characters
+          const newLastNode = document.createTextNode('');
           input.appendChild(newLastNode);
 
+          // console.log('Empty text node added', {
+          //   newLastNode,
+          //   nodeType: newLastNode.nodeType,
+          //   nodeValue: newLastNode.nodeValue,
+          // });
+
           caretWasSet = setCaretToNode(newLastNode, 0, true);
-        }
-        else {
+        } else {
           console.error('caret can\'t be set to %o. Maximum length is %o. Fallback to the end of the text.', htmlOffset, currentOffset);
           console.error('lastNode is null. Can\'t set caret position.');
         }
@@ -296,82 +329,46 @@ export function setCaretOffset(input: HTMLElement, htmlOffset: number) {
       }
 
       caretWasSet = setCaretToNode(lastNode, 0, true);
+      // console.log('set caret to last node', lastNode);
     }
 
     // console.groupEnd();
-  }
-  catch (error) {
+  } catch (error) {
     console.error('setCaretPosition error', error);
     // selectionChangeMutex = false;
-  }
-  finally {
+  } finally {
     // console.groupEnd();
   }
 }
 
-// function setSelectionRange(element: HTMLElement, start: number, end: number) {
-//   console.log('setSelectionRange', element, start, end);
-//   const selection = window.getSelection();
-//   if (!selection)
-//     return;
-
-//   const range = document.createRange();
-//   let currentOffset = 0;
-//   let startNode: Node | null = null;
-//   let endNode: Node | null = null;
-//   let startNodeOffset = 0;
-//   let endNodeOffset = 0;
-
-//   // Helper to traverse text nodes
-//   function traverse(node: Node) {
-//     if (node.nodeType === Node.TEXT_NODE) {
-//       const length = node.textContent?.length || 0;
-
-//       if (!startNode && currentOffset + length >= start) {
-//         startNode = node;
-//         startNodeOffset = start - currentOffset;
-//       }
-
-//       if (!endNode && currentOffset + length >= end) {
-//         endNode = node;
-//         endNodeOffset = end - currentOffset;
-//         return true;
-//       }
-
-//       currentOffset += length;
-//     }
-//     else {
-//       for (const child of Array.from(node.childNodes)) {
-//         if (traverse(child))
-//           return true;
-//       }
-//     }
-//     return false;
-//   }
-
-//   traverse(element);
-
-//   if (startNode && endNode) {
-//     console.log('startNode', startNode, 'endNode', endNode);
-
-//     range.setStart(startNode, startNodeOffset);
-//     range.setEnd(endNode, endNodeOffset);
-//     selection.removeAllRanges();
-//     selection.addRange(range);
-//   }
-// }
-
 /**
  * Returns the start and end of the selection range in the input element
  */
-export function getSelectionRange(input: HTMLElement): { start: number; end: number } {
+export function getSelectionRange(input: HTMLElement) {
   const selection = window.getSelection();
-  if (!selection || !selection.rangeCount)
-    return { start: 0, end: 0 };
+  if (!selection || !selection.rangeCount) return { start: 0, end: 0 };
 
   const range = selection.getRangeAt(0);
 
   if (range.collapsed) {
+    // const isInsideCustomEmoji = range
+    // && range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+    //   && (range.commonAncestorContainer as HTMLElement).classList.contains('custom-emoji');
+
+    // if (isInsideCustomEmoji) {
+    //   console.warn('isInsideCustomEmoji', range);
+    //   const isBefore = range.startOffset === 1;
+    //   if (isBefore) {
+    //     // set caret before emoji
+    //     range.selectNodeContents(range.commonAncestorContainer);
+    //     range.collapse(false);
+    //   } else {
+    //     // set caret after emoji
+    //     range.selectNodeContents(range.commonAncestorContainer);
+    //     range.collapse(true);
+    //   }
+    // }
+
     const start = getCaretOffset(input);
     return { start, end: start };
   }
@@ -384,5 +381,11 @@ export function getSelectionRange(input: HTMLElement): { start: number; end: num
   endRange.collapse(false);
   const end = getCaretOffset(input, endRange, true);
 
-  return { start, end };
+  return {
+    start, end,
+  };
+}
+
+export function blurContenteditable(input: HTMLDivElement) {
+  input.blur();
 }

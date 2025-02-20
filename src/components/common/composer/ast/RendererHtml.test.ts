@@ -1,11 +1,22 @@
-import type { ASTBoldNode, ASTCustomEmojiNode, ASTFormattingNode, ASTLinkNode, ASTMentionNode, ASTNode, ASTPreBlockNode, ASTQuoteBlockNode, ASTRootNode, ASTUnderlineNode } from './entities/ASTNode';
-import { Renderer } from './Renderer';
+import type {
+  ASTBoldNode,
+  ASTCustomEmojiNode,
+  ASTFormattingNode,
+  ASTLinkNode,
+  ASTMentionNode,
+  ASTNode,
+  ASTPreBlockNode,
+  ASTQuoteBlockNode,
+  ASTRootNode,
+} from './entities/ASTNode';
+
+import { RendererHtml } from './RendererHtml';
 
 describe('renderer', () => {
-  let renderer: Renderer;
+  let renderer: RendererHtml;
 
   beforeEach(() => {
-    renderer = new Renderer();
+    renderer = new RendererHtml();
   });
 
   describe('html rendering', () => {
@@ -253,10 +264,10 @@ describe('renderer', () => {
 });
 
 describe('offset mapping', () => {
-  let renderer: Renderer;
+  let renderer: RendererHtml;
 
   beforeEach(() => {
-    renderer = new Renderer();
+    renderer = new RendererHtml();
   });
 
   it('should map offsets correctly', () => {
@@ -518,7 +529,9 @@ describe('offset mapping', () => {
         raw: 'Hello, [username](id:123), welcome **home**',
         children: [
           { type: 'text', value: 'Hello, ', raw: 'Hello, ' },
-          { type: 'mention', raw: '[username](id:123)', userId: '123', value: 'username' } as ASTMentionNode,
+          {
+            type: 'mention', raw: '[username](id:123)', userId: '123', value: 'username',
+          } as ASTMentionNode,
           { type: 'text', value: ', welcome ', raw: ', welcome ' },
           { type: 'bold', raw: '**home**', children: [{ type: 'text', value: 'home', raw: 'home' }] },
         ],
@@ -533,12 +546,24 @@ describe('offset mapping', () => {
     const offsetMapping = renderer.getOffsetMapping();
 
     expect(offsetMapping).toEqual([
-      { nodeType: 'text', raw: 'Hello, ', htmlStart: 0, htmlEnd: 7, mdStart: 0, mdEnd: 7 },
-      { nodeType: 'mention', raw: '[username](id:123)', htmlStart: 7, htmlEnd: 15, mdStart: 7, mdEnd: 25 },
-      { nodeType: 'text', raw: ', welcome ', htmlStart: 15, htmlEnd: 25, mdStart: 25, mdEnd: 35 },
-      { nodeType: 'bold', raw: '**home**', htmlStart: 25, htmlEnd: 33, mdStart: 35, mdEnd: 43 },
-      { nodeType: 'text', raw: 'home', htmlStart: 27, htmlEnd: 31, mdStart: 37, mdEnd: 41 },
-      { nodeType: 'text', raw: 'Second line', htmlStart: 34, htmlEnd: 45, mdStart: 44, mdEnd: 55 },
+      {
+        nodeType: 'text', raw: 'Hello, ', htmlStart: 0, htmlEnd: 7, mdStart: 0, mdEnd: 7,
+      },
+      {
+        nodeType: 'mention', raw: '[username](id:123)', htmlStart: 7, htmlEnd: 15, mdStart: 7, mdEnd: 25,
+      },
+      {
+        nodeType: 'text', raw: ', welcome ', htmlStart: 15, htmlEnd: 25, mdStart: 25, mdEnd: 35,
+      },
+      {
+        nodeType: 'bold', raw: '**home**', htmlStart: 25, htmlEnd: 33, mdStart: 35, mdEnd: 43,
+      },
+      {
+        nodeType: 'text', raw: 'home', htmlStart: 27, htmlEnd: 31, mdStart: 37, mdEnd: 41,
+      },
+      {
+        nodeType: 'text', raw: 'Second line', htmlStart: 34, htmlEnd: 45, mdStart: 44, mdEnd: 55,
+      },
     ]);
   });
 
