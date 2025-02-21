@@ -7,7 +7,8 @@ import type {
 import type { Signal } from '../../../../util/signals';
 import type { TextEditorApi } from '../../../common/composer/TextEditorApi';
 
-import { filterUsersByName, getMainUsername, getUserFirstOrLastName } from '../../../../global/helpers';
+import { getMainUsername, getUserFirstOrLastName } from '../../../../global/helpers';
+import { filterPeersByQuery } from '../../../../global/helpers/peers';
 import { pickTruthy, unique } from '../../../../util/iteratees';
 
 import { useThrottledResolver } from '../../../../hooks/useAsyncResolvers';
@@ -98,10 +99,14 @@ export default function useMentionTooltip(
     }, []);
 
     const filter = usernameTag.substring(1);
-    const filteredIds = filterUsersByName(unique([
-      ...((getWithInlineBots() && topInlineBotIds) || []),
-      ...(memberIds || []),
-    ]), usersById, filter);
+    const filteredIds = filterPeersByQuery({
+      ids: unique([
+        ...((getWithInlineBots() && topInlineBotIds) || []),
+        ...(memberIds || []),
+      ]),
+      query: filter,
+      type: 'user',
+    });
 
     const usersToDisplay = Object.values(pickTruthy(usersById, filteredIds));
 

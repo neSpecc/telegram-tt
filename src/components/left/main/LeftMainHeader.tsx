@@ -118,7 +118,8 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
 
   const oldLang = useOldLang();
   const lang = useLang();
-  const { isMobile, isDesktop } = useAppLayout();
+  const { isMobile } = useAppLayout();
+
   const areContactsVisible = content === LeftColumnContent.Contacts;
 
   const selectedSearchDate = useMemo(() => {
@@ -167,11 +168,11 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
     lockScreen();
   });
 
-  const isSearchFocused = (!isDesktop && !isMessageListOpen) && (
-    Boolean(globalSearchChatId)
+  const isSearchRelevant = Boolean(globalSearchChatId)
     || content === LeftColumnContent.GlobalSearch
-    || content === LeftColumnContent.Contacts
-  );
+    || content === LeftColumnContent.Contacts;
+
+  const isSearchFocused = isMobile ? !isMessageListOpen && isSearchRelevant : isSearchRelevant;
 
   useEffect(() => (isSearchFocused ? captureEscKeyListener(() => onReset()) : undefined), [isSearchFocused, onReset]);
 
@@ -183,7 +184,8 @@ const LeftMainHeader: FC<OwnProps & StateProps> = ({
   const headerRef = useRef<HTMLDivElement>(null);
   useElectronDrag(headerRef);
 
-  const withStoryToggler = !isSearchFocused && !selectedSearchDate && !globalSearchChatId && !areContactsVisible;
+  const withStoryToggler = !isSearchFocused
+    && !selectedSearchDate && !globalSearchChatId && !areContactsVisible;
 
   const searchContent = useMemo(() => {
     return (

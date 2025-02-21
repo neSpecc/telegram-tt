@@ -23,14 +23,12 @@ import { selectChatFilters } from '../../../../hooks/reducers/useFoldersReducer'
 import useHistoryBack from '../../../../hooks/useHistoryBack';
 import useOldLang from '../../../../hooks/useOldLang';
 
-import AnimatedIcon from '../../../common/AnimatedIcon';
-import ComposerNew from '../../../common/composer/ComposerNew';
+import AnimatedIconWithPreview from '../../../common/AnimatedIconWithPreview';
 import GroupChatInfo from '../../../common/GroupChatInfo';
 import Icon from '../../../common/icons/Icon';
 import PrivateChatInfo from '../../../common/PrivateChatInfo';
 import FloatingActionButton from '../../../ui/FloatingActionButton';
 import InputFormatted from '../../../ui/InputFormatted';
-import InputText from '../../../ui/InputText';
 import ListItem from '../../../ui/ListItem';
 import Spinner from '../../../ui/Spinner';
 
@@ -286,7 +284,7 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
     <div className="settings-fab-wrapper">
       <div className="settings-content no-border custom-scroll">
         <div className="settings-content-header">
-          <AnimatedIcon
+          <AnimatedIconWithPreview
             size={STICKER_SIZE_FOLDER_SETTINGS}
             tgsUrl={LOCAL_TGS_URLS.FoldersNew}
             play={String(state.folderId)}
