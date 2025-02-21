@@ -3,7 +3,7 @@ export type ASTNode = ASTRootNode | ASTInlineNode | ASTBlockNode;
 export interface ASTRootNode extends ASTNodeBase {
   type: 'root';
   children: ASTNode[];
-  lastModified: number;
+  lastModified?: number;
 }
 
 export type ASTInlineNode = ASTTextNode | ASTFormattingNode | ASTMentionNode | ASTCustomEmojiNode;

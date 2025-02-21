@@ -5,6 +5,7 @@ import React, {
 } from '../../../lib/teact/teact';
 
 import type { IAnchorPosition } from '../../../types';
+import type { ASTLinkNode } from '../../common/composer/ast/entities/ASTNode';
 import type { TextEditorApi } from '../../common/composer/TextEditorApi';
 
 import buildClassName from '../../../util/buildClassName';
@@ -80,7 +81,7 @@ const TextFormatter: FC<OwnProps> = ({
     if (isLinkControlOpen) {
       const { start, end } = editorApi.current!.getCaretOffset();
       const formattings = editorApi.current!.getFormattingNodes();
-      const link = formattings.find((node) => node.type === 'link');
+      const link = formattings.find((node) => node.type === 'link') as ASTLinkNode | undefined;
 
       if (link) {
         setLinkUrl(link.href);

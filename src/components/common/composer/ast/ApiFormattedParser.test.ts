@@ -1,7 +1,8 @@
-import type { ApiMessageEntityMentionName } from './ApiFormattedText';
+import type { ApiMessageEntityMentionName } from '../../../../api/types';
 import type { ASTMentionNode, ASTNode, ASTRootNode } from './entities/ASTNode';
+import { ApiMessageEntityTypes } from '../../../../api/types';
+
 import { ApiFormattedParser } from './ApiFormattedParser';
-import { ApiMessageEntityTypes } from './ApiFormattedText';
 
 describe('apiFormattedParser', () => {
   describe('fromApiFormattedToAst', () => {
@@ -96,34 +97,42 @@ describe('apiFormattedParser', () => {
 
       it('should not create extra paragraphs before pre blocks', () => {
         const input = 'line1\ncode';
-        const result = parser.fromApiFormattedToAst({ text: input, entities: [
-          {
-            type: ApiMessageEntityTypes.Pre,
-            offset: 6,
-            length: 4,
-            language: '',
-          },
-        ] });
+        const result = parser.fromApiFormattedToAst({
+          text: input,
+          entities: [
+            {
+              type: ApiMessageEntityTypes.Pre,
+              offset: 6,
+              length: 4,
+              language: '',
+            },
+          ],
+        });
 
         expect(result).toEqual<ASTRootNode>({
           type: 'root',
           raw: 'line1\n```\ncode\n```',
           children: [
             { type: 'paragraph', raw: 'line1', children: [{ type: 'text', value: 'line1', raw: 'line1' }] },
-            { type: 'pre', raw: '```\ncode\n```', value: 'code', language: '', closed: true },
+            {
+              type: 'pre', raw: '```\ncode\n```', value: 'code', language: '', closed: true,
+            },
           ],
         });
       });
 
       it('should not create extra paragraphs before quote blocks', () => {
         const input = 'line1\nquote';
-        const result = parser.fromApiFormattedToAst({ text: input, entities: [
-          {
-            type: ApiMessageEntityTypes.Blockquote,
-            offset: 6,
-            length: 5,
-          },
-        ] });
+        const result = parser.fromApiFormattedToAst({
+          text: input,
+          entities: [
+            {
+              type: ApiMessageEntityTypes.Blockquote,
+              offset: 6,
+              length: 5,
+            },
+          ],
+        });
 
         expect(result).toEqual<ASTRootNode>({
           type: 'root',
@@ -137,13 +146,16 @@ describe('apiFormattedParser', () => {
 
       it('should not create empty paragraph if text starts with quote', () => {
         const input = 'quote';
-        const result = parser.fromApiFormattedToAst({ text: input, entities: [
-          {
-            type: ApiMessageEntityTypes.Blockquote,
-            offset: 0,
-            length: 5,
-          },
-        ] });
+        const result = parser.fromApiFormattedToAst({
+          text: input,
+          entities: [
+            {
+              type: ApiMessageEntityTypes.Blockquote,
+              offset: 0,
+              length: 5,
+            },
+          ],
+        });
 
         expect(result).toEqual<ASTRootNode>({
           type: 'root',
@@ -156,20 +168,25 @@ describe('apiFormattedParser', () => {
 
       it('should not create empty paragraph if text starts with pre', () => {
         const input = 'pre';
-        const result = parser.fromApiFormattedToAst({ text: input, entities: [
-          {
-            type: ApiMessageEntityTypes.Pre,
-            offset: 0,
-            length: 3,
-            language: 'typescript',
-          },
-        ] });
+        const result = parser.fromApiFormattedToAst({
+          text: input,
+          entities: [
+            {
+              type: ApiMessageEntityTypes.Pre,
+              offset: 0,
+              length: 3,
+              language: 'typescript',
+            },
+          ],
+        });
 
         expect(result).toEqual<ASTRootNode>({
           type: 'root',
           raw: '```typescript\npre\n```',
           children: [
-            { type: 'pre', raw: '```typescript\npre\n```', value: 'pre', language: 'typescript', closed: true },
+            {
+              type: 'pre', raw: '```typescript\npre\n```', value: 'pre', language: 'typescript', closed: true,
+            },
           ],
         });
       });
@@ -254,9 +271,13 @@ describe('apiFormattedParser', () => {
                 raw: '**bold *italic***',
                 children: [
                   { type: 'text', value: 'bold ', raw: 'bold ' },
-                  { type: 'italic', raw: '*italic*', children: [
-                    { type: 'text', value: 'italic', raw: 'italic' },
-                  ] },
+                  {
+                    type: 'italic',
+                    raw: '*italic*',
+                    children: [
+                      { type: 'text', value: 'italic', raw: 'italic' },
+                    ],
+                  },
                 ],
               },
               { type: 'text', value: ' world', raw: ' world' },
@@ -383,7 +404,9 @@ describe('apiFormattedParser', () => {
             type: 'paragraph',
             children: [
               { type: 'text', value: 'Hello ', raw: 'Hello ' },
-              { type: 'mention', userId: '123', raw: '[user](id:123)', value: 'user' },
+              {
+                type: 'mention', userId: '123', raw: '[user](id:123)', value: 'user',
+              },
               { type: 'text', value: '!', raw: '!' },
             ],
             raw: 'Hello [user](id:123)!',
@@ -411,7 +434,9 @@ describe('apiFormattedParser', () => {
             type: 'paragraph',
             children: [
               { type: 'text', value: 'Hello ', raw: 'Hello ' },
-              { type: 'mention', userId: '123', raw: '[user](id:123)', value: 'user' },
+              {
+                type: 'mention', userId: '123', raw: '[user](id:123)', value: 'user',
+              },
               { type: 'text', value: '!', raw: '!' },
             ],
             raw: 'Hello [user](id:123)!',
@@ -638,7 +663,9 @@ describe('apiFormattedParser', () => {
             type: 'paragraph',
             children: [
               { type: 'text', value: 'Hello ', raw: 'Hello ' },
-              { type: 'customEmoji', documentId: '5062301574668222465', raw: '[😀](doc:5062301574668222465)', value: '😀' },
+              {
+                type: 'customEmoji', documentId: '5062301574668222465', raw: '[😀](doc:5062301574668222465)', value: '😀',
+              },
               { type: 'text', value: '!', raw: '!' },
             ],
             raw: 'Hello [😀](doc:5062301574668222465)!',
@@ -885,10 +912,19 @@ describe('apiFormattedParser', () => {
             type: 'paragraph',
             children: [
               { type: 'text', value: 'regular text ', raw: 'regular text ' },
-              { type: 'bold', children: [
-                { type: 'text', value: 'bold ', raw: 'bold ' },
-                { type: 'link', href: 'https://example.com', children: [{ type: 'text', value: 'link', raw: 'link' }], raw: '[link](https://example.com)' },
-              ], raw: '**bold [link](https://example.com)**' },
+              {
+                type: 'bold',
+                children: [
+                  { type: 'text', value: 'bold ', raw: 'bold ' },
+                  {
+                    type: 'link',
+                    href: 'https://example.com',
+                    children: [{ type: 'text', value: 'link', raw: 'link' }],
+                    raw: '[link](https://example.com)',
+                  },
+                ],
+                raw: '**bold [link](https://example.com)**',
+              },
             ],
             raw: 'regular text **bold [link](https://example.com)**',
           },
@@ -906,7 +942,9 @@ describe('apiFormattedParser', () => {
       expect(parser.fromAstToApiFormatted(node)).toEqual({
         text: 'regular text bold link\n some italic text',
         entities: [
-          { type: ApiMessageEntityTypes.TextUrl, offset: 18, length: 4, url: 'https://example.com' },
+          {
+            type: ApiMessageEntityTypes.TextUrl, offset: 18, length: 4, url: 'https://example.com',
+          },
           { type: ApiMessageEntityTypes.Bold, offset: 13, length: 9 },
           { type: ApiMessageEntityTypes.Italic, offset: 29, length: 6 },
         ],
@@ -1015,7 +1053,9 @@ describe('apiFormattedParser', () => {
       expect(parser.fromAstToApiFormatted(node)).toEqual({
         text: 'line1\ncode\nquote\nline4',
         entities: [
-          { type: ApiMessageEntityTypes.Pre, offset: 6, length: 4, language: 'js' },
+          {
+            type: ApiMessageEntityTypes.Pre, offset: 6, length: 4, language: 'js',
+          },
           { type: ApiMessageEntityTypes.Blockquote, offset: 12, length: 5 },
         ],
       });
@@ -1029,7 +1069,9 @@ describe('apiFormattedParser', () => {
             type: 'paragraph',
             children: [
               { type: 'text', value: 'Hello ', raw: 'Hello ' },
-              { type: 'customEmoji', documentId: '5062301574668222465', raw: '[😀](doc:5062301574668222465)', value: '😀' },
+              {
+                type: 'customEmoji', documentId: '5062301574668222465', raw: '[😀](doc:5062301574668222465)', value: '😀',
+              },
               { type: 'text', value: '!', raw: '!' },
             ],
             raw: 'Hello [😀](doc:5062301574668222465)!',

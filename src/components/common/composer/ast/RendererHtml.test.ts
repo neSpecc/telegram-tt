@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 import type {
   ASTBoldNode,
   ASTCustomEmojiNode,
@@ -8,6 +9,7 @@ import type {
   ASTPreBlockNode,
   ASTQuoteBlockNode,
   ASTRootNode,
+  ASTUnderlineNode,
 } from './entities/ASTNode';
 
 import { RendererHtml } from './RendererHtml';
@@ -20,63 +22,73 @@ describe('renderer', () => {
   });
 
   describe('html rendering', () => {
-    const isPreview = true;
-    const isNotPreview = false;
-    const isClosed = true;
-    const isNotClosed = false;
+    const isPreviewValue = true;
+    const isNotPreviewValue = false;
+    const isClosedValue = true;
+    const isNotClosedValue = false;
 
     it.each([
-      [isPreview, 'Hello world'],
-      [isNotPreview, 'Hello world'],
+      [isPreviewValue, 'Hello world'],
+      [isNotPreviewValue, 'Hello world'],
     ])('should render text node', (isPreview, expected) => {
       const node: ASTNode = { type: 'text', value: 'Hello world', raw: 'Hello world' };
       expect(renderer.render(node, { mode: 'html', isPreview })).toBe(expected);
     });
 
     it.each([
-      [isPreview, '&lt;div &amp; &quot;quote&quot; &#039;single&#039;&gt;'],
-      [isNotPreview, '&lt;div &amp; &quot;quote&quot; &#039;single&#039;&gt;'],
+      [isPreviewValue, '&lt;div &amp; &quot;quote&quot; &#039;single&#039;&gt;'],
+      [isNotPreviewValue, '&lt;div &amp; &quot;quote&quot; &#039;single&#039;&gt;'],
     ])('should escape HTML special characters', (isPreview, expected) => {
       const node: ASTNode = { type: 'text', value: '<div & "quote" \'single\'>', raw: '<div & "quote" \'single\'>' };
       expect(renderer.render(node, { mode: 'html', isPreview })).toBe(expected);
     });
 
     it.each([
-      ['bold', isNotPreview, isClosed, 'strong', 'md-bold', '', ''],
-      ['bold', isPreview, isClosed, 'strong', 'md-bold', '**', '**'],
-      ['bold', isPreview, isNotClosed, 'strong', 'md-bold', '**', ''],
-      ['italic', isNotPreview, isClosed, 'em', 'md-italic', '', ''],
-      ['italic', isPreview, isClosed, 'em', 'md-italic', '*', '*'],
-      ['italic', isPreview, isNotClosed, 'em', 'md-italic', '*', ''],
-      ['underline', isNotPreview, isClosed, 'span', 'md-underline', '', ''],
-      ['underline', isPreview, isClosed, 'span', 'md-underline', '&lt;u&gt;', '&lt;/u&gt;'],
-      ['underline', isPreview, isNotClosed, 'span', 'md-underline', '&lt;u&gt;', '&lt;/u&gt;'],
-      ['strikethrough', isNotPreview, isClosed, 's', 'md-strikethrough', '', ''],
-      ['strikethrough', isPreview, isClosed, 's', 'md-strikethrough', '~~', '~~'],
-      ['strikethrough', isPreview, isNotClosed, 's', 'md-strikethrough', '~~', ''],
-      ['monospace', isNotPreview, isClosed, 'code', 'md-monospace', '', ''],
-      ['monospace', isPreview, isClosed, 'code', 'md-monospace', '`', '`'],
-      ['monospace', isPreview, isNotClosed, 'code', 'md-monospace', '`', ''],
-    ])('should render %s. isPreview: %s, isClosed: %s -----> %s', (formatting, isPreview, isClosed, tag, className, prefix, suffix) => {
-      const node = {
-        type: formatting,
-        children: [{ type: 'text', value: 'Hello world', raw: 'Hello world' }],
-        closed: isClosed,
-        raw: `${prefix}Hello world${suffix}`,
-      };
+      ['bold', isNotPreviewValue, isClosedValue, 'strong', 'md-bold', '', ''],
+      ['bold', isPreviewValue, isClosedValue, 'strong', 'md-bold', '**', '**'],
+      ['bold', isPreviewValue, isNotClosedValue, 'strong', 'md-bold', '**', ''],
+      ['italic', isNotPreviewValue, isClosedValue, 'em', 'md-italic', '', ''],
+      ['italic', isPreviewValue, isClosedValue, 'em', 'md-italic', '*', '*'],
+      ['italic', isPreviewValue, isNotClosedValue, 'em', 'md-italic', '*', ''],
+      ['underline', isNotPreviewValue, isClosedValue, 'span', 'md-underline', '', ''],
+      ['underline', isPreviewValue, isClosedValue, 'span', 'md-underline', '&lt;u&gt;', '&lt;/u&gt;'],
+      ['underline', isPreviewValue, isNotClosedValue, 'span', 'md-underline', '&lt;u&gt;', '&lt;/u&gt;'],
+      ['strikethrough', isNotPreviewValue, isClosedValue, 's', 'md-strikethrough', '', ''],
+      ['strikethrough', isPreviewValue, isClosedValue, 's', 'md-strikethrough', '~~', '~~'],
+      ['strikethrough', isPreviewValue, isNotClosedValue, 's', 'md-strikethrough', '~~', ''],
+      ['monospace', isNotPreviewValue, isClosedValue, 'code', 'md-monospace', '', ''],
+      ['monospace', isPreviewValue, isClosedValue, 'code', 'md-monospace', '`', '`'],
+      ['monospace', isPreviewValue, isNotClosedValue, 'code', 'md-monospace', '`', ''],
+    ])('should render %s. isPreview: %s, isClosed: %s -----> %s',
+      (formatting, isPreview, isClosed, tag, className, prefix, suffix) => {
+        const node = {
+          type: formatting,
+          children: [{ type: 'text', value: 'Hello world', raw: 'Hello world' }],
+          closed: isClosed,
+          raw: `${prefix}Hello world${suffix}`,
+        };
 
-      const rendered = renderer.render(node as ASTFormattingNode, { mode: 'html', isPreview });
+        const rendered = renderer.render(node as ASTFormattingNode, { mode: 'html', isPreview });
 
-      const prefixString = isPreview ? `<span class="md-preview-char">${prefix}</span>` : '';
-      const suffixString = isPreview && suffix ? `<span class="md-preview-char">${suffix}</span>` : '';
+        const prefixString = isPreview ? `<span class="md-preview-char">${prefix}</span>` : '';
+        const suffixString = isPreview && suffix ? `<span class="md-preview-char">${suffix}</span>` : '';
 
-      expect(rendered).toBe(`<${tag} class="${className} md-node-highlightable ">${prefixString}Hello world${suffixString}</${tag}>`);
-    });
+        expect(rendered)
+          // eslint-disable-next-line max-len
+          .toBe(`<${tag} class="${className} md-node-highlightable ">${prefixString}Hello world${suffixString}</${tag}>`);
+      });
 
-    // <strong class="md-bold md-node-highlightable "><span class="md-preview-char">**</span>Bold <em class="md-italic md-node-highlightable "><span class="md-preview-char">*</span>italic<span class="md-preview-char">*</span></em><span class="md-preview-char">**</span></strong>
     it.each([
-      [isNotPreview, '<strong class="md-bold md-node-highlightable ">Bold <em class="md-italic md-node-highlightable ">italic</em></strong>'],
-      [isPreview, '<strong class="md-bold md-node-highlightable "><span class="md-preview-char">**</span>Bold <em class="md-italic md-node-highlightable "><span class="md-preview-char">*</span>italic<span class="md-preview-char">*</span></em><span class="md-preview-char">**</span></strong>'],
+      [
+        isNotPreviewValue,
+        // eslint-disable-next-line max-len
+        '<strong class="md-bold md-node-highlightable ">Bold <em class="md-italic md-node-highlightable ">italic</em></strong>',
+      ],
+      [
+        isPreviewValue,
+        // eslint-disable-next-line max-len
+        '<strong class="md-bold md-node-highlightable "><span class="md-preview-char">**</span>Bold <em class="md-italic md-node-highlightable "><span class="md-preview-char">*</span>italic<span class="md-preview-char">*</span></em><span class="md-preview-char">**</span></strong>',
+      ],
     ])('should render nested formatting', (isPreview, expected) => {
       const node: ASTNode = {
         type: 'bold',
@@ -99,7 +111,8 @@ describe('renderer', () => {
           children: [{ type: 'text', value: 'Quote', raw: 'Quote' }],
         };
 
-        expect(renderer.render(node, { mode: 'html', isPreview }))
+        expect(renderer.render(node, { mode: 'html', isPreview: isPreviewValue }))
+          // eslint-disable-next-line max-len
           .toBe('<div class="paragraph paragraph--quote md-node-highlightable "><div class="md-quote"><span class="md-preview-char">></span>Quote</div></div>');
       });
 
@@ -110,7 +123,8 @@ describe('renderer', () => {
           children: [{ type: 'text', value: '', raw: '' }],
         };
 
-        expect(renderer.render(node, { mode: 'html', isPreview }))
+        expect(renderer.render(node, { mode: 'html', isPreview: isPreviewValue }))
+          // eslint-disable-next-line max-len
           .toBe('<div class="paragraph paragraph--quote md-node-highlightable "><div class="md-quote"><span class="md-preview-char">></span><br></div></div>');
       });
     });
@@ -122,7 +136,8 @@ describe('renderer', () => {
         raw: '[Click here](https://example.com)',
         children: [{ type: 'text', value: 'Click here', raw: 'Click here' }],
       };
-      expect(renderer.render(node, { mode: 'html', isPreview: false })).toBe('<a href="https://example.com">Click here</a>');
+      expect(renderer.render(node, { mode: 'html', isPreview: isPreviewValue }))
+        .toBe('<a href="https://example.com">Click here</a>');
     });
 
     it.skip('should render code blocks with language', () => {
@@ -134,19 +149,20 @@ describe('renderer', () => {
         closed: true,
       };
       expect(renderer.render(node, { mode: 'html' })).toBe(
+        // eslint-disable-next-line max-len
         '<div class="md-pre"><div data-block-id="hftc6lsa4jt" class="paragraph paragraph-pre md-node-highlightable ">const x = 42;</div></div>',
       );
     });
 
     it.skip.each([
-      [isPreview, isClosed, 'console.log("Hello");', 'ts', '<pre language="ts">```ts\nconsole.log(&quot;Hello&quot;);```</pre>'],
-      [isPreview, isClosed, 'console.log("Hello");', undefined, '<pre>```\nconsole.log(&quot;Hello&quot;);```</pre>'],
-      [isNotPreview, isClosed, 'console.log("Hello");', 'ts', '<pre language="ts">console.log(&quot;Hello&quot;);</pre>'],
-      [isNotPreview, isClosed, 'console.log("Hello");', undefined, '<pre>console.log(&quot;Hello&quot;);</pre>'],
-      [isPreview, isNotClosed, 'console.log("Hello");', 'ts', '<pre language="ts">```ts\nconsole.log(&quot;Hello&quot;);'],
-      [isPreview, isNotClosed, 'console.log("Hello");', undefined, '<pre>```\nconsole.log(&quot;Hello&quot;);'],
-      [isNotPreview, isNotClosed, 'console.log("Hello");', 'ts', '<pre language="ts">console.log(&quot;Hello&quot;);'],
-      [isNotPreview, isNotClosed, 'console.log("Hello");', undefined, '<pre>console.log(&quot;Hello&quot;);'],
+      [isPreviewValue, isClosedValue, 'console.log("Hello");', 'ts', '<pre language="ts">```ts\nconsole.log(&quot;Hello&quot;);```</pre>'],
+      [isPreviewValue, isClosedValue, 'console.log("Hello");', undefined, '<pre>```\nconsole.log(&quot;Hello&quot;);```</pre>'],
+      [isNotPreviewValue, isClosedValue, 'console.log("Hello");', 'ts', '<pre language="ts">console.log(&quot;Hello&quot;);</pre>'],
+      [isNotPreviewValue, isClosedValue, 'console.log("Hello");', undefined, '<pre>console.log(&quot;Hello&quot;);</pre>'],
+      [isPreviewValue, isNotClosedValue, 'console.log("Hello");', 'ts', '<pre language="ts">```ts\nconsole.log(&quot;Hello&quot;);'],
+      [isPreviewValue, isNotClosedValue, 'console.log("Hello");', undefined, '<pre>```\nconsole.log(&quot;Hello&quot;);'],
+      [isNotPreviewValue, isNotClosedValue, 'console.log("Hello");', 'ts', '<pre language="ts">console.log(&quot;Hello&quot;);'],
+      [isNotPreviewValue, isNotClosedValue, 'console.log("Hello");', undefined, '<pre>console.log(&quot;Hello&quot;);'],
     ])('should render pre blocks isPreview: %s, isClosed: %s, value: %s, language: %s -----> %s', (isPreview, isClosed, value, language, expected) => {
       const node = {
         type: 'pre',

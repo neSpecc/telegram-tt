@@ -1,21 +1,20 @@
 /* eslint-disable no-null/no-null */
-import type { ApiFormattedText } from "ast/src/ast/ApiFormattedText";
 import type { FC } from '../../lib/teact/teact';
-import React, { memo, useRef,useState } from '../../lib/teact/teact';
+import React, { memo, useState } from '../../lib/teact/teact';
 
+import type { ApiFormattedText } from '../../api/types';
 import type { TextEditorApi } from '../common/composer/TextEditorApi';
+import type { MenuPositionOptions } from './Menu';
 
 import buildClassName from '../../util/buildClassName';
 import { isMessageEmpty } from '../middle/composer/utils/isMessageEmpty';
 
 import useFlag from '../../hooks/useFlag';
-import useHorizontalScroll from '../../hooks/useHorizontalScroll';
 import useLastCallback from '../../hooks/useLastCallback';
 import useOldLang from '../../hooks/useOldLang';
 import { TextEditorMode } from '../common/composer/hooks/useTextEditor';
 
 import Composer from '../common/composer/ComposerNew';
-import { MenuPositionOptions } from './Menu';
 
 type InputProps = {
   id?: string;

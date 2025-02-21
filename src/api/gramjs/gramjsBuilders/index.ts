@@ -370,6 +370,8 @@ export function buildMtpMessageEntity(entity: ApiMessageEntity): GramJs.TypeMess
     default:
       return new GramJs.MessageEntityUnknown({ offset, length });
   }
+
+  return new GramJs.MessageEntityUnknown({ offset, length });
 }
 
 export function buildChatPhotoForLocalDb(photo: GramJs.TypePhoto) {

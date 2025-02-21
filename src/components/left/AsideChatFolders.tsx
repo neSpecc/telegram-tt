@@ -1,22 +1,19 @@
 import type { FC } from '../../lib/teact/teact';
 import React, {
-  createPortal, memo, useEffect, useMemo, useState,
+  memo, useEffect, useMemo,
 } from '../../lib/teact/teact';
-import { getActions, getGlobal, withGlobal } from '../../global';
+import { getActions, withGlobal } from '../../global';
 
 import type { ApiChatFolder } from '../../api/types';
 import type { IconName } from '../../types/icons';
-import { ApiFormattedText, ApiMessageEntityTypes } from '../../api/types';
+import { ApiMessageEntityTypes } from '../../api/types';
 import { LeftColumnContent } from '../../types';
 
 import { ALL_FOLDER_ID } from '../../config';
 import { selectIsCurrentUserPremium, selectTabState } from '../../global/selectors';
 import buildClassName from '../../util/buildClassName';
-import { getCustomEmojiMediaDataForInput, getInputCustomEmojiParams } from '../../util/emoji/customEmojiManager';
 import { MEMO_EMPTY_ARRAY } from '../../util/memo';
-import { buildCustomEmojiHtml } from '../middle/composer/helpers/customEmoji';
 
-import useFlag from '../../hooks/useFlag';
 import { useFolderManagerForUnreadCounters } from '../../hooks/useFolderManager';
 import useLang from '../../hooks/useLang';
 import useLastCallback from '../../hooks/useLastCallback';

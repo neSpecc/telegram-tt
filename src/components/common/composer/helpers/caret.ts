@@ -239,7 +239,7 @@ export function setCaretOffset(input: HTMLElement, htmlOffset: number) {
           const text = node.textContent || '';
           const length = text.length;
 
-          const isInRange = currentOffset <= htmlOffset && htmlOffset <= currentOffset + length;
+          // const isInRange = currentOffset <= htmlOffset && htmlOffset <= currentOffset + length;
           // console.log(
           //   'isInRange %o | currentOffset %o | htmlOffset %o | currentOffset + length %o',
           //   isInRange,
@@ -321,7 +321,11 @@ export function setCaretOffset(input: HTMLElement, htmlOffset: number) {
 
           caretWasSet = setCaretToNode(newLastNode, 0, true);
         } else {
-          console.error('caret can\'t be set to %o. Maximum length is %o. Fallback to the end of the text.', htmlOffset, currentOffset);
+          console.error(
+            'caret can\'t be set to %o. Maximum length is %o. Fallback to the end of the text.',
+            htmlOffset,
+            currentOffset,
+          );
           console.error('lastNode is null. Can\'t set caret position.');
         }
 
@@ -384,8 +388,4 @@ export function getSelectionRange(input: HTMLElement) {
   return {
     start, end,
   };
-}
-
-export function blurContenteditable(input: HTMLDivElement) {
-  input.blur();
 }

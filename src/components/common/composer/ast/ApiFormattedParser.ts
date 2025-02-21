@@ -1,6 +1,6 @@
 /* eslint-disable no-null/no-null */
 import type {
-  ASTFormattingNode, ASTInlineNode, ASTLinkNode, ASTNode, ASTParagraphBlockNode, ASTTextNode,
+  ASTFormattingNode, ASTInlineNode, ASTLinkNode, ASTNode, ASTParagraphBlockNode, ASTRootNode, ASTTextNode,
 } from './entities/ASTNode';
 import {
   type ApiFormattedText,
@@ -34,10 +34,11 @@ export class ApiFormattedParser {
       return a.offset - b.offset;
     });
 
-    const root: ASTNode = {
+    const root: ASTRootNode = {
       type: 'root',
       children: [],
       raw: '', // Will be computed at the end
+      lastModified: Date.now(),
     };
 
     let currentOffset = 0;
@@ -303,6 +304,7 @@ export class ApiFormattedParser {
     }
   }
 
+  // eslint-disable-next-line class-methods-use-this
   public fromAstToApiFormatted(ast: ASTNode): ApiFormattedText {
     let text = '';
     const entities: ApiMessageEntity[] = [];

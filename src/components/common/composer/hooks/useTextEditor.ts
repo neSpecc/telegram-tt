@@ -10,7 +10,6 @@ import type { LinkFormattingOptions, TextEditorApi } from '../TextEditorApi';
 
 import { MarkdownParser } from '../ast';
 import {
-  blurContenteditable,
   getCaretOffset, getSelectionRange, setCaretOffset, setCaretToNode,
 } from '../helpers/caret';
 import { getClosingMarker, getFocusedNode } from '../helpers/getFocusedNode';
@@ -185,8 +184,8 @@ export function useTextEditor({
    * Visible start and end conveted to real markdown start and end
    */
   function getInputOperationMarkdownRange(
-    isDelete: boolean = false,
-    deleteDirection?: 'forward' | 'backward',
+  // isDelete: boolean = false,
+  // deleteDirection?: 'forward' | 'backward',
   ): { start: number; end: number } {
     const {
       start: htmlStart, end: htmlEnd,
@@ -206,7 +205,6 @@ export function useTextEditor({
      * Remove real caret to prevent jumping to the start because of re-rendering
      * It will be set back manualy after renderer do its job
      */
-    // blurContenteditable(input);
     // console.log('set caret color to transparent');
 
     // input.style.caretColor = 'transparent';
@@ -776,17 +774,17 @@ export function useTextEditor({
     }
 
     const range = selection.getRangeAt(0);
-    let focusedNode: Node | null = range.startContainer;
+    let focusNode: Node | null = range.startContainer;
 
-    if (focusedNode.nodeType !== Node.ELEMENT_NODE) {
-      focusedNode = focusedNode.parentNode;
+    if (focusNode.nodeType !== Node.ELEMENT_NODE) {
+      focusNode = focusNode.parentNode;
     }
 
     if (focusedNode === null) {
       return;
     }
 
-    const closestHighlightableNode = (focusedNode as HTMLElement).closest(`.${HIGHLIGHTABLE_NODE_CLASS}`);
+    const closestHighlightableNode = (focusNode as HTMLElement).closest(`.${HIGHLIGHTABLE_NODE_CLASS}`);
     const previouslyFocused = input.querySelectorAll(`.${FOCUSED_NODE_CLASS}`);
 
     for (const node of previouslyFocused) {
@@ -903,7 +901,8 @@ export function useTextEditor({
       return start > 0 ? currentText.slice(0, start) : currentText;
     },
     deleteLastSymbol: () => {
-      const { start, end } = getInputOperationMarkdownRange(true, 'backward');
+      // const { start, end } = getInputOperationMarkdownRange(true, 'backward');
+      const { start, end } = getInputOperationMarkdownRange();
 
       // eslint-disable-next-line react-hooks/rules-of-hooks
       const utils = useInputOperations({
@@ -955,7 +954,7 @@ export function useTextEditor({
       parser.replaceNode(node, newNode);
       currentText = parser.toMarkdown();
 
-      ofAfterInput(dimensions ? dimensions.mdEnd + newHrefDist + 1 : 0);
+      ofAfterInput(currentText, dimensions ? dimensions.mdEnd + newHrefDist + 1 : 0);
     },
     focus: () => {
       setCaretOffset(input, htmlToMdOffset(offsetMapping, currentText.length));

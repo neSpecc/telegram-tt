@@ -9,11 +9,6 @@ import type { ISettings } from '../../../types';
 import { LeftColumnContent, SettingsScreens } from '../../../types';
 
 import {
-  APP_NAME,
-  DEBUG,
-  IS_BETA,
-} from '../../../config';
-import {
   selectCanSetPasscode,
   selectCurrentMessageList,
   selectIsCurrentUserPremium,
@@ -23,18 +18,15 @@ import {
 import buildClassName from '../../../util/buildClassName';
 import captureEscKeyListener from '../../../util/captureEscKeyListener';
 import { formatDateToString } from '../../../util/dates/dateFormat';
-import { IS_APP, IS_ELECTRON, IS_MAC_OS } from '../../../util/windowEnvironment';
+import { IS_APP } from '../../../util/windowEnvironment';
 
 import useAppLayout from '../../../hooks/useAppLayout';
 import useConnectionStatus from '../../../hooks/useConnectionStatus';
 import useElectronDrag from '../../../hooks/useElectronDrag';
-import useFlag from '../../../hooks/useFlag';
 import { useHotkeys } from '../../../hooks/useHotkeys';
 import useLang from '../../../hooks/useLang';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
-import { useFullscreenStatus } from '../../../hooks/window/useFullscreen';
-import useLeftHeaderButtonRtlForumTransition from './hooks/useLeftHeaderButtonRtlForumTransition';
 
 import Icon from '../../common/icons/Icon';
 import PeerChip from '../../common/PeerChip';

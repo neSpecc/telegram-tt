@@ -58,7 +58,7 @@ export class MarkdownParser {
   }
 
   public fromApiFormattedText(apiFormattedText: ApiFormattedText) {
-    const apiParser = new ApiFormattedParser(this.isRich);
+    const apiParser = new ApiFormattedParser();
 
     const ast = apiParser.fromApiFormattedToAst(apiFormattedText) as ASTRootNode;
 

@@ -113,7 +113,7 @@ export default function useMentionTooltip(
     setFilteredUsers(usersToDisplay);
   }, [currentUserId, groupChatMembers, topInlineBotIds, getUsernameTag, getWithInlineBots]);
 
-  const insertMention = useLastCallback((user: ApiUser, forceFocus = false) => {
+  const insertMention = useLastCallback((user: ApiUser) => {
     if (!user.usernames && !getUserFirstOrLastName(user)) {
       return;
     }

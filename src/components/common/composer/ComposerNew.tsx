@@ -73,6 +73,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   const [customEmoji, setCustomEmoji] = useState<ApiSticker | undefined>(undefined);
   const { isMobile } = useAppLayout();
   const [getAst, setAst] = useSignal<ASTRootNode | undefined>(undefined);
+  const [getAstLastModified, setAstLastModified] = useSignal<number | undefined>(undefined);
   const [getHtmlOffset, setHtmlOffset] = useSignal<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputWrapperRef = useRef<HTMLDivElement>(null);
@@ -80,6 +81,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => {
     setAst(ast);
     setHtmlOffset(htmlOffset);
+    setAstLastModified(ast.lastModified);
     onChange?.(apiFormattedText);
   });
 
@@ -136,6 +138,7 @@ const Composer: FC<OwnProps & StateProps> = ({
     });
 
     setEditorApi?.(editorApiRef.current);
+  // eslint-disable-next-line react-hooks-static-deps/exhaustive-deps
   }, []);
 
   useLayoutEffect(() => {
@@ -189,6 +192,7 @@ const Composer: FC<OwnProps & StateProps> = ({
         >
           <RendererTeact
             getAst={getAst}
+            getAstLastModified={getAstLastModified}
             onAfterUpdate={onAfterUpdate}
           />
         </div>

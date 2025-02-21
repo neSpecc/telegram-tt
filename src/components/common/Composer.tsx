@@ -46,7 +46,6 @@ import { MAIN_THREAD_ID } from '../../api/types';
 import {
   BASE_EMOJI_KEYWORD_LANG,
   DEFAULT_MAX_MESSAGE_LENGTH,
-  EDITABLE_INPUT_MODAL_ID,
   HEART_REACTION,
   MAX_UPLOAD_FILEPART_SIZE,
   ONE_TIME_MEDIA_TTL_SECONDS,
@@ -959,9 +958,6 @@ const Composer: FC<OwnProps & StateProps> = ({
 
     const message = getApiFormattedText() || { text: '', entities: [] };
     const isEmpty = isMessageEmpty(message);
-
-    console.log('message', message);
-    console.log('isEmpty', isEmpty);
 
     if (currentAttachments.length) {
       sendAttachments({
