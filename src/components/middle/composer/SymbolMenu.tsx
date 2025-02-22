@@ -63,6 +63,8 @@ export type OwnProps = {
   className?: string;
   isAttachmentModal?: boolean;
   canSendPlainText?: boolean;
+  menuRef?: React.RefObject<HTMLDivElement>;
+  closeTimeout?: number;
 }
 & MenuPositionOptions;
 
@@ -96,6 +98,8 @@ const SymbolMenu: FC<OwnProps & StateProps> = ({
   onSearchOpen,
   addRecentEmoji,
   addRecentCustomEmoji,
+  menuRef,
+  closeTimeout,
   ...menuPositionOptions
 }) => {
   const [activeTab, setActiveTab] = useState<number>(0);
@@ -103,7 +107,7 @@ const SymbolMenu: FC<OwnProps & StateProps> = ({
   const [recentCustomEmojis, setRecentCustomEmojis] = useState<string[]>([]);
   const { isMobile } = useAppLayout();
 
-  const [handleMouseEnter, handleMouseLeave] = useMouseInside(isOpen, onClose, undefined, isMobile);
+  const [handleMouseEnter, handleMouseLeave] = useMouseInside(isOpen, onClose, closeTimeout, isMobile);
   const { shouldRender, transitionClassNames } = useShowTransitionDeprecated(isOpen, onClose, false, false);
 
   const lang = useOldLang();
@@ -318,6 +322,7 @@ const SymbolMenu: FC<OwnProps & StateProps> = ({
 
   return (
     <Menu
+      ref={menuRef}
       isOpen={isOpen}
       onClose={onClose}
       withPortal={isAttachmentModal}

@@ -14,7 +14,7 @@
   .composer-input-container {
     flex: 1;
     &.single-line {
-      overflow: scroll;
+      overflow: hidden;
     }
   }
 
@@ -31,13 +31,6 @@
     padding: 0;
     width: 28px;
     height: 28px;
-  }
-
-  .Menu {
-    .bubble {
-      --offset-y: 100%;
-      --offset-x: -4.125rem;
-    }
   }
 
   .symbol-menu-button {
@@ -125,7 +118,8 @@
   }
 
   .md-quote-content {
-    display: inline-block;
+    display: inline-flex;
+    flex-direction: column;
     background-color: var(--accent-background-color);
     overflow-y: auto;
     margin: 0.4em 0;
@@ -178,3 +172,11 @@
 
 }
 
+.composer-new-symbols {
+  .bubble {
+    &.bottom {
+      bottom: auto;
+      margin-top: -10px;
+    }
+  }
+}

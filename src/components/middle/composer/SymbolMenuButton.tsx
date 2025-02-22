@@ -56,7 +56,10 @@ type OwnProps = {
   positionOptions?: MenuPositionOptions;
   getTriggerElement?: () => HTMLElement | null;
   getRootElement?: () => HTMLElement | null;
+  getMenuElement?: () => HTMLElement | null;
   customEmojiToggler?: ApiSticker | undefined;
+  menuRef?: React.RefObject<HTMLDivElement>;
+  closeTimeout?: number;
 };
 
 const SymbolMenuButton: FC<OwnProps> = ({
@@ -87,7 +90,10 @@ const SymbolMenuButton: FC<OwnProps> = ({
   positionOptions,
   getTriggerElement,
   getRootElement,
+  getMenuElement,
   customEmojiToggler,
+  menuRef,
+  closeTimeout,
 }) => {
   const {
     setStickerSearchQuery,
@@ -152,7 +158,8 @@ const SymbolMenuButton: FC<OwnProps> = ({
   const getFinalTriggerElement = getTriggerElement || defaultTriggerElement;
   const defaultRootElement = useLastCallback(() => triggerRef.current?.closest('.custom-scroll, .no-scrollbar'));
   const getFinalRootElement = getRootElement || defaultRootElement;
-  const getMenuElement = useLastCallback(() => document.querySelector('#portals .SymbolMenu .bubble'));
+  const defaultMenuElement = useLastCallback(() => document.querySelector('#portals .SymbolMenu .bubble'));
+  const getFinalMenuElement = getMenuElement || defaultMenuElement;
   const getLayout = useLastCallback(() => ({ withPortal: true }));
 
   return (
@@ -223,8 +230,10 @@ const SymbolMenuButton: FC<OwnProps> = ({
         anchor={isAttachmentModal ? contextMenuAnchor : undefined}
         getTriggerElement={isAttachmentModal ? getFinalTriggerElement : undefined}
         getRootElement={isAttachmentModal ? getFinalRootElement : undefined}
-        getMenuElement={isAttachmentModal ? getMenuElement : undefined}
+        getMenuElement={isAttachmentModal ? getFinalMenuElement : undefined}
         getLayout={isAttachmentModal ? getLayout : undefined}
+        menuRef={menuRef}
+        closeTimeout={closeTimeout}
         // eslint-disable-next-line react/jsx-props-no-spreading
         {...(positionOptions !== undefined ? (positionOptions) : {})}
       />

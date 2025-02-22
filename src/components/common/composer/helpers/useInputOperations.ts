@@ -4,9 +4,9 @@ import { isEmoji } from './char';
 export type InputResult = [string, number];
 
 // eslint-disable-next-line no-inner-declarations
-export function insertText(originalText: string, newText: string, start: number): [string, number] {
+export function insertText(originalText: string, newText: string, start: number, end?: number): [string, number] {
   return [
-    originalText.slice(0, start) + newText + originalText.slice(start),
+    originalText.slice(0, start) + newText + originalText.slice(end ?? start),
     start + newText.length,
   ];
 }
@@ -33,7 +33,7 @@ export function useInputOperations({
   }
 
   function insert(textToInsert: string): InputResult {
-    return insertText(text, textToInsert, start);
+    return insertText(text, textToInsert, start, end);
   }
 
   function insertReplacementText(dataTransfer: DataTransfer | null): InputResult {

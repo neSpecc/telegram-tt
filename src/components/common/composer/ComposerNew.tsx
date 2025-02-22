@@ -52,6 +52,8 @@ type StateProps = {
   isCurrentUserPremium: boolean;
 };
 
+const SYMBOL_MENU_CLOSE_TIMEOUT = 1000;
+
 const Composer: FC<OwnProps & StateProps> = ({
   mode = TextEditorMode.Rich,
   value,
@@ -77,14 +79,22 @@ const Composer: FC<OwnProps & StateProps> = ({
   const [getAstLastModified, setAstLastModified] = useSignal<number | undefined>(undefined);
   const [getHtmlOffset, setHtmlOffset] = useSignal<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const inputWrapperRef = useRef<HTMLDivElement>(null);
   const [currentValue, setCurrentValue] = useState<ApiFormattedText | undefined>(value);
+  const [getMdOffset, setMdOffset] = useSignal<number | undefined>(undefined);
 
-  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => {
+  const updateCallback = useLastCallback((
+    apiFormattedText: ApiFormattedText,
+    ast: ASTRootNode,
+    htmlOffset: number,
+    mdOffset: number,
+  ) => {
     setAst(ast);
     setHtmlOffset(htmlOffset);
     setAstLastModified(ast.lastModified);
     onChange?.(apiFormattedText);
+    setMdOffset(mdOffset);
   });
 
   const onAfterUpdate = useCallback(() => {
@@ -173,8 +183,9 @@ const Composer: FC<OwnProps & StateProps> = ({
     className,
   );
 
-  const getTriggerElement = useLastCallback(() => document.querySelector('.ComposerNew .composer-input'));
-  const getRootElement = useLastCallback(() => document.querySelector('#Settings'));
+  const getTriggerElement = useLastCallback(() => inputRef.current);
+  const getRootElement = useLastCallback(() => inputRef.current!.closest('.custom-scroll, .no-scrollbar'));
+  const getMenuElement = useLastCallback(() => menuRef.current);
   useHorizontalScroll(inputWrapperRef, !isSingleLine);
 
   return (
@@ -205,12 +216,14 @@ const Composer: FC<OwnProps & StateProps> = ({
             getAst={getAst}
             getAstLastModified={getAstLastModified}
             onAfterUpdate={onAfterUpdate}
+            getMdOffset={getMdOffset}
           />
         </div>
       </div>
       {(canSendSymbols) && (
         <SymbolMenuButton
           chatId=""
+          menuRef={menuRef}
           threadId=""
           isMobile={isMobile}
           isReady
@@ -223,6 +236,7 @@ const Composer: FC<OwnProps & StateProps> = ({
           onCustomEmojiSelect={handleCustomEmojiSelect}
           onRemoveSymbol={handleRemoveSymbol}
           onEmojiSelect={insertEmoji}
+          className="composer-new-symbols"
           isAttachmentModal={!isMobile}
           isSymbolMenuForced={false}
           canSendPlainText
@@ -230,7 +244,9 @@ const Composer: FC<OwnProps & StateProps> = ({
           idPrefix="ComposerNew"
           getTriggerElement={getTriggerElement}
           getRootElement={getRootElement}
+          getMenuElement={getMenuElement}
           customEmojiToggler={customEmoji}
+          closeTimeout={SYMBOL_MENU_CLOSE_TIMEOUT}
           positionOptions={isMobile ? undefined : customEmojiMenuPosition}
         />
       )}

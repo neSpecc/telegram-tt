@@ -1,6 +1,7 @@
 import type { FC } from '../../../../lib/teact/teact';
 import React, {
   memo,
+  useEffect,
   useLayoutEffect,
   useState,
 } from '../../../../lib/teact/teact';
@@ -15,26 +16,32 @@ import type {
 } from './entities/ASTNode';
 
 import buildClassName from '../../../../util/buildClassName';
-import { getClosingMarker, getOpeningMarker } from '../helpers/getFocusedNode';
+import { IS_SAFARI } from '../../../../util/windowEnvironment';
+import { getClosingMarker, getFocusedNode, getOpeningMarker } from '../helpers/getFocusedNode';
 import { areNodesEqual, isBlockNode, splitByLineBreakNodes } from '../helpers/node';
 
 import CustomEmoji from '../../CustomEmoji';
 
 const HIGHLIGHTABLE_NODE_CLASS = 'md-node-highlightable';
+const FOCUSED_NODE_CLASS = 'md-node-focused';
 
 interface TeactRendererProps {
   getAst: Signal<ASTRootNode | undefined>;
   onAfterUpdate?: () => void;
   getAstLastModified: Signal<number | undefined>;
+  getMdOffset: Signal<number | undefined>;
 }
 
 const RendererTeact: FC<TeactRendererProps> = ({
   getAst,
   onAfterUpdate,
   getAstLastModified,
+  getMdOffset,
 }) => {
   const [currentAst, setCurrentAst] = useState<ASTRootNode>();
   const [lastModified, setLastModified] = useState<number | undefined>();
+  const [focusedNode, setFocusedNode] = useState<ASTNode | undefined>();
+  const [prevMdOffset, setPrevMdOffset] = useState<number | undefined>();
 
   useLayoutEffect(() => {
     const newAst = getAst();
@@ -50,9 +57,57 @@ const RendererTeact: FC<TeactRendererProps> = ({
 
   useLayoutEffect(() => {
     if (currentAst && onAfterUpdate) {
+      const selection = window.getSelection();
+
       onAfterUpdate();
+
+      const selectionRange = selection!.getRangeAt(0);
+      const selectionRect = selectionRange.getBoundingClientRect();
+
+      if (IS_SAFARI
+        && selectionRect.x === 0
+        && selectionRect.y === 0
+        && selectionRect.width === 0
+        && selectionRect.height === 0
+      ) {
+        console.warn('PRE WORKAROUND');
+
+        requestAnimationFrame(() => {
+          onAfterUpdate();
+        });
+      }
     }
   }, [currentAst, onAfterUpdate, lastModified]);
+
+  useEffect(() => {
+    const mdOffset = getMdOffset();
+
+    if (mdOffset === prevMdOffset) {
+      return;
+    }
+
+    setPrevMdOffset(mdOffset);
+
+    if (mdOffset !== undefined && currentAst) {
+      const result = getFocusedNode(mdOffset, currentAst);
+
+      if (result.node) {
+        if (
+          result.node.type !== 'text'
+          && result.node.type !== 'line-break'
+          && 'parentNode' in result.node
+        ) {
+          setFocusedNode(result.node.parentNode as ASTNode);
+        } else {
+          setFocusedNode(result.node);
+        }
+      } else {
+        setFocusedNode(undefined);
+      }
+    } else {
+      setFocusedNode(undefined);
+    }
+  }, [getMdOffset, currentAst, prevMdOffset]);
 
   function renderNode(node: ASTNode | undefined): React.ReactNode {
     if (!node) return '';
@@ -64,12 +119,12 @@ const RendererTeact: FC<TeactRendererProps> = ({
     return isBlockNode(node) ? renderBlockNode(node) : renderInlineNode(node as ASTInlineNode);
   }
 
-  function renderChildren(children: ASTNode[] | undefined) {
+  function renderChildren(children: ASTNode[] | undefined, isFocusedOverride?: boolean) {
     if (!children) {
       return undefined;
     }
 
-    return children.map((child) => renderNode(child));
+    return children.map((child) => renderInlineNode(child as ASTInlineNode, isFocusedOverride));
   }
 
   function renderBlockNode(node: ASTBlockNode): React.ReactNode {
@@ -122,6 +177,7 @@ const RendererTeact: FC<TeactRendererProps> = ({
       <div className={buildClassName(
         'md-quote',
         HIGHLIGHTABLE_NODE_CLASS,
+        focusedNode?.id === node.id && FOCUSED_NODE_CLASS,
       )}
       >
         <div className="md-quote-content">
@@ -171,7 +227,12 @@ const RendererTeact: FC<TeactRendererProps> = ({
     const br = <br />;
 
     return (
-      <div className="md-pre">
+      <div className={buildClassName(
+        'md-pre',
+        HIGHLIGHTABLE_NODE_CLASS,
+        focusedNode?.id === node.id && FOCUSED_NODE_CLASS,
+      )}
+      >
         {
           renderBlockLine(
             'pre',
@@ -195,7 +256,9 @@ const RendererTeact: FC<TeactRendererProps> = ({
     );
   }
 
-  function renderInlineNode(node: ASTInlineNode): React.ReactNode {
+  function renderInlineNode(node: ASTInlineNode, isFocusedOverride?: boolean): React.ReactNode {
+    const isFocused = isFocusedOverride !== undefined ? isFocusedOverride : focusedNode?.id === node.id;
+
     switch (node.type) {
       case 'text': {
         // Clean the text value of BOM and zero-width spaces
@@ -213,12 +276,12 @@ const RendererTeact: FC<TeactRendererProps> = ({
       case 'strikethrough':
       case 'spoiler':
       case 'monospace':
-        return renderFormatting(node as ASTFormattingNode);
+        return renderFormatting(node as ASTFormattingNode, isFocused);
 
       case 'link':
-        return renderLink(node as ASTLinkNode);
+        return renderLink(node as ASTLinkNode, isFocused);
       case 'mention':
-        return renderMention(node as ASTMentionNode);
+        return renderMention(node as ASTMentionNode, isFocused);
 
       case 'customEmoji':
         return (
@@ -236,7 +299,9 @@ const RendererTeact: FC<TeactRendererProps> = ({
     }
   }
 
-  function renderFormatting(node: ASTFormattingNode) {
+  function renderFormatting(node: ASTFormattingNode, isFocusedOverride?: boolean) {
+    const isFocused = isFocusedOverride !== undefined ? isFocusedOverride : focusedNode?.id === node.id;
+
     const className = getFormattingClassName(node);
     const openingMarker = getOpeningMarker(node.type);
     const closingMarker = node.closed ? getClosingMarker(node.type) : '';
@@ -252,9 +317,13 @@ const RendererTeact: FC<TeactRendererProps> = ({
     const TagName = tags[node.type] || 'span';
 
     return (
-      <TagName className={className}>
+      <TagName className={buildClassName(
+        className,
+        isFocused && FOCUSED_NODE_CLASS,
+      )}
+      >
         <span className="md-preview-char">{openingMarker}</span>
-        { 'children' in node ? renderChildren(node.children) : (node as ASTMonospaceNode).value}
+        { 'children' in node ? renderChildren(node.children, isFocused) : (node as ASTMonospaceNode).value}
         {closingMarker && <span className="md-preview-char">{closingMarker}</span>}
       </TagName>
     );
@@ -267,16 +336,19 @@ const RendererTeact: FC<TeactRendererProps> = ({
     );
   }
 
-  function renderLink(node: ASTLinkNode) {
+  function renderLink(node: ASTLinkNode, isFocusedOverride?: boolean) {
+    const isFocused = isFocusedOverride !== undefined ? isFocusedOverride : focusedNode?.id === node.id;
+
     return (
       <span
         className={buildClassName(
           HIGHLIGHTABLE_NODE_CLASS,
+          isFocused && FOCUSED_NODE_CLASS,
         )}
       >
         <span className="md-preview-char">{getOpeningMarker('link')}</span>
         <a href={node.href}>
-          {node.children && renderChildren(node.children)}
+          {node.children && renderChildren(node.children, isFocused)}
         </a>
         <span className="md-preview-char">
           {getClosingMarker('link')}
@@ -286,13 +358,20 @@ const RendererTeact: FC<TeactRendererProps> = ({
     );
   }
 
-  function renderMention(node: ASTMentionNode) {
+  function renderMention(node: ASTMentionNode, isFocusedOverride?: boolean) {
+    const isFocused = isFocusedOverride !== undefined ? isFocusedOverride : focusedNode?.id === node.id;
+
     return (
-      <span className={buildClassName('md-mention')}>
+      <span className={buildClassName(
+        'md-mention',
+        isFocused && FOCUSED_NODE_CLASS,
+      )}
+      >
         {node.value}
       </span>
     );
   }
+
   return currentAst && renderNode(currentAst);
 };
 

@@ -111,6 +111,7 @@
 
     .paragraph {
       white-space: nowrap;
+      white-space-collapse: preserve;
     }
   }
 }

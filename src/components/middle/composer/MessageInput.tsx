@@ -36,7 +36,7 @@ import useDerivedState from '../../../hooks/useDerivedState';
 import useFlag from '../../../hooks/useFlag';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
-import { useTextEditor } from '../../common/composer/hooks/useTextEditor';
+import { TextEditorRenderingMode, useTextEditor } from '../../common/composer/hooks/useTextEditor';
 
 import RendererTeact from '../../common/composer/ast/RendererTeact';
 import Icon from '../../common/icons/Icon';
@@ -513,9 +513,13 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     };
   }, [shouldSuppressFocus]);
 
+  const [isComposing, setIsComposing] = useState(false);
+
   const isTouched = useDerivedState(
-    () => Boolean(isActive && !isMessageEmpty(getApiFormattedText())),
-    [isActive, getApiFormattedText],
+    () => {
+      return Boolean((isActive && !isMessageEmpty(getApiFormattedText())) || isComposing);
+    },
+    [isActive, getApiFormattedText, isComposing],
   );
 
   const className = buildClassName(
@@ -524,19 +528,34 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     shouldSuppressFocus && 'focus-disabled',
   );
 
+  const handleCompositionStart = useLastCallback(() => {
+    setIsComposing(true);
+  });
+
+  const handleCompositionEnd = useLastCallback(() => {
+    setIsComposing(false);
+  });
+
   const inputScrollerContentClass = buildClassName('input-scroller-content', isNeedPremium && 'is-need-premium');
 
   const [getAst, setAst] = useSignal<ASTRootNode | undefined>(undefined);
   const [getAstLastModified, setAstLastModified] = useSignal<number | undefined>(undefined);
   const [getHtmlOffset, setHtmlOffset] = useSignal<number | undefined>(undefined);
+  const [getMdOffset, setMdOffset] = useSignal<number | undefined>(undefined);
 
-  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => {
+  const updateCallback = useLastCallback((
+    apiFormattedText: ApiFormattedText,
+    ast: ASTRootNode,
+    htmlOffset: number,
+    mdOffset: number,
+  ) => {
     messageRef.current = apiFormattedText;
 
     onUpdate(apiFormattedText);
     setAst(ast);
     setAstLastModified(ast.lastModified);
     setHtmlOffset(htmlOffset);
+    setMdOffset(mdOffset);
   });
 
   const onAfterUpdate = useCallback(() => {
@@ -592,12 +611,15 @@ const MessageInput: FC<OwnProps & StateProps> = ({
             onTouchCancel={IS_ANDROID ? processSelectionWithTimeout : undefined}
             onFocus={!isNeedPremium ? onFocus : undefined}
             onBlur={!isNeedPremium ? onBlur : undefined}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
           >
             {isActive && (
               <RendererTeact
                 getAst={getAst}
                 getAstLastModified={getAstLastModified}
                 onAfterUpdate={onAfterUpdate}
+                getMdOffset={getMdOffset}
               />
             )}
           </div>

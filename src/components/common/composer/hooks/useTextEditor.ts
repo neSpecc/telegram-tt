@@ -15,6 +15,7 @@ import {
 import { getClosingMarker, getFocusedNode } from '../helpers/getFocusedNode';
 import { highlightLinksAsMarkown } from '../helpers/highlightLinks';
 import { createHistory } from '../helpers/history';
+import { areNodesEqual } from '../helpers/node';
 import { htmlToMdOffset, mdToHtmlOffset } from '../helpers/offsetMapping';
 import { insertText, useInputOperations } from '../helpers/useInputOperations';
 
@@ -36,8 +37,14 @@ export function useTextEditor({
   input: HTMLDivElement;
   mode?: TextEditorMode;
   isSingleLine?: boolean;
-  onUpdate: (apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => void;
+  onUpdate: (
+    apiFormattedText: ApiFormattedText,
+    ast: ASTRootNode,
+    htmlOffset: number,
+    mdOffset: number,
+  ) => void;
   value?: ApiFormattedText;
+  onHtmlUpdate?: (html: string) => void;
 }): TextEditorApi {
   const parser = new MarkdownParser(mode === TextEditorMode.Rich, isSingleLine);
   let currentText = '';
@@ -154,7 +161,7 @@ export function useTextEditor({
     currentMdRange = [mdOffset, mdOffset];
 
     if (!updateCallbackMutex) {
-      onUpdate(apiFormattedText, parser.getAST(), htmlOffset);
+      onUpdate(apiFormattedText, parser.getAST(), htmlOffset, mdOffset);
     }
 
     if (onAfterUpdateDebouncer) {
@@ -197,6 +204,18 @@ export function useTextEditor({
     passive: true,
   });
 
+  input.addEventListener('compositionend', (event) => {
+    const syntheticEvent = new InputEvent('beforeinput', {
+      data: event.data,
+      inputType: 'insertText',
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    });
+
+    input.dispatchEvent(syntheticEvent);
+  });
+
   /**
    * Returns the start and end of the selection range in the input element
    * Visible start and end conveted to real markdown start and end
@@ -232,10 +251,10 @@ export function useTextEditor({
     return { start: mdStart, end: mdEnd };
   }
 
-  /**
-   * @todo - support composition events
-   */
   function onBeforeInput(event: InputEvent) {
+    if (event.isComposing) {
+      return;
+    }
     event.preventDefault();
     /**
      * Remove real caret to prevent jumping to the start because of re-rendering
@@ -246,9 +265,10 @@ export function useTextEditor({
     // input.style.caretColor = 'transparent';
     selectionChangeMutex = true;
 
-    // Use tracked offset instead of selection
     // let { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange();
     let [mdStart, mdEnd] = currentMdRange;
+
+    // console.log('currentMdRange', currentMdRange);
 
     const isDelete = event.inputType.startsWith('delete');
     const direction = event.inputType.includes('Forward') ? 'forward' : 'backward';
@@ -325,7 +345,10 @@ export function useTextEditor({
            * - Incremental update of a single node, not the whole AST
            * (only for plain text nodes for now)
            */
-          const { node } = getFocusedNode(mdStart, parser.getAST()!);
+          const { node: startNode } = getFocusedNode(mdStart, parser.getAST()!);
+          const { node: endNode } = getFocusedNode(mdEnd, parser.getAST()!);
+
+          const isOneNodeAffected = startNode && endNode && areNodesEqual(startNode, endNode);
           const char = event.data[0];
           const isPlainChar = ['*', '`', '|', '~', '<', '[', ']', '(', ')', '\n'].includes(char) === false;
           const prevChar = currentText[mdStart - 1];
@@ -333,17 +356,21 @@ export function useTextEditor({
           const isInsideValueNode = (ch: string) => ['`', '[', ']', '(', ')'].includes(ch);
 
           if (
-            node?.type === 'text' && isPlainChar
+            isOneNodeAffected
+            && startNode?.type === 'text' && isPlainChar
             && isInsideValueNode(prevChar) === false
             && isInsideValueNode(nextChar) === false
           ) {
-            const nodeMapping = findNodeMapping(node, parser.getOffsetMapping());
+            const nodeMapping = findNodeMapping(startNode, parser.getOffsetMapping());
             const nodeStart = nodeMapping?.mdStart ?? 0;
-            const offsetWithinNode = mdStart - nodeStart;
+            const startOffsetWithinNode = mdStart - nodeStart;
+            const endOffsetWithinNode = mdEnd - nodeStart;
+            const [
+              newTextValue,
+              newPositionWithinNode,
+            ] = insertText(startNode.value, textToInsert, startOffsetWithinNode, endOffsetWithinNode);
 
-            const [newTextValue, newPositionWithinNode] = insertText(node.value, textToInsert, offsetWithinNode);
-
-            parser.updateTextNodeValue(node as ASTTextNode, newTextValue);
+            parser.updateTextNodeValue(startNode as ASTTextNode, newTextValue);
             ofAfterInput(parser.getAST(), nodeStart + newPositionWithinNode);
             return;
           }
@@ -561,7 +588,9 @@ export function useTextEditor({
         const leftSlice = text.slice(0, pos - 2);
         const hasLineBreakBefore = leftSlice.endsWith('\n') || leftSlice === '';
 
+        // text = `${leftSlice + (hasLineBreakBefore === false ? '\n' : '')}\`\`\`\n\`\`\`${textAfter}`;
         text = leftSlice + (hasLineBreakBefore === false ? '\n' : '') + pre + textAfter;
+
         const caretOffset = pos - 2 + 3 + (!hasLineBreakBefore ? 1 : 0);
 
         return [text, caretOffset];
@@ -587,6 +616,7 @@ export function useTextEditor({
     }
 
     const { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange();
+    FLASH_cmdAClicked = false;
 
     currentMdRange = [mdStart, mdEnd];
 
