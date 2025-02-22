@@ -1,3 +1,5 @@
+/* eslint-disable max-len */
+/* eslint-disable no-null/no-null */
 import type { ApiMessageEntityCustomEmoji } from '../../../../api/types';
 import type {
   ASTBlockNode, ASTInlineNode, ASTMonospaceNode, ASTNode, ASTParagraphBlockNode, ASTUnderlineNode,
@@ -8,7 +10,7 @@ import { buildCustomEmojiHtmlFromEntity } from '../../../middle/composer/helpers
 // import { buildCustomEmojiHtmlFromEntity } from '../../../telegram-tt/src/components/middle/composer/helpers/customEmoji';
 import { escapeAttribute, escapeHTML } from '../helpers/escape';
 import { getFocusedNode } from '../helpers/getFocusedNode';
-import { isBlockNode, isNodeClosed } from '../helpers/node';
+import { isBlockNode, isNodeClosed, splitByLineBreakNodes } from '../helpers/node';
 
 export interface RendererOptions {
   mode: 'html' | 'markdown' | 'api';
@@ -27,20 +29,27 @@ function previewSpan(char: string): string {
 export class RendererHtml {
   private offsetMapping: OffsetMapping = [];
 
-  // eslint-disable-next-line no-null/no-null
   private focusedNode: ASTNode | null = null;
 
   private currentHtmlOffset = 0;
 
   private currentMdOffset = 0;
 
+  private prevBlock: ASTNode | undefined = undefined;
+
+  private parentMap: WeakMap<ASTNode, ASTNode> | undefined = undefined;
+
   constructor(private options: RendererOptions = { mode: 'html', isPreview: false }) {}
 
-  public render(ast: ASTNode, options?: RendererOptions): string {
+  public render(ast: ASTNode, options?: RendererOptions, parentMap?: WeakMap<ASTNode, ASTNode>): string {
+    console.log('render called with parentMap %o', parentMap);
+
+    this.parentMap = parentMap || new WeakMap();
     this.options = options || this.options;
     this.offsetMapping = [];
     this.currentHtmlOffset = 0;
     this.currentMdOffset = 0;
+    this.prevBlock = undefined;
 
     if (options?.previewNodeOffset !== undefined) {
       const result = getFocusedNode(options.previewNodeOffset, ast);
@@ -49,7 +58,7 @@ export class RendererHtml {
        * If the focused node is not a text node,
        * we need to focus on the parent node
        */
-      if (result.node?.type !== 'text') {
+      if (result.node?.type !== 'text' && result.node?.type !== 'line-break') {
         this.focusedNode = result.node;
       } else {
         this.focusedNode = result.parentNode;
@@ -82,9 +91,12 @@ export class RendererHtml {
       nodeId: node.id,
     });
 
-    // Update current offsets for next mapping
     this.currentHtmlOffset += htmlLength;
     this.currentMdOffset += mdLength;
+  }
+
+  private getParentNode(node: ASTNode): ASTNode | undefined {
+    return this.parentMap?.get(node) || undefined;
   }
 
   private renderNode(node: ASTNode): string | undefined {
@@ -95,10 +107,59 @@ export class RendererHtml {
     }
 
     if (isBlockNode(node)) {
-      return this.renderBlockNode(node);
+      let result = this.renderBlockNode(node);
+
+      if (this.prevBlock?.type === 'quote') {
+        // console.log('this.prevBlock', this.prevBlock);
+        //
+        // const isQuoteEmpty = this.prevBlock.children.length === 0;
+
+        // if (!isQuoteEmpty) {
+        result = `\n${result}`;
+        // }
+      }
+
+      this.prevBlock = node;
+      return result;
     }
 
     return this.renderInlineNode(node as ASTInlineNode);
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  private createLine(type: string, text: string, groupId: string, isFocused: boolean) {
+    return `<div ${BLOCK_GROUP_ATTR}="${groupId}" class="paragraph paragraph-${type} ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">${text}</div>`;
+  }
+
+  private prepareLines(type: string, prefix: string, content: string, suffix: string, groupId: string, isFocused: boolean) {
+    const result = [];
+
+    if (prefix) {
+      result.push(this.createLine(type, prefix, groupId, isFocused));
+    }
+
+    if (content.length > 0) {
+      let lines = [];
+
+      if (content.includes('\n')) {
+        // Split and preserve empty lines, but don't add an extra empty line at the end
+        lines = content.endsWith('\n')
+          ? content.slice(0, -1).split('\n')
+          : content.split('\n');
+      } else {
+        lines = [content];
+      }
+
+      lines.forEach((line) => {
+        result.push(this.createLine(type, line || '<br>', groupId, isFocused));
+      });
+    }
+
+    if (suffix) {
+      result.push(this.createLine(type, suffix, groupId, isFocused));
+    }
+
+    return result.join('');
   }
 
   private renderBlockNode(node: ASTBlockNode): string {
@@ -121,43 +182,78 @@ export class RendererHtml {
         const savedHtmlOffset = this.currentHtmlOffset;
         const savedMdOffset = this.currentMdOffset;
 
+        let hasNextBlock = false;
+
+        const parentNode = this.getParentNode(node);
+
+        console.log('this.parentMap', this.parentMap);
+
+        console.log('parentNode', parentNode);
+
+        if (parentNode && 'children' in parentNode && Array.isArray(parentNode.children)) {
+          const siblings = parentNode.children as ASTBlockNode[];
+          const nodeIndex = siblings.indexOf(node);
+          const nextNode = siblings[nodeIndex + 1];
+          hasNextBlock = nextNode && isBlockNode(nextNode);
+        }
+
+        console.log('hasNextBlock', hasNextBlock);
+
+        const quoteMdLength = node.raw.length + (hasNextBlock ? 1 : 0); // +1 for the extra linebreak after the quote
+
         this.addToMapping(
           node.raw.length,
-          node.raw.length,
+          quoteMdLength,
           node,
         );
 
-        // Move past '>' for children
+        // Move past '>'
         this.currentHtmlOffset = savedHtmlOffset + 1;
         this.currentMdOffset = savedMdOffset + 1;
 
-        const children = node.children.map((child) => this.renderNode(child)).join('');
-        const prefix = isPreview ? previewSpan('>') : '';
+        const lines = splitByLineBreakNodes(node);
 
-        this.currentHtmlOffset = savedHtmlOffset + node.raw.length;
-        this.currentMdOffset = savedMdOffset + node.raw.length;
+        if (this.options.mode === 'html') {
+          const linesHtml = lines.map((line, index) => {
+            // line is [ASTNode, ASTNode, ASTNode]
+            let lineContent = line.map((child) => {
+              const childNodeHtml = this.renderNode(child);
 
-        blockHtml = this.options.mode === 'html'
-          ? [
-            // eslint-disable-next-line max-len
-            `<div class="paragraph paragraph--quote ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
-            `<div class="md-quote">${prefix}${children.length > 0 ? children : '<br>'}</div>`,
-            '</div>',
-          ].join('')
-          : `>${children}`;
+              return childNodeHtml || '\n';
+            }).join('');
+
+            if (index === 0) {
+              lineContent = previewSpan('>').concat(lineContent || '');
+            }
+
+            const lineHtml = this.createLine(
+              'quote',
+              lineContent,
+              node.id || Math.random().toString(36).substring(2, 15),
+              isFocused,
+            );
+
+            return lineHtml.concat('\n');
+          });
+
+          this.currentHtmlOffset = savedHtmlOffset + node.raw.length;
+          this.currentMdOffset = savedMdOffset + quoteMdLength;
+
+          blockHtml = `<div class="md-quote ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}"><div class="md-quote-content">${linesHtml.join('')}</div></div>`;
+        } else {
+          const linesMd = lines.map((line) => {
+            return line.map((child) => this.renderNode(child)).join('');
+          }).join('\n');
+
+          blockHtml = `>${linesMd}`;
+        }
 
         break;
       }
       case 'pre': {
         if (this.options.mode === 'markdown') {
           const prefixLinebreak = node.language || (node.value !== '' && node.value !== '\n');
-          return [
-            '```',
-            node.language ? `${node.language}` : '',
-            prefixLinebreak ? '\n' : '',
-            node.value,
-            node.closed ? '\n```' : '',
-          ].join('');
+          return `\`\`\`${node.language ? `${node.language}` : ''}${prefixLinebreak ? '\n' : ''}${node.value}${node.closed ? '\n```' : ''}`;
         }
 
         this.addToMapping(
@@ -166,48 +262,14 @@ export class RendererHtml {
           node,
         );
 
-        const createLine = (text: string) => {
-          return [
-            // eslint-disable-next-line max-len
-            `<div ${BLOCK_GROUP_ATTR}="${node.id}" class="paragraph paragraph-pre ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
-            text,
-            '</div>',
-          ].join('');
-        };
-
         const content = node.value;
         const language = node.language ? `<span class="md-pre-language">${node.language}</span>` : '';
         const prefix = isPreview ? previewSpan(`\`\`\`${language || ''}`) : '';
         const suffix = isPreview && node.closed ? previewSpan('```') : '';
 
-        const result = [];
+        const result = this.prepareLines('pre', prefix, content, suffix, node.id || Math.random().toString(36).substring(2, 15), isFocused);
 
-        if (prefix) {
-          result.push(createLine(prefix));
-        }
-
-        if (content.length > 0) {
-          let lines = [];
-
-          if (content.includes('\n')) {
-            // Split and preserve empty lines, but don't add an extra empty line at the end
-            lines = content.endsWith('\n')
-              ? content.slice(0, -1).split('\n')
-              : content.split('\n');
-          } else {
-            lines = [content];
-          }
-
-          lines.forEach((line) => {
-            result.push(createLine(line || '<br>'));
-          });
-        }
-
-        if (suffix) {
-          result.push(createLine(suffix));
-        }
-
-        blockHtml = `<div class="md-pre">${result.join('')}</div>`;
+        blockHtml = `<div class="md-pre">${result}</div>`;
 
         break;
       }
@@ -271,11 +333,7 @@ export class RendererHtml {
         const markerLength = grammatic.markdown.length;
 
         // Skip nested formatting nodes of the same type
-        if (
-          'children' in node
-          && Array.isArray(node.children)
-          && node.children.length === 1 && node.children[0].type === node.type
-        ) {
+        if ('children' in node && Array.isArray(node.children) && node.children.length === 1 && node.children[0].type === node.type) {
           return this.renderChildren(node.children as ASTNode[], isFocused);
         }
 
@@ -291,9 +349,7 @@ export class RendererHtml {
         this.currentHtmlOffset = savedHtmlOffset + (isPreview ? markerLength : 0);
         this.currentMdOffset = savedMdOffset + markerLength;
 
-        const content = 'children' in node
-          ? this.renderChildren(node.children as ASTNode[], isFocused)
-          : (node as ASTMonospaceNode).value;
+        const content = 'children' in node ? this.renderChildren(node.children as ASTNode[], isFocused) : (node as ASTMonospaceNode).value;
 
         this.currentHtmlOffset = savedHtmlOffset + node.raw.length;
         this.currentMdOffset = savedMdOffset + node.raw.length;
@@ -302,12 +358,7 @@ export class RendererHtml {
         const suffix = isPreview && isClosed ? previewSpan(grammatic.markdown) : '';
 
         if (mode === 'html') {
-          return [
-            // eslint-disable-next-line max-len
-            `<${grammatic.tag} class="md-${node.type} ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
-            `${prefix}${content}${suffix}`,
-            `</${grammatic.tag}>`,
-          ].join('');
+          return `<${grammatic.tag} class="md-${node.type} ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">${prefix}${content}${suffix}</${grammatic.tag}>`;
         } else {
           return `${grammatic.markdown}${content}${isClosed ? grammatic.markdown : ''}`;
         }
@@ -335,11 +386,7 @@ export class RendererHtml {
         if (mode === 'html') {
           const prefix = isPreview ? previewSpan('&lt;u&gt;') : '';
           const suffix = isPreview ? previewSpan('&lt;/u&gt;') : '';
-          return [
-            `<span class="md-underline ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">`,
-            `${prefix}${content}${suffix}`,
-            '</span>',
-          ].join('');
+          return `<span class="md-underline ${HIGHLIGHTABLE_NODE_CLASS} ${isFocused ? FOCUSED_NODE_CLASS : ''}">${prefix}${content}${suffix}</span>`;
         } else {
           return `<u>${content}</u>`;
         }
@@ -393,16 +440,9 @@ export class RendererHtml {
         if (mode === 'html') {
           const imgTagLength = 1;
           this.addToMapping(imgTagLength, mdText.length, node);
-          if (typeof window !== 'undefined' && window.location.port === '5173') {
-            return [
-              '<img class="custom-emoji emoji emoji-small placeholder" ',
-              'draggable="false" ',
-              'alt="😎" ',
-              'data-document-id="5071170261227667457" ',
-              'data-entity-type="MessageEntityCustomEmoji" ',
-              'src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f604/512.gif" />',
-            ].join('');
-          }
+          // if (typeof window !== 'undefined' && window.location.port === '5173') {
+          //   return '<div class="custom-emoji" contenteditable="false"><img class="emoji emoji-small placeholder" draggable="false" alt="😎" data-document-id="5071170261227667457" data-entity-type="MessageEntityCustomEmoji" src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f604/512.gif" /></div>';
+          // }
           return buildCustomEmojiHtmlFromEntity(node.value, node as unknown as ApiMessageEntityCustomEmoji);
         } else {
           return mdText;
@@ -412,15 +452,26 @@ export class RendererHtml {
       case 'paragraph': {
         return this.renderChildren((node as ASTParagraphBlockNode).children as ASTNode[], isFocused);
       }
+      case 'line-break': {
+        if (mode === 'html') {
+          // eslint-disable-next-line no-console
+          console.warn('Unexpected line-break node in html mode', node);
+          return '<br>';
+        } else {
+          return '\n';
+        }
+      }
       default: {
-        throw new Error(`AST Renderer: can not render node of unknown node type: ${(node as unknown as ASTNode).type}`);
+        // eslint-disable-next-line no-console
+        console.error(`AST Renderer: can not render node of unknown type: ${(node as unknown as ASTNode).type}`);
+        return '';
       }
     }
   }
 
   private renderChildren(children: ASTNode[], isFocusedOverride?: boolean): string {
     if (!children) {
-      return '';
+      // console.error('No children to render');
     }
 
     return children

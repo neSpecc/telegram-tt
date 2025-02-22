@@ -156,7 +156,7 @@ export class ApiFormattedParser {
   private createFormattedNode(
     type: Exclude<
     ASTNode['type'],
-    'root' | 'paragraph' | 'text' | 'link' | 'pre' | 'monospace' | 'mention' | 'customEmoji' | 'quote'
+    'root' | 'paragraph' | 'text' | 'link' | 'pre' | 'monospace' | 'mention' | 'customEmoji' | 'quote' | 'line-break'
     >,
     text: string,
     entity: ApiMessageEntity,

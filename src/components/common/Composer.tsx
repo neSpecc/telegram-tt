@@ -2133,15 +2133,9 @@ export default memo(withGlobal<OwnProps>(
 )(Composer));
 
 /**
- * @todo check all places of parseHtmlAsFormattedText — can we get rid of it?
  * @todo Remove link by TextFormatter icon click
- * @todo Attachement Model should have text from input when opened
- * @todo Editing - set focus
- * @todo Editing - editing message with custom emoji should work
- * @todo resize works wrong
- * @todo remove old canvas-workaround
- * @todo links sending
- * @todo fix autofocus
+ * @todo select all text by CMD + A
+ * @todo copy/paste custom emoji
 
  *
  */

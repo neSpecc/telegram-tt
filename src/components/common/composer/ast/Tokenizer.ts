@@ -15,7 +15,10 @@ export class Tokenizer {
 
     for (const block of blocks) {
       const isPlainText = block.type === 'pre';
-      const inlineTokens = new InlineTokenizer(block.content, this.isRich).tokenize(isPlainText);
+      const inlineTokens = new InlineTokenizer(block.content).tokenize({
+        isPlainText,
+        tokenizeLineBreaks: block.type === 'quote',
+      });
       block.tokens = inlineTokens;
     }
 

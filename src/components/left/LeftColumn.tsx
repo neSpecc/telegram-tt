@@ -101,7 +101,6 @@ function LeftColumn({
     clearTwoFaError,
     openChat,
     requestNextSettingsScreen,
-    setActiveChatFolder,
   } = getActions();
 
   const [content, setContent] = useState<LeftColumnContent>(LeftColumnContent.ChatList);

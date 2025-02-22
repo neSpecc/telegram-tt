@@ -6,7 +6,12 @@ export interface ASTRootNode extends ASTNodeBase {
   lastModified?: number;
 }
 
-export type ASTInlineNode = ASTTextNode | ASTFormattingNode | ASTMentionNode | ASTCustomEmojiNode;
+export type ASTInlineNode = ASTTextNode
+| ASTFormattingNode
+| ASTMentionNode
+| ASTCustomEmojiNode
+| ASTLineBreakNode;
+
 export type ASTFormattingNode =
   | ASTBoldNode
   | ASTItalicNode
@@ -75,6 +80,10 @@ export interface ASTMentionNode extends ASTInlineNodeBase {
 export interface ASTCustomEmojiNode extends ASTInlineNodeBase {
   type: 'customEmoji';
   documentId: string;
+}
+
+export interface ASTLineBreakNode extends ASTNodeBase {
+  type: 'line-break';
 }
 
 export interface ASTInlineNodeBase extends ASTNodeBase {

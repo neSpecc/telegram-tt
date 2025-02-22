@@ -41,8 +41,6 @@ export class BlockTokenizer {
           this.beginParagraph();
         }
 
-        const isRightBeforeBlock = this.isRightBeforeBlock(this.pos + 1);
-
         this.flushCurrentBlock();
 
         /**
@@ -50,6 +48,8 @@ export class BlockTokenizer {
          *    - Next char is not a newline OR
          *    - Next char is newline but followed by block
          */
+        const isRightBeforeBlock = this.isRightBeforeBlock(this.pos + 1);
+
         if (!isRightBeforeBlock || this.text[this.pos + 1] === '\n') {
           this.beginParagraph();
         }
@@ -105,6 +105,7 @@ export class BlockTokenizer {
   private flushCurrentBlock() {
     if (this.currentBlock) {
       this.blocks.push(this.currentBlock);
+      // eslint-disable-next-line no-null/no-null
       this.currentBlock = null;
     }
   }
@@ -166,21 +167,84 @@ export class BlockTokenizer {
 
   private handleQuoteBlock() {
     const startPos = this.pos;
-    let content = '';
-    let contentEnd = this.pos;
 
-    // Skip initial '>'
-    this.pos += 1;
-    contentEnd = this.pos; // Include '>' in raw even for empty quotes
+    this.pos++;
 
-    // Process until end of line or end of text
-    while (this.pos < this.text.length && this.text[this.pos] !== '\n') {
-      content += this.text[this.pos] ?? '';
-      contentEnd = this.pos + 1;
-      this.pos++;
+    if (this.pos < this.text.length && this.text[this.pos] === '\n') {
+      const nextNextChar = this.text[this.pos + 1] ?? '';
+      if (this.pos + 1 >= this.text.length || nextNextChar === '\n') {
+        const raw = this.text.slice(startPos, this.pos); // '>'
+        this.blocks.push({
+          type: 'quote',
+          raw,
+          content: '',
+          tokens: [],
+        });
+
+        this.pos++;
+
+        const leftPart = this.text.slice(0, this.pos);
+        const rightPart = this.text.slice(this.pos + 1);
+
+        /**
+         * Case >\n\n1
+         * — should not create empty paragraph when there is next block
+         */
+        const isQuoteEndingBeforeBlock = leftPart.endsWith('>\n') && rightPart;
+
+        if (isQuoteEndingBeforeBlock) {
+          return;
+        }
+
+        this.beginParagraph();
+        this.flushCurrentBlock();
+        return;
+      }
     }
 
-    const raw = this.text.slice(startPos, contentEnd);
+    let content = '';
+    let rawEnd = this.pos;
+
+    while (this.pos < this.text.length) {
+      const lineStart = this.pos;
+      let lineEnd = this.text.indexOf('\n', this.pos);
+      if (lineEnd === -1) {
+        lineEnd = this.text.length;
+      }
+
+      content += this.text.slice(lineStart, lineEnd);
+      this.pos = lineEnd;
+      rawEnd = this.pos;
+
+      if (this.pos >= this.text.length) {
+        break;
+      }
+
+      const nextChar = this.text[this.pos + 1] ?? '';
+      this.pos++;
+
+      if (
+        this.pos < this.text.length
+        && (nextChar === '\n'
+          || this.text.startsWith('>', this.pos)
+          || this.text.startsWith('```', this.pos))
+      ) {
+        break;
+      }
+
+      content += '\n';
+      rawEnd = this.pos;
+
+      if (
+        this.isLineStart()
+        && (this.text.startsWith('>', this.pos)
+          || this.text.startsWith('```', this.pos))
+      ) {
+        break;
+      }
+    }
+
+    const raw = this.text.slice(startPos, rawEnd);
 
     this.blocks.push({
       type: 'quote',
@@ -188,18 +252,6 @@ export class BlockTokenizer {
       content,
       tokens: [],
     });
-
-    // Handle newline after quote
-    if (this.pos < this.text.length && this.text[this.pos] === '\n') {
-      this.pos++; // Skip newline
-
-      // If next char is newline or we're at end of text, create empty paragraph
-      if (this.pos >= this.text.length || this.text[this.pos] === '\n') {
-        this.beginParagraph();
-        this.flushCurrentBlock();
-      }
-      // Otherwise let main tokenizer handle any text
-    }
   }
 
   private isLineStart(pos?: number): boolean {

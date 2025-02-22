@@ -1,6 +1,6 @@
 /* eslint-disable no-null/no-null */
 import type {
-  ASTFormattingNode, ASTLinkNode, ASTMentionNode, ASTNode, ASTRootNode,
+  ASTFormattingNode, ASTLineBreakNode, ASTLinkNode, ASTMentionNode, ASTNode, ASTRootNode,
 } from '../ast/entities/ASTNode';
 
 export interface NodeLocation {
@@ -152,6 +152,8 @@ export function getFocusedNode(
     case 'link':
     case 'mention':
       return handleLinkLikeNode(node, offset, startOffset, parentNode);
+    case 'line-break':
+      return handleLineBreakNode(node, offset, startOffset, parentNode);
   }
 
   // Handle root node with line breaks
@@ -201,6 +203,19 @@ function handleLinkLikeNode(
     parentNode: null,
     currentOffset: fullEnd,
   };
+}
+
+function handleLineBreakNode(
+  node: ASTLineBreakNode,
+  offset: number,
+  startOffset: number,
+  parentNode: ASTNode | null,
+): NodeLocation {
+  if (offset - 1 === startOffset) {
+    return { node, parentNode, currentOffset: startOffset };
+  }
+
+  return { node: null, parentNode: null, currentOffset: startOffset };
 }
 
 export function getOpeningMarker(type: ASTFormattingNode['type']): string {

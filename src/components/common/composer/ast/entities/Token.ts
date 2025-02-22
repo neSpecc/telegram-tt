@@ -29,7 +29,8 @@ export type InlineToken =
   | LinkToken
   | LinkCloseToken
   | MentionToken
-  | CustomEmojiToken;
+  | CustomEmojiToken
+  | LineBreakToken;
 
 export interface InlineTokenBase {
   type: string;
@@ -85,4 +86,8 @@ export interface CustomEmojiToken extends InlineTokenBase {
   type: 'customEmoji';
   value: string;
   documentId: string;
+}
+
+export interface LineBreakToken extends InlineTokenBase {
+  type: 'line-break';
 }

@@ -23,7 +23,12 @@ export class InlineTokenizer {
   constructor(private readonly text: string, private readonly isRich: boolean = true) {
   }
 
-  public tokenize(isPlainText = false): InlineToken[] {
+  public tokenize(options: {
+    isPlainText: boolean;
+    tokenizeLineBreaks: boolean;
+  }): InlineToken[] {
+    const { isPlainText, tokenizeLineBreaks } = options;
+
     while (this.pos < this.text.length) {
       const remaining = this.text.slice(this.pos);
 
@@ -42,7 +47,6 @@ export class InlineTokenizer {
         continue;
       }
 
-      // Rich mode - handle all tokens
       if (isPlainText) {
         this.tokens.push({ type: 'text', value: remaining, raw: remaining });
         this.pos = this.text.length;
@@ -54,6 +58,16 @@ export class InlineTokenizer {
         this.currentText += escapeMatch[1];
         this.pos += 2;
         continue;
+      }
+
+      if (tokenizeLineBreaks) {
+        const lineBreakMatch = this.text[this.pos] === '\n';
+        if (lineBreakMatch) {
+          this.flushText();
+          this.tokens.push({ type: 'line-break', raw: '\n' });
+          this.pos += 1;
+          continue;
+        }
       }
 
       /**

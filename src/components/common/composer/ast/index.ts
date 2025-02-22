@@ -16,7 +16,7 @@ export class MarkdownParser {
 
   private ast: ASTRootNode | null = null;
 
-  private parentMap = new WeakMap<ASTNode, ASTNode>();
+  private parentMap = new WeakMap<ASTNode, ASTNode>(); // child -> parent
 
   private nodeIdMap = new Map<string, ASTNode>();
 
@@ -47,6 +47,7 @@ export class MarkdownParser {
 
     this.parentMap = new WeakMap();
     this.buildParentMap(this.ast);
+    console.log('setAST %o buildParentMap %o', this.ast, this.parentMap);
   }
 
   public fromString(markdown: string) {
@@ -72,7 +73,7 @@ export class MarkdownParser {
       return '';
     }
 
-    return this.renderer.render(this.ast, options);
+    return this.renderer.render(this.ast, options, this.parentMap);
   }
 
   public computeOffsetMapping(): OffsetMappingRecord[] {
@@ -80,23 +81,22 @@ export class MarkdownParser {
       return [];
     }
 
-    this.renderer.render(this.ast, { mode: 'html', isPreview: true });
-
+    this.renderer.render(this.ast, { mode: 'html', isPreview: true }, this.parentMap);
     return this.renderer.getOffsetMapping();
   }
 
-  /**
-   * Parses markdown text and returns HTML
-   */
-  public toHTML({ isPreview = false }: { isPreview?: boolean } = {}): string {
-    const ast = this.ast;
+  // /**
+  //  * Parses markdown text and returns HTML
+  //  */
+  // public toHTML({ isPreview = false }: { isPreview?: boolean } = {}): string {
+  //   const ast = this.ast;
 
-    if (!ast) {
-      return '';
-    }
+  //   if (!ast) {
+  //     return '';
+  //   }
 
-    return this.renderer.render(ast, { mode: 'html', isPreview });
-  }
+  //   return this.renderer.render(ast, { mode: 'html', isPreview });
+  // }
 
   /**
    * Parses markdown text and returns normalized markdown
@@ -106,7 +106,7 @@ export class MarkdownParser {
       return '';
     }
 
-    return this.renderer.render(ast, { mode: 'markdown' });
+    return this.renderer.render(ast, { mode: 'markdown' }, this.parentMap);
   }
 
   /**

@@ -32,7 +32,9 @@ export function mdToHtmlOffset(offsetMapping: OffsetMapping, mdOffset: number): 
 }
 
 export function htmlToMdOffset(offsetMapping: OffsetMapping, htmlOffset: number): number {
-  const record = offsetMapping.find((m) => htmlOffset >= m.htmlStart && htmlOffset < m.htmlEnd);
+  const record = offsetMapping.find((m) => {
+    return htmlOffset >= m.htmlStart && htmlOffset < m.htmlEnd;
+  });
 
   if (record) {
     if (record.nodeType === 'mention') {

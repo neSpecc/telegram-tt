@@ -3,6 +3,7 @@ import type {
   ASTCustomEmojiNode,
   ASTFormattingNode,
   ASTInlineNode,
+  ASTLineBreakNode,
   ASTLinkNode,
   ASTMentionNode,
   ASTMonospaceNode,
@@ -13,6 +14,7 @@ import type {
   ASTTextNode,
 } from './entities/ASTNode';
 import type { BlockToken, InlineToken, PreToken } from './entities/Token';
+
 import { getClosingMarker, getOpeningMarker } from '../helpers/getFocusedNode';
 
 /**
@@ -20,6 +22,7 @@ import { getClosingMarker, getOpeningMarker } from '../helpers/getFocusedNode';
  */
 export class Parser {
   private tokens: BlockToken[];
+
   private pos = 0;
 
   constructor(tokens: BlockToken[]) {
@@ -52,14 +55,14 @@ export class Parser {
 
     return {
       type: 'root',
-      raw: blocks.map(block => block.raw).join('\n'),
+      raw: blocks.map((block) => block.raw).join('\n'),
       children: blocks,
     };
   }
 
   private assingNodeIds(node: ASTNode): ASTNode {
     if ('children' in node && Array.isArray(node.children)) {
-      node.children.forEach(child => this.assingNodeIds(child));
+      node.children.forEach((child) => this.assingNodeIds(child));
     }
     return node;
   }
@@ -80,6 +83,7 @@ export class Parser {
     };
   }
 
+  // eslint-disable-next-line class-methods-use-this
   private parsePreBlock(block: PreToken): ASTPreBlockNode {
     return {
       type: 'pre',
@@ -103,8 +107,7 @@ export class Parser {
             if ('children' in parent && Array.isArray(parent.children)) {
               parent.children.push(node);
             }
-          }
-          else {
+          } else {
             result.push(node);
           }
           break;
@@ -120,8 +123,7 @@ export class Parser {
           };
           if (stack.length > 0) {
             (stack[stack.length - 1] as ASTFormattingNode).children?.push(node);
-          }
-          else {
+          } else {
             result.push(node);
           }
           stack.push(node);
@@ -149,12 +151,11 @@ export class Parser {
             node.closed = true;
             // Combine opening marker + children content + closing marker
             const openMarker = getOpeningMarker(node.type);
-            const childrenRaw = node.children!.map(child => child.raw).join('');
+            const childrenRaw = node.children!.map((child) => child.raw).join('');
             const closeMarker = getClosingMarker(node.type);
             node.raw = openMarker + childrenRaw + closeMarker;
             stack.splice(lastIndex);
-          }
-          else {
+          } else {
             const node: ASTInlineNode = {
               type: token.type,
               raw: token.raw,
@@ -163,8 +164,7 @@ export class Parser {
             };
             if (stack.length > 0) {
               (stack[stack.length - 1] as ASTFormattingNode).children?.push(node);
-            }
-            else {
+            } else {
               result.push(node);
             }
             stack.push(node);
@@ -181,8 +181,7 @@ export class Parser {
           };
           if (stack.length > 0) {
             (stack[stack.length - 1] as ASTFormattingNode).children?.push(node);
-          }
-          else {
+          } else {
             result.push(node);
           }
           break;
@@ -197,8 +196,7 @@ export class Parser {
           };
           if (stack.length > 0) {
             (stack[stack.length - 1] as ASTFormattingNode).children?.push(node);
-          }
-          else {
+          } else {
             result.push(node);
           }
           break;
@@ -213,11 +211,22 @@ export class Parser {
           };
           if (stack.length > 0) {
             (stack[stack.length - 1] as ASTFormattingNode).children?.push(node);
-          }
-          else {
+          } else {
             result.push(node);
           }
           break;
+        }
+
+        case 'line-break': {
+          const node: ASTLineBreakNode = {
+            type: 'line-break',
+            raw: token.raw,
+          };
+          if (stack.length > 0) {
+            (stack[stack.length - 1] as ASTFormattingNode).children?.push(node as ASTNode);
+          } else {
+            result.push(node);
+          }
         }
       }
     }
@@ -228,7 +237,7 @@ export class Parser {
       const nodeIsNotClosed = !('closed' in node) || !node.closed;
       if (nodeIsNotClosed && 'children' in node) {
         const openMarker = getOpeningMarker(node.type);
-        const childrenRaw = node.children!.map(child => child.raw).join('');
+        const childrenRaw = node.children!.map((child) => child.raw).join('');
         node.raw = openMarker + childrenRaw;
       }
     }
@@ -236,6 +245,7 @@ export class Parser {
     return result;
   }
 
+  // eslint-disable-next-line class-methods-use-this
   private findLastMatchingTag(stack: ASTInlineNode[], type: string): number {
     for (let i = stack.length - 1; i >= 0; i--) {
       const node = stack[i];

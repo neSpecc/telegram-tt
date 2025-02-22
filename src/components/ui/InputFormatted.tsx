@@ -69,7 +69,7 @@ const InputFormatted: FC<OwnProps> = ({
   );
 
   const handleClick = useLastCallback(() => {
-    editorApi!.focus();
+    // editorApi!.focus();
   });
 
   const updateCallback = useLastCallback((textFormatted: ApiFormattedText) => {

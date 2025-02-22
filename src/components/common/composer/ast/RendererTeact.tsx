@@ -16,7 +16,7 @@ import type {
 
 import buildClassName from '../../../../util/buildClassName';
 import { getClosingMarker, getOpeningMarker } from '../helpers/getFocusedNode';
-import { areNodesEqual, isBlockNode } from '../helpers/node';
+import { areNodesEqual, isBlockNode, splitByLineBreakNodes } from '../helpers/node';
 
 import CustomEmoji from '../../CustomEmoji';
 
@@ -96,22 +96,44 @@ const RendererTeact: FC<TeactRendererProps> = ({
   }
 
   function renderQuote(node: ASTQuoteBlockNode) {
+    const lines = splitByLineBreakNodes(node);
+
+    const renderLine = (line: ASTNode[], i: number) => {
+      const lineElements = line.map((childNode) => {
+        const childElement = renderNode(childNode);
+
+        return childElement !== '' ? childElement : '\n';
+      });
+
+      if (i === 0) {
+        lineElements.unshift(<span className="md-preview-char">&gt;</span>);
+      }
+
+      return renderBlockLine('quote', lineElements, node.id!, `${node.id}-${i}-line`);
+    };
+
+    const renderLines = lines.map((line, i) => {
+      const lineElement = renderLine(line, i);
+
+      return lineElement;
+    });
+
     return (
       <div className={buildClassName(
-        'paragraph paragraph--quote',
+        'md-quote',
         HIGHLIGHTABLE_NODE_CLASS,
       )}
       >
-        <div className="md-quote">
-          <span className="md-preview-char">&gt;</span>
-          {renderChildren(node.children)}
+        <div className="md-quote-content">
+          {renderLines}
         </div>
       </div>
     );
   }
 
-  function renderPreLine(
-    content: React.JSX.Element | string,
+  function renderBlockLine(
+    type: 'pre' | 'quote',
+    content: React.ReactNode | string | React.ReactNode[],
     groupId: string,
     key: string,
   ) {
@@ -120,11 +142,12 @@ const RendererTeact: FC<TeactRendererProps> = ({
         key={key}
         data-block-id={groupId}
         className={buildClassName(
-          'paragraph paragraph-pre',
+          'paragraph',
+          `paragraph-${type}`,
           HIGHLIGHTABLE_NODE_CLASS,
         )}
       >
-        {content || <br />}
+        {content}
       </div>
     );
   }
@@ -145,10 +168,13 @@ const RendererTeact: FC<TeactRendererProps> = ({
       }
     }
 
+    const br = <br />;
+
     return (
       <div className="md-pre">
         {
-          renderPreLine(
+          renderBlockLine(
+            'pre',
             <span className="md-preview-char">
               ```{node.language ? <span className="md-pre-language">{node.language}</span> : ''}
             </span>,
@@ -157,9 +183,10 @@ const RendererTeact: FC<TeactRendererProps> = ({
           )
         }
         {lines.map((line, i) => {
-          return renderPreLine(line, groupId, `${groupId}-${i}`);
+          return renderBlockLine('pre', line || br, groupId, `${groupId}-${i}`);
         })}
-        {node.closed && renderPreLine(
+        {node.closed && renderBlockLine(
+          'pre',
           <span className="md-preview-char">```</span>,
           groupId,
           `${groupId}-closing-tag`,
@@ -178,7 +205,7 @@ const RendererTeact: FC<TeactRendererProps> = ({
         //     {cleanValue}
         //   </span>
         // );
-        return cleanValue || undefined;
+        return cleanValue || '';
       }
       case 'bold':
       case 'italic':
@@ -201,6 +228,9 @@ const RendererTeact: FC<TeactRendererProps> = ({
             className="inline-custom-emoji"
           />
         );
+      case 'line-break':
+        console.error('line-break');
+        return <br />;
 
       default:
         return undefined;

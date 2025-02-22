@@ -1,4 +1,5 @@
 import type { BlockToken } from './entities/Token';
+
 import { BlockTokenizer } from './BlockTokenizer';
 
 describe('blockTokenizer', () => {
@@ -10,7 +11,9 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>([
-        { type: 'paragraph', raw: 'Hello world', content: 'Hello world', tokens: [] },
+        {
+          type: 'paragraph', raw: 'Hello world', content: 'Hello world', tokens: [],
+        },
       ]);
     });
 
@@ -19,8 +22,12 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>([
-        { type: 'paragraph', raw: 'Hello world', content: 'Hello world', tokens: [] },
-        { type: 'paragraph', raw: 'Second line', content: 'Second line', tokens: [] },
+        {
+          type: 'paragraph', raw: 'Hello world', content: 'Hello world', tokens: [],
+        },
+        {
+          type: 'paragraph', raw: 'Second line', content: 'Second line', tokens: [],
+        },
       ]);
     });
 
@@ -36,7 +43,9 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>([
-        { type: 'paragraph', raw: '   ', content: '   ', tokens: [] },
+        {
+          type: 'paragraph', raw: '   ', content: '   ', tokens: [],
+        },
       ]);
     });
 
@@ -45,7 +54,9 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>([
-        { type: 'paragraph', raw: '  Hello  world  ', content: '  Hello  world  ', tokens: [] },
+        {
+          type: 'paragraph', raw: '  Hello  world  ', content: '  Hello  world  ', tokens: [],
+        },
       ]);
     });
 
@@ -54,9 +65,15 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>([
-        { type: 'paragraph', raw: 'First', content: 'First', tokens: [] },
-        { type: 'paragraph', raw: '  ', content: '  ', tokens: [] },
-        { type: 'paragraph', raw: 'Second', content: 'Second', tokens: [] },
+        {
+          type: 'paragraph', raw: 'First', content: 'First', tokens: [],
+        },
+        {
+          type: 'paragraph', raw: '  ', content: '  ', tokens: [],
+        },
+        {
+          type: 'paragraph', raw: 'Second', content: 'Second', tokens: [],
+        },
       ]);
     });
 
@@ -65,8 +82,12 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>([
-        { type: 'paragraph', raw: '', content: '', tokens: [] },
-        { type: 'paragraph', raw: 'Hello', content: 'Hello', tokens: [] },
+        {
+          type: 'paragraph', raw: '', content: '', tokens: [],
+        },
+        {
+          type: 'paragraph', raw: 'Hello', content: 'Hello', tokens: [],
+        },
       ]);
     });
   });
@@ -82,7 +103,9 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>(
-        Array.from({ length: expectedCount }, () => ({ type: 'paragraph', raw: '', content: '', tokens: [] })),
+        Array.from({ length: expectedCount }, () => ({
+          type: 'paragraph', raw: '', content: '', tokens: [],
+        })),
       );
     });
 
@@ -91,8 +114,12 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>([
-        { type: 'paragraph', raw: 'line1', content: 'line1', tokens: [] },
-        { type: 'paragraph', raw: '', content: '', tokens: [] },
+        {
+          type: 'paragraph', raw: 'line1', content: 'line1', tokens: [],
+        },
+        {
+          type: 'paragraph', raw: '', content: '', tokens: [],
+        },
       ]);
     });
 
@@ -101,9 +128,15 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>([
-        { type: 'paragraph', raw: 'line1', content: 'line1', tokens: [] },
-        { type: 'paragraph', raw: '', content: '', tokens: [] },
-        { type: 'paragraph', raw: 'line2', content: 'line2', tokens: [] },
+        {
+          type: 'paragraph', raw: 'line1', content: 'line1', tokens: [],
+        },
+        {
+          type: 'paragraph', raw: '', content: '', tokens: [],
+        },
+        {
+          type: 'paragraph', raw: 'line2', content: 'line2', tokens: [],
+        },
       ]);
     });
   });
@@ -256,8 +289,13 @@ describe('blockTokenizer', () => {
       const tokens = tokenize(input);
 
       expect(tokens).toEqual<BlockToken[]>([
-        { type: 'pre', raw: '```\nline1\nline2\n```', content: 'line1\nline2', language: undefined, tokens: [], closed: true },
-        { type: 'paragraph', raw: 'line3', content: 'line3', tokens: [] },
+        {
+          // eslint-disable-next-line max-len
+          type: 'pre', raw: '```\nline1\nline2\n```', content: 'line1\nline2', language: undefined, tokens: [], closed: true,
+        },
+        {
+          type: 'paragraph', raw: 'line3', content: 'line3', tokens: [],
+        },
       ]);
     });
 

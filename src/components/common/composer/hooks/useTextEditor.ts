@@ -47,6 +47,10 @@ export function useTextEditor({
   let offsetMapping: OffsetMappingRecord[] = [];
   let currentMdRange = [0, 0];
   let onAfterUpdateDebouncer: ReturnType<typeof setTimeout> | null = null;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  let FLASH_mdStartJustPatchedAfterQuote = false;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  let FLASH_cmdAClicked = false;
 
   if (value) {
     updateContent(value, value.text.length);
@@ -112,6 +116,10 @@ export function useTextEditor({
           }
           break;
         }
+        case 'a': {
+          FLASH_cmdAClicked = true;
+          break;
+        }
       }
     }
 
@@ -134,6 +142,8 @@ export function useTextEditor({
     } else {
       currentText = parser.toMarkdown();
     }
+
+    console.log('update current text %o', currentText);
 
     const mapping = parser.computeOffsetMapping();
     const apiFormattedText = parser.toApiFormattedText();
@@ -171,6 +181,14 @@ export function useTextEditor({
   input.addEventListener('keydown', onKeydown);
   input.addEventListener('beforeinput', onBeforeInput);
 
+  input.addEventListener('click', () => {
+    const { start: htmlStart } = getSelectionRange(input);
+    const mdStart = htmlToMdOffset(offsetMapping, htmlStart);
+    const mapping = parser.getOffsetMapping();
+    console.log('click html %o -> md %o', htmlStart, mdStart);
+    console.log('mapping', mapping);
+  });
+
   document.addEventListener('selectionchange', () => {
     if (document.activeElement === input) {
       onInputSelectionChange();
@@ -187,11 +205,30 @@ export function useTextEditor({
   // isDelete: boolean = false,
   // deleteDirection?: 'forward' | 'backward',
   ): { start: number; end: number } {
+    if (FLASH_cmdAClicked) {
+      console.log('FLASH_cmdAClicked', FLASH_cmdAClicked);
+      return { start: 0, end: currentText.length };
+    }
+
     const {
       start: htmlStart, end: htmlEnd,
     } = getSelectionRange(input);
-    const mdStart = htmlToMdOffset(offsetMapping, htmlStart);
-    const mdEnd = htmlToMdOffset(offsetMapping, htmlEnd);
+    let mdStart = htmlToMdOffset(offsetMapping, htmlStart);
+    let mdEnd = htmlToMdOffset(offsetMapping, htmlEnd);
+
+    const prevChar = currentText.slice(Math.max(0, mdStart - 1), mdStart);
+
+    const isQuoteBefore = offsetMapping.find((m) => {
+      return m.nodeType === 'quote' && m.mdEnd === mdStart && m.htmlEnd !== m.mdEnd;
+    });
+
+    if (prevChar === '\n' && isQuoteBefore) {
+      console.warn('PATCHING QUOTE ------------ +1');
+
+      mdStart += 1;
+      mdEnd += 1;
+      FLASH_mdStartJustPatchedAfterQuote = true;
+    }
 
     return { start: mdStart, end: mdEnd };
   }
@@ -211,7 +248,8 @@ export function useTextEditor({
     selectionChangeMutex = true;
 
     // Use tracked offset instead of selection
-    let [mdStart, mdEnd] = currentMdRange;
+    let { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange();
+    // let [mdStart, mdEnd] = currentMdRange;
 
     const isDelete = event.inputType.startsWith('delete');
     const direction = event.inputType.includes('Forward') ? 'forward' : 'backward';
@@ -254,6 +292,8 @@ export function useTextEditor({
         // }
       }
     }
+
+    [mdStart, mdEnd] = patchInputOperation(event, mdStart, mdEnd);
 
     // console.log('before input:', {
     //   inputType: event.inputType,
@@ -335,6 +375,10 @@ export function useTextEditor({
           [currentText, mdNewPosition] = utils[event.inputType]();
         }
 
+        if (FLASH_mdStartJustPatchedAfterQuote) {
+          mdNewPosition -= 1;
+        }
+
         break;
       }
       case 'insertReplacementText': {
@@ -404,12 +448,34 @@ export function useTextEditor({
     ofAfterInput(currentText, mdNewPosition);
   }
 
+  function patchInputOperation(event: InputEvent, mdStart: number, mdEnd: number): [number, number] {
+    switch (event.inputType) {
+      case 'insertLineBreak':
+      case 'insertParagraph':
+      {
+        const prevChar = currentText.slice(Math.max(0, mdStart - 1), mdStart);
+
+        if (prevChar === '>') {
+          console.warn('line break at empty quote. Adding extra line break. %o -> %o', currentText.replace(/\n/g, '\n'), (`${currentText.slice(0, mdStart)}\n${currentText.slice(mdStart)}`).replace(/\n/g, '\n'));
+
+          currentText = `${currentText.slice(0, mdStart)}\n${currentText.slice(mdStart)}`;
+          mdStart += 1;
+          mdEnd += 1;
+        }
+      }
+    }
+
+    return [mdStart, mdEnd];
+  }
+
   function ofAfterInput(newValue: string | ASTRootNode, newMdOffset: number) {
     const newText = typeof newValue === 'string' ? newValue : parser.toMarkdown(newValue);
 
     const caretOffset = newMdOffset;
     history.push(newText, caretOffset);
     updateContent(newValue, caretOffset);
+    FLASH_mdStartJustPatchedAfterQuote = false;
+    FLASH_cmdAClicked = false;
   }
 
   /**

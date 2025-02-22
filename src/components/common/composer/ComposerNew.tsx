@@ -18,6 +18,7 @@ import type { TextEditorApi } from './TextEditorApi';
 
 import { selectIsCurrentUserPremium } from '../../../global/selectors';
 import buildClassName from '../../../util/buildClassName';
+import { areMessagesEqual } from '../../middle/composer/utils/areMessagesEqual';
 
 import useAppLayout from '../../../hooks/useAppLayout';
 import useFlag from '../../../hooks/useFlag';
@@ -77,6 +78,7 @@ const Composer: FC<OwnProps & StateProps> = ({
   const [getHtmlOffset, setHtmlOffset] = useSignal<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputWrapperRef = useRef<HTMLDivElement>(null);
+  const [currentValue, setCurrentValue] = useState<ApiFormattedText | undefined>(value);
 
   const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => {
     setAst(ast);
@@ -126,6 +128,15 @@ const Composer: FC<OwnProps & StateProps> = ({
   const handleSymbolMenuClose = useLastCallback(() => {
     closeSymbolMenu();
   });
+
+  useEffect(() => {
+    if (areMessagesEqual(value, currentValue)) {
+      return;
+    }
+
+    setCurrentValue(value);
+    editorApiRef.current!.setContent(value);
+  }, [value, currentValue]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
