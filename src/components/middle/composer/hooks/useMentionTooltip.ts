@@ -1,18 +1,15 @@
-import type { RefObject } from 'react';
 import { useEffect, useState } from '../../../../lib/teact/teact';
 import { getGlobal } from '../../../../global';
 
-import type { ApiChatMember, ApiUser } from '../../../../api/types';
+import type {
+  ApiChatMember, ApiFormattedText, ApiUser,
+} from '../../../../api/types';
 import type { Signal } from '../../../../util/signals';
-import { ApiMessageEntityTypes } from '../../../../api/types';
+import type { TextEditorApi } from '../../../common/composer/TextEditorApi';
 
-import { requestNextMutation } from '../../../../lib/fasterdom/fasterdom';
 import { getMainUsername, getUserFirstOrLastName } from '../../../../global/helpers';
 import { filterPeersByQuery } from '../../../../global/helpers/peers';
-import focusEditableElement from '../../../../util/focusEditableElement';
 import { pickTruthy, unique } from '../../../../util/iteratees';
-import { getCaretPosition, getHtmlBeforeSelection, setCaretPosition } from '../../../../util/selection';
-import { prepareForRegExp } from '../helpers/prepareForRegExp';
 
 import { useThrottledResolver } from '../../../../hooks/useAsyncResolvers';
 import useDerivedSignal from '../../../../hooks/useDerivedSignal';
@@ -31,10 +28,8 @@ try {
 
 export default function useMentionTooltip(
   isEnabled: boolean,
-  getHtml: Signal<string>,
-  setHtml: (html: string) => void,
-  getSelectionRange: Signal<Range | undefined>,
-  inputRef: RefObject<HTMLDivElement>,
+  getApiFormattedText: Signal<ApiFormattedText | undefined>,
+  getEditorApi: Signal<TextEditorApi | undefined>,
   groupChatMembers?: ApiChatMember[],
   topInlineBotIds?: string[],
   currentUserId?: string,
@@ -43,21 +38,41 @@ export default function useMentionTooltip(
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
 
   const extractUsernameTagThrottled = useThrottledResolver(() => {
-    const html = getHtml();
-    if (!isEnabled || !getSelectionRange()?.collapsed || !html.includes('@')) return undefined;
+    if (!isEnabled) return undefined;
 
-    const htmlBeforeSelection = getHtmlBeforeSelection(inputRef.current!);
+    const message = getApiFormattedText();
+    const editorApi = getEditorApi();
 
-    return prepareForRegExp(htmlBeforeSelection).match(RE_USERNAME_SEARCH)?.[0].trim();
-  }, [isEnabled, getHtml, getSelectionRange, inputRef], THROTTLE);
+    if (!message || !editorApi) return undefined;
+
+    const text = message.text;
+    const range = editorApi.getCaretOffset();
+    const isCollapsed = range.start === range.end;
+    if (!isCollapsed || !text.includes('@')) return undefined;
+
+    const { node: currentNode } = editorApi.getCurrentNode();
+
+    // prevent triggering in pre, code
+    if (currentNode && 'value' in currentNode && currentNode.type !== 'text') {
+      return undefined;
+    }
+
+    const beforeCaret = editorApi.getLeftSlice();
+
+    return beforeCaret.match(RE_USERNAME_SEARCH)?.[0].trim();
+  }, [isEnabled, getApiFormattedText, getEditorApi], THROTTLE);
 
   const getUsernameTag = useDerivedSignal(
-    extractUsernameTagThrottled, [extractUsernameTagThrottled, getHtml, getSelectionRange], true,
+    extractUsernameTagThrottled, [extractUsernameTagThrottled, getApiFormattedText], true,
   );
 
   const getWithInlineBots = useDerivedSignal(() => {
-    return isEnabled && getHtml().startsWith('@');
-  }, [getHtml, isEnabled]);
+    if (!isEnabled) return false;
+
+    const message = getApiFormattedText();
+
+    return message && message.text.startsWith('@');
+  }, [getApiFormattedText, isEnabled]);
 
   useEffect(() => {
     const usernameTag = getUsernameTag();
@@ -69,6 +84,7 @@ export default function useMentionTooltip(
 
     // No need for expensive global updates on users, so we avoid them
     const usersById = getGlobal().users.byId;
+
     if (!usersById) {
       setFilteredUsers(undefined);
       return;
@@ -92,52 +108,35 @@ export default function useMentionTooltip(
       type: 'user',
     });
 
-    setFilteredUsers(Object.values(pickTruthy(usersById, filteredIds)));
+    const usersToDisplay = Object.values(pickTruthy(usersById, filteredIds));
+
+    setFilteredUsers(usersToDisplay);
   }, [currentUserId, groupChatMembers, topInlineBotIds, getUsernameTag, getWithInlineBots]);
 
-  const insertMention = useLastCallback((user: ApiUser, forceFocus = false) => {
+  const insertMention = useLastCallback((user: ApiUser) => {
     if (!user.usernames && !getUserFirstOrLastName(user)) {
       return;
     }
 
     const mainUsername = getMainUsername(user);
     const userFirstOrLastName = getUserFirstOrLastName(user) || '';
-    const htmlToInsert = mainUsername
-      ? `@${mainUsername}`
-      : `<a
-          class="text-entity-link"
-          data-entity-type="${ApiMessageEntityTypes.MentionName}"
-          data-user-id="${user.id}"
-          contenteditable="false"
-          dir="auto"
-        >${userFirstOrLastName}</a>`;
 
-    const inputEl = inputRef.current!;
-    const htmlBeforeSelection = getHtmlBeforeSelection(inputEl);
-    const fixedHtmlBeforeSelection = cleanWebkitNewLines(htmlBeforeSelection);
-    const atIndex = fixedHtmlBeforeSelection.lastIndexOf('@');
-    const shiftCaretPosition = (mainUsername ? mainUsername.length + 1 : userFirstOrLastName.length)
-      - (fixedHtmlBeforeSelection.length - atIndex);
+    const message = getApiFormattedText();
+    if (!message) return;
 
-    if (atIndex !== -1) {
-      const newHtml = `${fixedHtmlBeforeSelection.substr(0, atIndex)}${htmlToInsert}&nbsp;`;
-      const htmlAfterSelection = cleanWebkitNewLines(inputEl.innerHTML).substring(fixedHtmlBeforeSelection.length);
-      const caretPosition = getCaretPosition(inputEl);
-      setHtml(`${newHtml}${htmlAfterSelection}`);
+    const editorApi = getEditorApi()!;
 
-      requestNextMutation(() => {
-        const newCaretPosition = caretPosition + shiftCaretPosition + 1;
-        focusEditableElement(inputEl, forceFocus);
-        if (newCaretPosition >= 0) {
-          setCaretPosition(inputEl, newCaretPosition);
-        }
-      });
-    }
+    const offset = editorApi.getCaretOffset();
+    const name = mainUsername ? `@${mainUsername}` : userFirstOrLastName;
+    const mention = `[${name}](id:${user.id})`;
+
+    // replace @ with mention
+    editorApi.replace(offset.start - 1, offset.start, mention);
 
     setFilteredUsers(undefined);
   });
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getApiFormattedText]);
 
   return {
     isMentionTooltipOpen: Boolean(filteredUsers?.length && !isManuallyClosed),
@@ -145,10 +144,4 @@ export default function useMentionTooltip(
     insertMention,
     mentionFilteredUsers: filteredUsers,
   };
-}
-
-// Webkit replaces the line break with the `<div><br /></div>` or `<div></div>` code.
-// It is necessary to clean the html to a single form before processing.
-function cleanWebkitNewLines(html: string) {
-  return html.replace(/<div>(<br>|<br\s?\/>)?<\/div>/gi, '<br>');
 }

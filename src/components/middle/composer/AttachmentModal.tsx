@@ -1,15 +1,16 @@
 import type { FC } from '../../../lib/teact/teact';
 import React, {
-  memo, useEffect, useMemo, useRef, useState,
+  memo, useEffect, useMemo, useRef, useSignal, useState,
 } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
 
 import type {
-  ApiAttachment, ApiChatMember, ApiMessage, ApiSticker,
+  ApiAttachment, ApiChatMember, ApiFormattedText, ApiMessage, ApiSticker,
 } from '../../../api/types';
 import type { GlobalState } from '../../../global/types';
 import type { MessageListType, ThreadId } from '../../../types';
 import type { Signal } from '../../../util/signals';
+import type { TextEditorApi } from '../../common/composer/TextEditorApi';
 
 import {
   BASE_EMOJI_KEYWORD_LANG,
@@ -28,14 +29,12 @@ import { validateFiles } from '../../../util/files';
 import { removeAllSelections } from '../../../util/selection';
 import { openSystemFilesDialog } from '../../../util/systemFilesDialog';
 import getFilesFromDataTransferItems from './helpers/getFilesFromDataTransferItems';
-import { getHtmlTextLength } from './helpers/getHtmlTextLength';
 
 import useAppLayout from '../../../hooks/useAppLayout';
 import useContextMenuHandlers from '../../../hooks/useContextMenuHandlers';
 import useDerivedState from '../../../hooks/useDerivedState';
 import useEffectOnce from '../../../hooks/useEffectOnce';
 import useFlag from '../../../hooks/useFlag';
-import useGetSelectionRange from '../../../hooks/useGetSelectionRange';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
 import usePreviousDeprecated from '../../../hooks/usePreviousDeprecated';
@@ -66,7 +65,7 @@ export type OwnProps = {
   attachments: ApiAttachment[];
   editingMessage?: ApiMessage;
   messageListType?: MessageListType;
-  getHtml: Signal<string>;
+  getApiFormattedText: Signal<ApiFormattedText | undefined>;
   canShowCustomSendMenu?: boolean;
   isReady: boolean;
   isForMessage?: boolean;
@@ -76,7 +75,7 @@ export type OwnProps = {
   shouldForceAsFile?: boolean;
   isForCurrentMessageList?: boolean;
   forceDarkTheme?: boolean;
-  onCaptionUpdate: (html: string) => void;
+  onCaptionUpdate: (apiFormattedText: ApiFormattedText | undefined) => void;
   onSend: (sendCompressed: boolean, sendGrouped: boolean, isInvertedMedia?: true) => void;
   onFileAppend: (files: File[], isSpoiler?: boolean) => void;
   onAttachmentsUpdate: (attachments: ApiAttachment[]) => void;
@@ -84,8 +83,6 @@ export type OwnProps = {
   onSendSilent: (sendCompressed: boolean, sendGrouped: boolean, isInvertedMedia?: true) => void;
   onSendScheduled: (sendCompressed: boolean, sendGrouped: boolean, isInvertedMedia?: true) => void;
   onCustomEmojiSelect: (emoji: ApiSticker) => void;
-  onRemoveSymbol: VoidFunction;
-  onEmojiSelect: (emoji: string) => void;
   canScheduleUntilOnline?: boolean;
   onSendWhenOnline?: NoneToVoidFunction;
 };
@@ -112,7 +109,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   chatId,
   threadId,
   attachments,
-  getHtml,
+  getApiFormattedText,
   editingMessage,
   canShowCustomSendMenu,
   captionLimit,
@@ -141,8 +138,6 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   onSendSilent,
   onSendScheduled,
   onCustomEmojiSelect,
-  onRemoveSymbol,
-  onEmojiSelect,
   canScheduleUntilOnline,
   onSendWhenOnline,
 }) => {
@@ -151,6 +146,7 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   // eslint-disable-next-line no-null/no-null
   const svgRef = useRef<SVGSVGElement>(null);
   const { addRecentCustomEmoji, addRecentEmoji, updateAttachmentSettings } = getActions();
+  const [getEditorApi, setEditorApi] = useSignal<TextEditorApi | undefined>(undefined);
 
   const lang = useOldLang();
 
@@ -213,8 +209,6 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     return [hasOneSpoiler, false];
   }, [renderingAttachments]);
 
-  const getSelectionRange = useGetSelectionRange(`#${EDITABLE_INPUT_MODAL_ID}`);
-
   const {
     isEmojiTooltipOpen,
     filteredEmojis,
@@ -223,9 +217,8 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     closeEmojiTooltip,
   } = useEmojiTooltip(
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen),
-    getHtml,
+    getApiFormattedText,
     onCaptionUpdate,
-    EDITABLE_INPUT_MODAL_ID,
     recentEmojis,
     baseEmojiKeywords,
     emojiKeywords,
@@ -237,10 +230,8 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     closeCustomEmojiTooltip,
   } = useCustomEmojiTooltip(
     Boolean(isReady && (isForCurrentMessageList || !isForMessage) && renderingIsOpen && shouldSuggestCustomEmoji),
-    getHtml,
-    onCaptionUpdate,
-    getSelectionRange,
-    inputRef,
+    getApiFormattedText,
+    getEditorApi,
     customEmojiForEmoji,
   );
 
@@ -251,10 +242,8 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     mentionFilteredUsers,
   } = useMentionTooltip(
     Boolean(isReady && isForCurrentMessageList && renderingIsOpen),
-    getHtml,
-    onCaptionUpdate,
-    getSelectionRange,
-    inputRef,
+    getApiFormattedText,
+    getEditorApi,
     groupChatMembers,
     undefined,
     currentUserId,
@@ -428,6 +417,17 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
     });
   }, [lang, isOpen]);
 
+  const insertText = useLastCallback((text: string) => {
+    const editorApi = getEditorApi()!;
+
+    editorApi.insert(text, editorApi.getCaretOffset().end);
+  });
+
+  const removeSymbol = useLastCallback(() => {
+    const editorApi = getEditorApi()!;
+    editorApi.deleteLastSymbol();
+  });
+
   const MoreMenuButton: FC<{ onTrigger: () => void; isOpen?: boolean }> = useMemo(() => {
     return ({ onTrigger, isOpen: isMenuOpen }) => (
       <Button
@@ -447,9 +447,14 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
   const leftChars = useDerivedState(() => {
     if (!renderingIsOpen) return undefined;
 
-    const leftCharsBeforeLimit = captionLimit - getHtmlTextLength(getHtml());
+    const message = getApiFormattedText();
+    if (!message) return undefined;
+
+    const text = message.text;
+
+    const leftCharsBeforeLimit = captionLimit - text.length;
     return leftCharsBeforeLimit <= MAX_LEFT_CHARS_TO_SHOW ? leftCharsBeforeLimit : undefined;
-  }, [captionLimit, getHtml, renderingIsOpen]);
+  }, [captionLimit, getApiFormattedText, renderingIsOpen]);
 
   const isQuickGallery = isSendingCompressed && hasOnlyMedia;
 
@@ -665,8 +670,8 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
               openSymbolMenu={openSymbolMenu}
               closeSymbolMenu={closeSymbolMenu}
               onCustomEmojiSelect={onCustomEmojiSelect}
-              onRemoveSymbol={onRemoveSymbol}
-              onEmojiSelect={onEmojiSelect}
+              onRemoveSymbol={removeSymbol}
+              onEmojiSelect={insertText}
               isAttachmentModal
               canSendPlainText
               className="attachment-modal-symbol-menu with-menu-transitions"
@@ -679,10 +684,9 @@ const AttachmentModal: FC<OwnProps & StateProps> = ({
               chatId={chatId}
               threadId={threadId}
               isAttachmentModalInput
-              customEmojiPrefix="attachment"
-              isReady={isReady}
               isActive={isOpen}
-              getHtml={getHtml}
+              getApiFormattedText={getApiFormattedText}
+              setEditorApi={setEditorApi}
               editableInputId={EDITABLE_INPUT_MODAL_ID}
               placeholder={lang('AddCaption')}
               onUpdate={onCaptionUpdate}

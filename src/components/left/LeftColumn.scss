@@ -23,12 +23,15 @@
   }
 
   .SearchInput {
-    margin-left: 0.625rem;
-    max-width: calc(100% - 3.25rem);
+    &.with-main-menu {
+      margin-left: 0.625rem;
+      max-width: calc(100% - 3.25rem);
 
-    @media (max-width: 600px) {
-      max-width: calc(100% - 3rem);
+      @media (max-width: 600px) {
+        max-width: calc(100% - 3rem);
+      }
     }
+
   }
 
   @media (max-width: 600px) {
@@ -57,8 +60,10 @@
     padding: 0.5rem 0.5rem 0.5rem 4.5rem;
 
     .SearchInput {
-      margin-left: 0.5rem;
-      max-width: calc(100% - 2.75rem);
+      &.with-main-menu {
+        margin-left: 0.5rem;
+        max-width: calc(100% - 2.75rem);
+      }
     }
 
     .Menu.main-menu .bubble {

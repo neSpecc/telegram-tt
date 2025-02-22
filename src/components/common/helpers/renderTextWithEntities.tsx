@@ -229,25 +229,6 @@ export function renderTextWithEntities({
   return result;
 }
 
-export function getTextWithEntitiesAsHtml(formattedText?: ApiFormattedText) {
-  const { text, entities } = formattedText || {};
-  if (!text) {
-    return '';
-  }
-
-  const result = renderTextWithEntities({
-    text,
-    entities,
-    shouldRenderAsHtml: true,
-  });
-
-  if (Array.isArray(result)) {
-    return result.join('');
-  }
-
-  return result;
-}
-
 function renderMessagePart({
   content,
   highlight,

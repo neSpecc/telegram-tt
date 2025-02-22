@@ -3,6 +3,7 @@ import '../../global/actions/all';
 import React, {
   beginHeavyAnimation,
   memo, useEffect, useLayoutEffect,
+  useMemo,
   useRef, useState,
 } from '../../lib/teact/teact';
 import { addExtraClass } from '../../lib/teact/teact-dom';
@@ -268,6 +269,7 @@ const Main = ({
   const leftColumnRef = useRef<HTMLDivElement>(null);
 
   const { isDesktop } = useAppLayout();
+
   useEffect(() => {
     if (!isLeftColumnOpen && !isMiddleColumnOpen && !isDesktop) {
       // Always display at least one column

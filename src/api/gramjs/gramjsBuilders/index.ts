@@ -354,10 +354,14 @@ export function buildMtpMessageEntity(entity: ApiMessageEntity): GramJs.TypeMess
     case ApiMessageEntityTypes.Hashtag:
       return new GramJs.MessageEntityHashtag({ offset, length });
     case ApiMessageEntityTypes.MentionName:
+      if (user === undefined) {
+        break;
+      }
+
       return new GramJs.InputMessageEntityMentionName({
         offset,
         length,
-        userId: new GramJs.InputUser({ userId: BigInt(user!.id), accessHash: user!.accessHash! }),
+        userId: new GramJs.InputUser({ userId: BigInt(user.id), accessHash: user.accessHash! }),
       });
     case ApiMessageEntityTypes.Spoiler:
       return new GramJs.MessageEntitySpoiler({ offset, length });
@@ -366,6 +370,8 @@ export function buildMtpMessageEntity(entity: ApiMessageEntity): GramJs.TypeMess
     default:
       return new GramJs.MessageEntityUnknown({ offset, length });
   }
+
+  return new GramJs.MessageEntityUnknown({ offset, length });
 }
 
 export function buildChatPhotoForLocalDb(photo: GramJs.TypePhoto) {

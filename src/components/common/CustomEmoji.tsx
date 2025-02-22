@@ -132,6 +132,7 @@ const CustomEmoji: FC<OwnProps> = ({
       data-document-id={documentId}
       data-alt={customEmoji?.emoji}
       style={style}
+      contentEditable={false}
     >
       {withSparkles && (
         <Sparkles

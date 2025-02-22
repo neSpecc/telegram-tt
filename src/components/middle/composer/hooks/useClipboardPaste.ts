@@ -8,10 +8,7 @@ import {
   EDITABLE_INPUT_ID, EDITABLE_INPUT_MODAL_ID, EDITABLE_STORY_INPUT_ID,
 } from '../../../../config';
 import { canReplaceMessageMedia, isUploadingFileSticker } from '../../../../global/helpers';
-import { containsCustomEmoji, stripCustomEmoji } from '../../../../global/helpers/symbols';
-import parseHtmlAsFormattedText from '../../../../util/parseHtmlAsFormattedText';
 import buildAttachment from '../helpers/buildAttachment';
-import { preparePastedHtml } from '../helpers/cleanHtml';
 import getFilesFromDataTransferItems from '../helpers/getFilesFromDataTransferItems';
 
 import useOldLang from '../../../../hooks/useOldLang';
@@ -23,14 +20,14 @@ const NAMESPACE_PREFIX_WORD = 'xmlns:w';
 const VALID_TARGET_IDS = new Set([EDITABLE_INPUT_ID, EDITABLE_INPUT_MODAL_ID, EDITABLE_STORY_INPUT_ID]);
 const CLOSEST_CONTENT_EDITABLE_SELECTOR = 'div[contenteditable]';
 
+/**
+ * This method now handles only file pasting and set attachments based on them
+ * Text pasting is handled by ast/input.ts in beforeInput event
+ */
 const useClipboardPaste = (
   isActive: boolean,
-  insertTextAndUpdateCursor: (text: ApiFormattedText, inputId?: string) => void,
   setAttachments: StateHookSetter<ApiAttachment[]>,
-  setNextText: StateHookSetter<ApiFormattedText | undefined>,
   editedMessage: ApiMessage | undefined,
-  shouldStripCustomEmoji?: boolean,
-  onCustomEmojiStripped?: VoidFunction,
 ) => {
   const { showNotification } = getActions();
   const lang = useOldLang();
@@ -50,23 +47,9 @@ const useClipboardPaste = (
         return;
       }
 
-      e.preventDefault();
-
       // Some extensions can trigger paste into their panels without focus
       if (document.activeElement !== input) {
         return;
-      }
-
-      const pastedText = e.clipboardData.getData('text');
-      const html = e.clipboardData.getData('text/html');
-
-      let pastedFormattedText = html ? parseHtmlAsFormattedText(
-        preparePastedHtml(html), undefined, true,
-      ) : undefined;
-
-      if (pastedFormattedText && containsCustomEmoji(pastedFormattedText) && shouldStripCustomEmoji) {
-        pastedFormattedText = stripCustomEmoji(pastedFormattedText);
-        onCustomEmojiStripped?.();
       }
 
       const { items } = e.clipboardData;
@@ -79,14 +62,13 @@ const useClipboardPaste = (
         }
       }
 
-      if (!files?.length && !pastedText) {
+      if (!files?.length) {
         return;
       }
 
-      const textToPaste = pastedFormattedText?.entities?.length ? pastedFormattedText : { text: pastedText };
-
       let isWordDocument = false;
       try {
+        const html = e.clipboardData.getData(TYPE_HTML);
         const parser = new DOMParser();
         const parsedDocument = parser.parseFromString(html, TYPE_HTML);
         isWordDocument = parsedDocument.documentElement
@@ -95,12 +77,11 @@ const useClipboardPaste = (
         // Ignore
       }
 
-      const hasText = textToPaste && textToPaste.text;
       let shouldSetAttachments = files?.length && !isWordDocument;
 
       const newAttachments = files ? await Promise.all(files.map((file) => buildAttachment(file.name, file))) : [];
       const canReplace = (editedMessage && newAttachments?.length
-        && canReplaceMessageMedia(editedMessage, newAttachments[0])) || Boolean(hasText);
+        && canReplaceMessageMedia(editedMessage, newAttachments[0]));
       const isUploadingDocumentSticker = isUploadingFileSticker(newAttachments[0]);
       const isInAlbum = editedMessage && editedMessage?.groupedId;
 
@@ -110,7 +91,7 @@ const useClipboardPaste = (
       }
 
       if (isInAlbum) {
-        shouldSetAttachments = canReplace;
+        shouldSetAttachments = canReplace === true;
         if (!shouldSetAttachments) {
           showNotification({ message: lang('lng_edit_media_album_error') });
           return;
@@ -120,14 +101,6 @@ const useClipboardPaste = (
       if (shouldSetAttachments) {
         setAttachments(editedMessage ? newAttachments : (attachments) => attachments.concat(newAttachments));
       }
-
-      if (hasText) {
-        if (shouldSetAttachments) {
-          setNextText(textToPaste);
-        } else {
-          insertTextAndUpdateCursor(textToPaste, input?.id);
-        }
-      }
     }
 
     document.addEventListener('paste', handlePaste, false);
@@ -136,8 +109,7 @@ const useClipboardPaste = (
       document.removeEventListener('paste', handlePaste, false);
     };
   }, [
-    insertTextAndUpdateCursor, editedMessage, setAttachments, isActive, shouldStripCustomEmoji,
-    onCustomEmojiStripped, setNextText, lang,
+    editedMessage, setAttachments, isActive, lang,
   ]);
 };
 

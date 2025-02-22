@@ -1,22 +1,20 @@
 import { useEffect, useState } from '../../../../lib/teact/teact';
 import { getGlobal } from '../../../../global';
 
-import type { ApiSticker } from '../../../../api/types';
 import type { EmojiData, EmojiModule, EmojiRawData } from '../../../../util/emoji/emoji';
 import type { Signal } from '../../../../util/signals';
+import {
+  type ApiFormattedText, type ApiMessageEntityCustomEmoji, ApiMessageEntityTypes, type ApiSticker,
+} from '../../../../api/types';
 
-import { EDITABLE_INPUT_CSS_SELECTOR, EDITABLE_INPUT_ID } from '../../../../config';
-import { requestNextMutation } from '../../../../lib/fasterdom/fasterdom';
 import { selectCustomEmojiForEmojis } from '../../../../global/selectors';
 import { uncompressEmoji } from '../../../../util/emoji/emoji';
-import focusEditableElement from '../../../../util/focusEditableElement';
 import {
   buildCollectionByKey, mapValues, pickTruthy, unique, uniqueByField,
 } from '../../../../util/iteratees';
 import { MEMO_EMPTY_ARRAY } from '../../../../util/memo';
 import memoized from '../../../../util/memoized';
 import renderText from '../../../common/helpers/renderText';
-import { buildCustomEmojiHtml } from '../helpers/customEmoji';
 import { prepareForRegExp } from '../helpers/prepareForRegExp';
 
 import { useThrottledResolver } from '../../../../hooks/useAsyncResolvers';
@@ -58,9 +56,8 @@ try {
 
 export default function useEmojiTooltip(
   isEnabled: boolean,
-  getHtml: Signal<string>,
-  setHtml: (html: string) => void,
-  inputId = EDITABLE_INPUT_ID,
+  getApiFormattedText: Signal<ApiFormattedText | undefined>,
+  setApiFormattedText: (formattedText: ApiFormattedText | undefined) => void,
   recentEmojiIds: string[],
   baseEmojiKeywords?: Record<string, string[]>,
   emojiKeywords?: Record<string, string[]>,
@@ -87,12 +84,14 @@ export default function useEmojiTooltip(
   }, [isEnabled]);
 
   const detectEmojiCodeThrottled = useThrottledResolver(() => {
-    const html = getHtml();
-    return isEnabled && html.includes(':') ? prepareForRegExp(html).match(RE_EMOJI_SEARCH)?.[0].trim() : undefined;
-  }, [getHtml, isEnabled], THROTTLE);
+    const message = getApiFormattedText();
+    const text = message?.text;
+
+    return isEnabled && text?.includes(':') ? prepareForRegExp(text).match(RE_EMOJI_SEARCH)?.[0].trim() : undefined;
+  }, [getApiFormattedText, isEnabled], THROTTLE);
 
   const getEmojiCode = useDerivedSignal(
-    detectEmojiCodeThrottled, [detectEmojiCodeThrottled, getHtml], true,
+    detectEmojiCodeThrottled, [detectEmojiCodeThrottled, getApiFormattedText], true,
   );
 
   const updateFiltered = useLastCallback((emojis: Emoji[]) => {
@@ -112,21 +111,45 @@ export default function useEmojiTooltip(
   });
 
   const insertEmoji = useLastCallback((emoji: string | ApiSticker, isForce = false) => {
-    const html = getHtml();
-    if (!html) return;
+    const message = getApiFormattedText();
+    const text = message?.text;
 
-    const atIndex = html.lastIndexOf(':', isForce ? html.lastIndexOf(':') - 1 : undefined);
+    if (!text) return;
+
+    const atIndex = text.lastIndexOf(':', isForce ? text.lastIndexOf(':') - 1 : undefined);
 
     if (atIndex !== -1) {
-      const emojiHtml = typeof emoji === 'string' ? renderText(emoji, ['emoji_html']) : buildCustomEmojiHtml(emoji);
-      setHtml(`${html.substring(0, atIndex)}${emojiHtml}`);
+      const isCustomEmoji = typeof emoji !== 'string';
+      const emojiString = isCustomEmoji ? emoji.emoji : emoji;
 
-      const messageInput = inputId === EDITABLE_INPUT_ID
-        ? document.querySelector<HTMLDivElement>(EDITABLE_INPUT_CSS_SELECTOR)!
-        : document.getElementById(inputId) as HTMLDivElement;
+      if (!emojiString) {
+        return;
+      }
 
-      requestNextMutation(() => {
-        focusEditableElement(messageInput, true, true);
+      const regularEmojiText = renderText(emojiString, ['emoji']);
+      const leftSlice = text.substring(0, atIndex);
+      const rightSlice = text.substring(atIndex + emojiString.length);
+
+      const newText = `${leftSlice}${regularEmojiText}${rightSlice}`;
+      let emojiEntity: ApiMessageEntityCustomEmoji | undefined;
+
+      if (isCustomEmoji) {
+        emojiEntity = {
+          type: ApiMessageEntityTypes.CustomEmoji,
+          offset: atIndex,
+          length: emojiString.length,
+          documentId: emoji.id,
+        };
+      }
+
+      const newEntities = message?.entities ? [...message.entities] : [];
+      if (emojiEntity) {
+        newEntities.push(emojiEntity);
+      }
+
+      setApiFormattedText({
+        text: newText,
+        entities: newEntities,
       });
     }
 
@@ -166,7 +189,7 @@ export default function useEmojiTooltip(
     baseEmojiKeywords, byId, getEmojiCode, emojiKeywords, insertEmoji, recentEmojiIds, updateFiltered,
   ]);
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getApiFormattedText]);
 
   return {
     isEmojiTooltipOpen: Boolean(filteredEmojis.length || filteredCustomEmojis.length) && !isManuallyClosed,

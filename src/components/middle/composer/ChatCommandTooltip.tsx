@@ -5,7 +5,7 @@ import React, {
 import { getActions, getGlobal } from '../../../global';
 
 import type {
-  ApiBotCommand, ApiMessage, ApiQuickReply, ApiUser,
+  ApiBotCommand, ApiFormattedText, ApiMessage, ApiQuickReply, ApiUser,
 } from '../../../api/types';
 import type { Signal } from '../../../util/signals';
 
@@ -29,7 +29,7 @@ export type OwnProps = {
   quickReplies?: ApiQuickReply[];
   quickReplyMessages?: Record<number, ApiMessage>;
   self: ApiUser;
-  getHtml: Signal<string>;
+  getApiFormattedText: Signal<ApiFormattedText | undefined>;
   onClick: NoneToVoidFunction;
   onClose: NoneToVoidFunction;
 };
@@ -48,7 +48,7 @@ const ChatCommandTooltip: FC<OwnProps> = ({
   quickReplies,
   quickReplyMessages,
   self,
-  getHtml,
+  getApiFormattedText,
   onClick,
   onClose,
 }) => {
@@ -87,7 +87,8 @@ const ChatCommandTooltip: FC<OwnProps> = ({
   }, [quickReplies, quickReplyMessages]);
 
   const handleKeyboardSelect = useLastCallback((item: ApiBotCommand | QuickReplyWithDescription) => {
-    if (!item.command.startsWith(getHtml().slice(1))) {
+    const { text } = getApiFormattedText() || { text: '' };
+    if (!item.command.startsWith(text.slice(1))) {
       return false;
     }
 

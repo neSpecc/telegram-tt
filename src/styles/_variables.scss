@@ -36,6 +36,7 @@ $color-light-coral: #d08a3133;
 
 $color-white: #ffffff;
 $color-black: #000000;
+$color-darkest-gray: #212121;
 $color-dark-gray: #2e3939;
 $color-gray: #c4c9cc;
 $color-text-secondary: #707579;
@@ -72,6 +73,7 @@ $color-message-story-mention-to: #74bcff;
   --color-background-secondary-accent: #e4e4e5;
   --color-background-own: #{$color-light-green};
   --color-background-own-selected: color.adjust($color-light-green, -10%);
+  --color-background-aside: #{$color-darkest-gray};
   --color-text: #{$color-black};
   --color-text-rgb: #{toRGB($color-black)};
   --color-text-lighter: #{$color-dark-gray};

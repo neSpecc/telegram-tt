@@ -1,7 +1,8 @@
 import { useEffect, useState } from '../../../../lib/teact/teact';
 
-import type { ApiBotCommand, ApiQuickReply } from '../../../../api/types';
+import type { ApiBotCommand, ApiFormattedText, ApiQuickReply } from '../../../../api/types';
 import type { Signal } from '../../../../util/signals';
+import type { TextEditorApi } from '../../../common/composer/TextEditorApi';
 
 import { prepareForRegExp } from '../helpers/prepareForRegExp';
 
@@ -15,7 +16,8 @@ const THROTTLE = 300;
 
 export default function useChatCommandTooltip(
   isEnabled: boolean,
-  getHtml: Signal<string>,
+  getApiFormattedText: Signal<ApiFormattedText | undefined>,
+  getEditorApi: () => TextEditorApi | undefined,
   botCommands?: ApiBotCommand[] | false,
   chatBotCommands?: ApiBotCommand[],
   quickReplies?: Record<number, ApiQuickReply>,
@@ -25,12 +27,20 @@ export default function useChatCommandTooltip(
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
 
   const detectCommandThrottled = useThrottledResolver(() => {
-    const html = getHtml();
-    return isEnabled && html.startsWith('/') ? prepareForRegExp(html).match(RE_COMMAND)?.[0].trim() : undefined;
-  }, [getHtml, isEnabled], THROTTLE);
+    const { text } = getApiFormattedText() || { text: '' };
+
+    const { node: currentNode } = getEditorApi()?.getCurrentNode() || { node: undefined };
+
+    // prevent triggering in pre, code
+    if (currentNode && 'value' in currentNode && currentNode.type !== 'text') {
+      return undefined;
+    }
+
+    return isEnabled && text.startsWith('/') ? prepareForRegExp(text).match(RE_COMMAND)?.[0].trim() : undefined;
+  }, [getApiFormattedText, isEnabled, getEditorApi], THROTTLE);
 
   const getCommand = useDerivedSignal(
-    detectCommandThrottled, [detectCommandThrottled, getHtml], true,
+    detectCommandThrottled, [detectCommandThrottled, getApiFormattedText], true,
   );
 
   useEffect(() => {
@@ -58,7 +68,7 @@ export default function useChatCommandTooltip(
     );
   }, [getCommand, botCommands, chatBotCommands, quickReplies]);
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getApiFormattedText]);
 
   return {
     isOpen: Boolean((filteredBotCommands?.length || filteredQuickReplies?.length) && !isManuallyClosed),

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
-import type { ApiDraft, ApiMessage } from '../../../../api/types';
+import type { ApiDraft, ApiFormattedText, ApiMessage } from '../../../../api/types';
 import type { ThreadId } from '../../../../types';
 import type { Signal } from '../../../../util/signals';
 import { ApiMessageEntityTypes } from '../../../../api/types';
@@ -10,8 +10,8 @@ import { DRAFT_DEBOUNCE } from '../../../../config';
 import {
   requestMeasure,
 } from '../../../../lib/fasterdom/fasterdom';
-import parseHtmlAsFormattedText from '../../../../util/parseHtmlAsFormattedText';
-import { getTextWithEntitiesAsHtml } from '../../../common/helpers/renderTextWithEntities';
+import { areMessagesEqual } from '../utils/areMessagesEqual';
+import { isMessageEmpty } from '../utils/isMessageEmpty';
 
 import useLastCallback from '../../../../hooks/useLastCallback';
 import useLayoutEffectWithPrevDeps from '../../../../hooks/useLayoutEffectWithPrevDeps';
@@ -34,16 +34,16 @@ const useDraft = ({
   draft,
   chatId,
   threadId,
-  getHtml,
-  setHtml,
+  getApiFormattedText,
+  setApiFormattedText,
   editedMessage,
   isDisabled,
 } : {
   draft?: ApiDraft;
   chatId: string;
   threadId: ThreadId;
-  getHtml: Signal<string>;
-  setHtml: (html: string) => void;
+  getApiFormattedText: Signal<ApiFormattedText | undefined>;
+  setApiFormattedText: (apiFormattedText: ApiFormattedText | undefined) => void;
   editedMessage?: ApiMessage;
   isDisabled?: boolean;
 }) => {
@@ -52,14 +52,15 @@ const useDraft = ({
   const isTouchedRef = useRef(false);
 
   useEffect(() => {
-    const html = getHtml();
+    const text = getApiFormattedText();
     const isLocalDraft = draft?.isLocal !== undefined;
-    if (getTextWithEntitiesAsHtml(draft?.text) === html && !isLocalDraft) {
+
+    if (areMessagesEqual(text, draft?.text) && !isLocalDraft) {
       isTouchedRef.current = false;
     } else {
       isTouchedRef.current = true;
     }
-  }, [draft, getHtml]);
+  }, [draft, getApiFormattedText]);
   useEffect(() => {
     isTouchedRef.current = false;
   }, [chatId, threadId]);
@@ -69,14 +70,14 @@ const useDraft = ({
   const updateDraft = useLastCallback((prevState: { chatId?: string; threadId?: ThreadId } = {}) => {
     if (isDisabled || isEditing || !isTouchedRef.current) return;
 
-    const html = getHtml();
+    const text = getApiFormattedText();
 
-    if (html) {
+    if (!isMessageEmpty(text)) {
       requestMeasure(() => {
         saveDraft({
           chatId: prevState.chatId ?? chatId,
           threadId: prevState.threadId ?? threadId,
-          text: parseHtmlAsFormattedText(html),
+          text,
         });
       });
     } else {
@@ -100,7 +101,7 @@ const useDraft = ({
     if (chatId === prevChatId && threadId === prevThreadId) {
       if (isTouched && !draft) return; // Prevent reset from other client if we have local edits
       if (!draft && prevDraft) {
-        setHtml('');
+        setApiFormattedText({ text: '', entities: [] });
       }
 
       if (isTouched) return;
@@ -110,13 +111,13 @@ const useDraft = ({
       return;
     }
 
-    setHtml(getTextWithEntitiesAsHtml(draft.text));
+    setApiFormattedText(draft.text);
 
     const customEmojiIds = draft.text?.entities
       ?.map((entity) => entity.type === ApiMessageEntityTypes.CustomEmoji && entity.documentId)
       .filter(Boolean) || [];
     if (customEmojiIds.length) loadCustomEmojis({ ids: customEmojiIds });
-  }, [chatId, threadId, draft, getHtml, setHtml, editedMessage, isDisabled]);
+  }, [chatId, threadId, draft, getApiFormattedText, setApiFormattedText, editedMessage, isDisabled]);
 
   // Save draft on chat change. Should be layout effect to read correct html on cleanup
   useLayoutEffect(() => {
@@ -140,7 +141,7 @@ const useDraft = ({
       return;
     }
 
-    if (!getHtml()) {
+    if (!isMessageEmpty(getApiFormattedText())) {
       updateDraft();
 
       return;
@@ -154,7 +155,7 @@ const useDraft = ({
         updateDraft();
       }
     });
-  }, [chatIdRef, getHtml, isDisabled, runDebouncedForSaveDraft, threadIdRef, updateDraft]);
+  }, [chatIdRef, getApiFormattedText, isDisabled, runDebouncedForSaveDraft, threadIdRef, updateDraft]);
 
   useBackgroundMode(updateDraft);
   useBeforeUnload(updateDraft);

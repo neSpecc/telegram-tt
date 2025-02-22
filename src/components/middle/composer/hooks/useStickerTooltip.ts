@@ -1,7 +1,7 @@
 import { useEffect } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
-import type { ApiSticker } from '../../../../api/types';
+import type { ApiFormattedText, ApiSticker } from '../../../../api/types';
 import type { Signal } from '../../../../util/signals';
 
 import { EMOJI_IMG_REGEX } from '../../../../config';
@@ -19,7 +19,7 @@ const STARTS_ENDS_ON_EMOJI_IMG_REGEX = new RegExp(`^${EMOJI_IMG_REGEX.source}$`,
 
 export default function useStickerTooltip(
   isEnabled: boolean,
-  getHtml: Signal<string>,
+  getApiFormattedText: Signal<ApiFormattedText | undefined>,
   stickers?: ApiSticker[],
 ) {
   const { loadStickersForEmoji, clearStickersForEmoji } = getActions();
@@ -27,22 +27,24 @@ export default function useStickerTooltip(
   const [isManuallyClosed, markManuallyClosed, unmarkManuallyClosed] = useFlag(false);
 
   const getSingleEmoji = useDerivedSignal(() => {
-    const html = getHtml();
-    if (!isEnabled || !html || (IS_EMOJI_SUPPORTED && html.length > MAX_LENGTH)) return undefined;
+    const message = getApiFormattedText();
+    const text = message?.text;
 
-    const hasEmoji = html.match(IS_EMOJI_SUPPORTED ? twemojiRegex : EMOJI_IMG_REGEX);
+    if (!isEnabled || !text || (IS_EMOJI_SUPPORTED && text.length > MAX_LENGTH)) return undefined;
+
+    const hasEmoji = text.match(IS_EMOJI_SUPPORTED ? twemojiRegex : EMOJI_IMG_REGEX);
     if (!hasEmoji) return undefined;
 
-    const cleanHtml = prepareForRegExp(html);
+    const cleanHtml = prepareForRegExp(text);
     const isSingleEmoji = cleanHtml && (
       (IS_EMOJI_SUPPORTED && parseEmojiOnlyString(cleanHtml) === 1)
-      || (!IS_EMOJI_SUPPORTED && Boolean(html.match(STARTS_ENDS_ON_EMOJI_IMG_REGEX)))
+      || (!IS_EMOJI_SUPPORTED && Boolean(text.match(STARTS_ENDS_ON_EMOJI_IMG_REGEX)))
     );
 
     return isSingleEmoji
       ? (IS_EMOJI_SUPPORTED ? cleanHtml : cleanHtml.match(/alt="(.+)"/)?.[1]!)
       : undefined;
-  }, [getHtml, isEnabled]);
+  }, [getApiFormattedText, isEnabled]);
 
   const isActive = useDerivedState(() => Boolean(getSingleEmoji()), [getSingleEmoji]);
   const hasStickers = Boolean(stickers?.length);
@@ -60,7 +62,7 @@ export default function useStickerTooltip(
     }
   }, [isEnabled, isActive, getSingleEmoji, hasStickers, loadStickersForEmoji, clearStickersForEmoji]);
 
-  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getHtml]);
+  useEffect(unmarkManuallyClosed, [unmarkManuallyClosed, getApiFormattedText]);
 
   return {
     isStickerTooltipOpen: Boolean(isActive && hasStickers && !isManuallyClosed),

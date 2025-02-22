@@ -1,42 +1,50 @@
-import type { ChangeEvent, RefObject } from 'react';
+import type { RefObject } from 'react';
 import type { FC } from '../../../lib/teact/teact';
 import React, {
   getIsHeavyAnimating,
-  memo, useEffect, useLayoutEffect,
-  useRef, useState,
+  memo,
+  useCallback,
+  useEffect, useLayoutEffect,
+  useRef, useSignal, useState,
 } from '../../../lib/teact/teact';
 import { getActions, withGlobal } from '../../../global';
 
-import type { ApiInputMessageReplyInfo } from '../../../api/types';
+import type { ApiFormattedText, ApiInputMessageReplyInfo } from '../../../api/types';
 import type { IAnchorPosition, ISettings, ThreadId } from '../../../types';
 import type { Signal } from '../../../util/signals';
+import type { ASTRootNode } from '../../common/composer/ast/entities/ASTNode';
+import type { TextEditorApi } from '../../common/composer/TextEditorApi';
 
 import { EDITABLE_INPUT_ID } from '../../../config';
 import { requestForcedReflow, requestMutation } from '../../../lib/fasterdom/fasterdom';
-import { selectCanPlayAnimatedEmojis, selectDraft, selectIsInSelectMode } from '../../../global/selectors';
+import { selectDraft, selectIsInSelectMode } from '../../../global/selectors';
 import buildClassName from '../../../util/buildClassName';
 import captureKeyboardListeners from '../../../util/captureKeyboardListeners';
 import { getIsDirectTextInputDisabled } from '../../../util/directInputManager';
 import parseEmojiOnlyString from '../../../util/emoji/parseEmojiOnlyString';
-import focusEditableElement from '../../../util/focusEditableElement';
 import { debounce } from '../../../util/schedulers';
 import {
-  IS_ANDROID, IS_EMOJI_SUPPORTED, IS_IOS, IS_TOUCH_ENV,
+  IS_ANDROID, IS_IOS, IS_TOUCH_ENV,
 } from '../../../util/windowEnvironment';
 import renderText from '../../common/helpers/renderText';
 import { isSelectionInsideInput } from './helpers/selection';
+import { areMessagesEqual } from './utils/areMessagesEqual';
+import { isMessageEmpty } from './utils/isMessageEmpty';
 
 import useAppLayout from '../../../hooks/useAppLayout';
 import useDerivedState from '../../../hooks/useDerivedState';
 import useFlag from '../../../hooks/useFlag';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
-import useInputCustomEmojis from './hooks/useInputCustomEmojis';
+import { useTextEditor } from '../../common/composer/hooks/useTextEditor';
 
+import RendererTeact from '../../common/composer/ast/RendererTeact';
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import TextTimer from '../../ui/TextTimer';
 import TextFormatter from './TextFormatter.async';
+
+import '../../common/composer/ComposerNew.scss';
 
 const CONTEXT_MENU_CLOSE_DELAY_MS = 100;
 // Focus slows down animation, also it breaks transition layout in Chrome
@@ -53,11 +61,9 @@ type OwnProps = {
   threadId: ThreadId;
   isAttachmentModalInput?: boolean;
   isStoryInput?: boolean;
-  customEmojiPrefix: string;
   editableInputId?: string;
-  isReady: boolean;
   isActive: boolean;
-  getHtml: Signal<string>;
+  getApiFormattedText: Signal<ApiFormattedText | undefined>;
   placeholder: string;
   timedPlaceholderLangKey?: string;
   timedPlaceholderDate?: number;
@@ -67,7 +73,7 @@ type OwnProps = {
   shouldSuppressFocus?: boolean;
   shouldSuppressTextFormatter?: boolean;
   canSendPlainText?: boolean;
-  onUpdate: (html: string) => void;
+  onUpdate: (apiFormattedText: ApiFormattedText) => void;
   onSuppressedFocus?: () => void;
   onSend: () => void;
   onScroll?: (event: React.UIEvent<HTMLElement>) => void;
@@ -75,13 +81,13 @@ type OwnProps = {
   onFocus?: NoneToVoidFunction;
   onBlur?: NoneToVoidFunction;
   isNeedPremium?: boolean;
+  setEditorApi: (editorApi: TextEditorApi) => void;
 };
 
 type StateProps = {
   replyInfo?: ApiInputMessageReplyInfo;
   isSelectModeActive?: boolean;
   messageSendKeyCombo?: ISettings['messageSendKeyCombo'];
-  canPlayAnimatedEmojis: boolean;
 };
 
 const MAX_ATTACHMENT_MODAL_INPUT_HEIGHT = 160;
@@ -90,24 +96,9 @@ const TAB_INDEX_PRIORITY_TIMEOUT = 2000;
 // Heuristics allowing the user to make a triple click
 const SELECTION_RECALCULATE_DELAY_MS = 260;
 const TEXT_FORMATTER_SAFE_AREA_PX = 140;
-// For some reason Safari inserts `<br>` after user removes text from input
-const SAFARI_BR = '<br>';
 const IGNORE_KEYS = [
   'Esc', 'Escape', 'Enter', 'PageUp', 'PageDown', 'Meta', 'Alt', 'Ctrl', 'ArrowDown', 'ArrowUp', 'Control', 'Shift',
 ];
-
-function clearSelection() {
-  const selection = window.getSelection();
-  if (!selection) {
-    return;
-  }
-
-  if (selection.removeAllRanges) {
-    selection.removeAllRanges();
-  } else if (selection.empty) {
-    selection.empty();
-  }
-}
 
 const MessageInput: FC<OwnProps & StateProps> = ({
   ref,
@@ -116,11 +107,9 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   captionLimit,
   isAttachmentModalInput,
   isStoryInput,
-  customEmojiPrefix,
   editableInputId,
-  isReady,
   isActive,
-  getHtml,
+  getApiFormattedText,
   placeholder,
   timedPlaceholderLangKey,
   timedPlaceholderDate,
@@ -132,7 +121,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   shouldSuppressTextFormatter,
   replyInfo,
   isSelectModeActive,
-  canPlayAnimatedEmojis,
   messageSendKeyCombo,
   onUpdate,
   onSuppressedFocus,
@@ -141,6 +129,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   onFocus,
   onBlur,
   isNeedPremium,
+  setEditorApi,
 }) => {
   const {
     editLastMessage,
@@ -155,18 +144,14 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     inputRef = ref;
   }
 
+  const [isMounted, setIsMounted] = useState(false);
+
   // eslint-disable-next-line no-null/no-null
   const selectionTimeoutRef = useRef<number>(null);
   // eslint-disable-next-line no-null/no-null
   const cloneRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line no-null/no-null
   const scrollerCloneRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line no-null/no-null
-  const sharedCanvasRef = useRef<HTMLCanvasElement>(null);
-  // eslint-disable-next-line no-null/no-null
-  const sharedCanvasHqRef = useRef<HTMLCanvasElement>(null);
-  // eslint-disable-next-line no-null/no-null
-  const absoluteContainerRef = useRef<HTMLDivElement>(null);
 
   const lang = useOldLang();
   const isContextMenuOpenRef = useRef(false);
@@ -174,10 +159,14 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const [textFormatterAnchorPosition, setTextFormatterAnchorPosition] = useState<IAnchorPosition>();
   const [selectedRange, setSelectedRange] = useState<Range>();
   const [isTextFormatterDisabled, setIsTextFormatterDisabled] = useState<boolean>(false);
+
   const { isMobile } = useAppLayout();
   const isMobileDevice = isMobile && (IS_IOS || IS_ANDROID);
 
   const [shouldDisplayTimer, setShouldDisplayTimer] = useState(false);
+
+  // Add ref for Input API
+  const editorApiRef = useRef<TextEditorApi | undefined>(undefined);
 
   useEffect(() => {
     setShouldDisplayTimer(Boolean(timedPlaceholderLangKey && timedPlaceholderDate));
@@ -186,18 +175,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   const handleTimerEnd = useLastCallback(() => {
     setShouldDisplayTimer(false);
   });
-
-  useInputCustomEmojis(
-    getHtml,
-    inputRef,
-    sharedCanvasRef,
-    sharedCanvasHqRef,
-    absoluteContainerRef,
-    customEmojiPrefix,
-    canPlayAnimatedEmojis,
-    isReady,
-    isActive,
-  );
 
   const maxInputHeight = isAttachmentModalInput
     ? MAX_ATTACHMENT_MODAL_INPUT_HEIGHT
@@ -220,6 +197,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         const transitionDuration = Math.round(
           TRANSITION_DURATION_FACTOR * Math.log(Math.abs(newHeight - currentHeight)),
         );
+
         scroller.style.height = `${newHeight}px`;
         scroller.style.transitionDuration = `${transitionDuration}ms`;
         scroller.classList.toggle('overflown', isOverflown);
@@ -240,27 +218,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     updateInputHeight(false);
   }, [isAttachmentModalInput, updateInputHeight]);
 
-  const htmlRef = useRef(getHtml());
-  useLayoutEffect(() => {
-    const html = isActive ? getHtml() : '';
-
-    if (html !== inputRef.current!.innerHTML) {
-      inputRef.current!.innerHTML = html;
-    }
-
-    if (html !== cloneRef.current!.innerHTML) {
-      cloneRef.current!.innerHTML = html;
-    }
-
-    if (html !== htmlRef.current) {
-      htmlRef.current = html;
-
-      updateInputHeight(!html);
-    }
-  }, [getHtml, isActive, updateInputHeight]);
-
-  const chatIdRef = useRef(chatId);
-  chatIdRef.current = chatId;
   const focusInput = useLastCallback(() => {
     if (!inputRef.current || isNeedPremium) {
       return;
@@ -271,12 +228,34 @@ const MessageInput: FC<OwnProps & StateProps> = ({
       return;
     }
 
-    focusEditableElement(inputRef.current!);
+    editorApiRef.current?.focus();
   });
+
+  const messageRef = useRef<ApiFormattedText | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const message = getApiFormattedText();
+    if (areMessagesEqual(message, messageRef.current)) {
+      return;
+    }
+
+    if (!editorApiRef.current) {
+      return;
+    }
+
+    editorApiRef.current.setContent(message);
+
+    messageRef.current = message;
+
+    updateInputHeight(!message);
+  }, [getApiFormattedText, updateInputHeight, isMounted]);
+
+  const chatIdRef = useRef(chatId);
+  chatIdRef.current = chatId;
 
   const handleCloseTextFormatter = useLastCallback(() => {
     closeTextFormatter();
-    clearSelection();
+    // window.getSelection()?.removeAllRanges();
   });
 
   function checkSelection() {
@@ -383,8 +362,10 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     // https://levelup.gitconnected.com/javascript-events-handlers-keyboard-and-load-events-1b3e46a6b0c3#1960
     const { isComposing } = e;
 
-    const html = getHtml();
-    if (!isComposing && !html && (e.metaKey || e.ctrlKey)) {
+    const message = getApiFormattedText();
+    const messageIsEmpty = isMessageEmpty(message);
+
+    if (!isComposing && messageIsEmpty && (e.metaKey || e.ctrlKey)) {
       const targetIndexDelta = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : undefined;
       if (targetIndexDelta) {
         e.preventDefault();
@@ -407,33 +388,11 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         closeTextFormatter();
         onSend();
       }
-    } else if (!isComposing && e.key === 'ArrowUp' && !html && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    } else if (!isComposing && e.key === 'ArrowUp' && messageIsEmpty && !e.metaKey && !e.ctrlKey && !e.altKey) {
       e.preventDefault();
       editLastMessage();
     } else {
       e.target.addEventListener('keyup', processSelectionWithTimeout, { once: true });
-    }
-  }
-
-  function handleChange(e: ChangeEvent<HTMLDivElement>) {
-    const { innerHTML, textContent } = e.currentTarget;
-
-    onUpdate(innerHTML === SAFARI_BR ? '' : innerHTML);
-
-    // Reset focus on the input to remove any active styling when input is cleared
-    if (
-      !IS_TOUCH_ENV
-      && (!textContent || !textContent.length)
-      // When emojis are not supported, innerHTML contains an emoji img tag that doesn't exist in the textContext
-      && !(!IS_EMOJI_SUPPORTED && innerHTML.includes('emoji-small'))
-      && !(innerHTML.includes('custom-emoji'))
-    ) {
-      const selection = window.getSelection()!;
-      if (selection) {
-        inputRef.current!.blur();
-        selection.removeAllRanges();
-        focusEditableElement(inputRef.current!, true);
-      }
     }
   }
 
@@ -457,6 +416,8 @@ const MessageInput: FC<OwnProps & StateProps> = ({
   function handleClick() {
     if (isAttachmentModalInput || canSendPlainText || (isStoryInput && isNeedPremium)) return;
     showAllowedMessageTypesNotification({ chatId });
+
+    focusInput();
   }
 
   const handleOpenPremiumModal = useLastCallback(() => openPremiumModal());
@@ -511,7 +472,7 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         && target.tagName !== 'TEXTAREA'
         && !target.isContentEditable
       ) {
-        focusEditableElement(input, true, true);
+        editorApiRef.current?.focus();
 
         const newEvent = new KeyboardEvent(e.type, e as any);
         input.dispatchEvent(newEvent);
@@ -552,20 +513,66 @@ const MessageInput: FC<OwnProps & StateProps> = ({
     };
   }, [shouldSuppressFocus]);
 
-  const isTouched = useDerivedState(() => Boolean(isActive && getHtml()), [isActive, getHtml]);
+  const isTouched = useDerivedState(
+    () => Boolean(isActive && !isMessageEmpty(getApiFormattedText())),
+    [isActive, getApiFormattedText],
+  );
 
   const className = buildClassName(
-    'form-control allow-selection',
+    'text-editor form-control allow-selection',
     isTouched && 'touched',
     shouldSuppressFocus && 'focus-disabled',
   );
 
   const inputScrollerContentClass = buildClassName('input-scroller-content', isNeedPremium && 'is-need-premium');
 
+  const [getAst, setAst] = useSignal<ASTRootNode | undefined>(undefined);
+  const [getAstLastModified, setAstLastModified] = useSignal<number | undefined>(undefined);
+  const [getHtmlOffset, setHtmlOffset] = useSignal<number | undefined>(undefined);
+
+  const updateCallback = useLastCallback((apiFormattedText: ApiFormattedText, ast: ASTRootNode, htmlOffset: number) => {
+    messageRef.current = apiFormattedText;
+
+    onUpdate(apiFormattedText);
+    setAst(ast);
+    setAstLastModified(ast.lastModified);
+    setHtmlOffset(htmlOffset);
+  });
+
+  const onAfterUpdate = useCallback(() => {
+    cloneRef.current!.innerHTML = inputRef.current!.innerHTML;
+    updateInputHeight(!inputRef.current!.innerHTML);
+
+    const htmlOffset = getHtmlOffset();
+
+    if (htmlOffset !== undefined && editorApiRef.current) {
+      editorApiRef.current.setCaretOffset(htmlOffset);
+    }
+  }, [getHtmlOffset]);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      editorApiRef.current = useTextEditor({
+        input: inputRef.current,
+        onUpdate: updateCallback,
+      });
+
+      setEditorApi(editorApiRef.current);
+      setIsMounted(true);
+    }
+  }, [editableInputId, setEditorApi]);
+
   return (
     <div id={id} onClick={shouldSuppressFocus ? onSuppressedFocus : undefined} dir={lang.isRtl ? 'rtl' : undefined}>
       <div
-        className={buildClassName('custom-scroll', SCROLLER_CLASS, isNeedPremium && 'is-need-premium')}
+        className={buildClassName(
+          'ComposerNew',
+          'MessageInputCombinedEditor',
+          'custom-scroll',
+          SCROLLER_CLASS,
+          isNeedPremium && 'is-need-premium',
+        )}
         onScroll={onScroll}
         onClick={!isAttachmentModalInput && !canSendPlainText ? handleClick : undefined}
       >
@@ -577,17 +584,23 @@ const MessageInput: FC<OwnProps & StateProps> = ({
             contentEditable={isAttachmentModalInput || canSendPlainText}
             role="textbox"
             dir="auto"
+            aria-label={placeholder}
             tabIndex={0}
-            onClick={focusInput}
-            onChange={handleChange}
             onKeyDown={handleKeyDown}
             onMouseDown={handleMouseDown}
             onContextMenu={IS_ANDROID ? handleAndroidContextMenu : undefined}
             onTouchCancel={IS_ANDROID ? processSelectionWithTimeout : undefined}
-            aria-label={placeholder}
             onFocus={!isNeedPremium ? onFocus : undefined}
             onBlur={!isNeedPremium ? onBlur : undefined}
-          />
+          >
+            {isActive && (
+              <RendererTeact
+                getAst={getAst}
+                getAstLastModified={getAstLastModified}
+                onAfterUpdate={onAfterUpdate}
+              />
+            )}
+          </div>
           {!forcedPlaceholder && (
             <span
               className={buildClassName(
@@ -609,9 +622,6 @@ const MessageInput: FC<OwnProps & StateProps> = ({
               )}
             </span>
           )}
-          <canvas ref={sharedCanvasRef} className="shared-canvas" />
-          <canvas ref={sharedCanvasHqRef} className="shared-canvas" />
-          <div ref={absoluteContainerRef} className="absolute-video-container" />
         </div>
       </div>
       <div
@@ -634,8 +644,8 @@ const MessageInput: FC<OwnProps & StateProps> = ({
         isOpen={isTextFormatterOpen}
         anchorPosition={textFormatterAnchorPosition}
         selectedRange={selectedRange}
-        setSelectedRange={setSelectedRange}
         onClose={handleCloseTextFormatter}
+        editorApi={editorApiRef}
       />
       {forcedPlaceholder && <span className="forced-placeholder">{renderText(forcedPlaceholder!)}</span>}
     </div>
@@ -650,7 +660,6 @@ export default memo(withGlobal<OwnProps>(
       messageSendKeyCombo,
       replyInfo: chatId && threadId ? selectDraft(global, chatId, threadId)?.replyInfo : undefined,
       isSelectModeActive: selectIsInSelectMode(global),
-      canPlayAnimatedEmojis: selectCanPlayAnimatedEmojis(global),
     };
   },
 )(MessageInput));

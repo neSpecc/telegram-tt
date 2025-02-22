@@ -12,8 +12,9 @@
   }
 
   @media (min-width: 926px) {
+    --left-vertical-chat-folders-width: 80px;
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: var(--left-vertical-chat-folders-width) auto 1fr;
     grid-template-rows: 100%;
   }
 }

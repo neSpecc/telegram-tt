@@ -3,6 +3,7 @@ import React, { memo, useRef, useState } from '../../../lib/teact/teact';
 import { getActions } from '../../../global';
 
 import type { ApiSticker, ApiVideo } from '../../../api/types';
+import type { MenuPositionOptions } from '../../../hooks/useMenuPosition';
 import type { IAnchorPosition, ThreadId } from '../../../types';
 
 import { EDITABLE_INPUT_CSS_SELECTOR, EDITABLE_INPUT_MODAL_CSS_SELECTOR } from '../../../config';
@@ -11,10 +12,12 @@ import buildClassName from '../../../util/buildClassName';
 import useFlag from '../../../hooks/useFlag';
 import useLastCallback from '../../../hooks/useLastCallback';
 
+import CustomEmoji from '../../common/CustomEmoji';
 import Icon from '../../common/icons/Icon';
 import Button from '../../ui/Button';
 import ResponsiveHoverButton from '../../ui/ResponsiveHoverButton';
 import Spinner from '../../ui/Spinner';
+import Transition from '../../ui/Transition';
 import SymbolMenu from './SymbolMenu.async';
 
 const MOBILE_KEYBOARD_HIDE_DELAY_MS = 100;
@@ -50,6 +53,10 @@ type OwnProps = {
   canSendPlainText?: boolean;
   className?: string;
   inputCssSelector?: string;
+  positionOptions?: MenuPositionOptions;
+  getTriggerElement?: () => HTMLElement | null;
+  getRootElement?: () => HTMLElement | null;
+  customEmojiToggler?: ApiSticker | undefined;
 };
 
 const SymbolMenuButton: FC<OwnProps> = ({
@@ -77,6 +84,10 @@ const SymbolMenuButton: FC<OwnProps> = ({
   onEmojiSelect,
   closeBotCommandMenu,
   closeSendAsMenu,
+  positionOptions,
+  getTriggerElement,
+  getRootElement,
+  customEmojiToggler,
 }) => {
   const {
     setStickerSearchQuery,
@@ -106,6 +117,7 @@ const SymbolMenuButton: FC<OwnProps> = ({
     const triggerEl = triggerRef.current;
     if (!triggerEl) return;
     const { x, y } = triggerEl.getBoundingClientRect();
+
     setContextMenuAnchor({ x, y });
   });
 
@@ -136,8 +148,10 @@ const SymbolMenuButton: FC<OwnProps> = ({
     }, MOBILE_KEYBOARD_HIDE_DELAY_MS);
   });
 
-  const getTriggerElement = useLastCallback(() => triggerRef.current);
-  const getRootElement = useLastCallback(() => triggerRef.current?.closest('.custom-scroll, .no-scrollbar'));
+  const defaultTriggerElement = useLastCallback(() => triggerRef.current);
+  const getFinalTriggerElement = getTriggerElement || defaultTriggerElement;
+  const defaultRootElement = useLastCallback(() => triggerRef.current?.closest('.custom-scroll, .no-scrollbar'));
+  const getFinalRootElement = getRootElement || defaultRootElement;
   const getMenuElement = useLastCallback(() => document.querySelector('#portals .SymbolMenu .bubble'));
   const getLayout = useLastCallback(() => ({ withPortal: true }));
 
@@ -164,7 +178,24 @@ const SymbolMenuButton: FC<OwnProps> = ({
           ariaLabel="Choose emoji, sticker or GIF"
         >
           <div ref={triggerRef} className="symbol-menu-trigger" />
-          <Icon name="smile" />
+          { customEmojiToggler ? (
+            <Transition
+              name="slideVertical"
+              activeKey={customEmojiToggler ? Number(customEmojiToggler.id) : 0}
+            >
+              {customEmojiToggler ? (
+                <CustomEmoji
+                  documentId={customEmojiToggler.id}
+                  size={28}
+                  className="symbol-menu-trigger-emoji"
+                />
+              ) : (
+                <Icon name="smile" />
+              )}
+            </Transition>
+          ) : (
+            <Icon name="smile" />
+          )}
         </ResponsiveHoverButton>
       )}
 
@@ -190,10 +221,12 @@ const SymbolMenuButton: FC<OwnProps> = ({
         canSendPlainText={canSendPlainText}
         className={buildClassName(className, forceDarkTheme && 'component-theme-dark')}
         anchor={isAttachmentModal ? contextMenuAnchor : undefined}
-        getTriggerElement={isAttachmentModal ? getTriggerElement : undefined}
-        getRootElement={isAttachmentModal ? getRootElement : undefined}
+        getTriggerElement={isAttachmentModal ? getFinalTriggerElement : undefined}
+        getRootElement={isAttachmentModal ? getFinalRootElement : undefined}
         getMenuElement={isAttachmentModal ? getMenuElement : undefined}
         getLayout={isAttachmentModal ? getLayout : undefined}
+        // eslint-disable-next-line react/jsx-props-no-spreading
+        {...(positionOptions !== undefined ? (positionOptions) : {})}
       />
     </>
   );

@@ -103,6 +103,18 @@
   }
 }
 
+.input-formatted {
+  padding-inline-end: 0.5rem;
+
+  .ComposerNew {
+    z-index: 1;
+
+    .paragraph {
+      white-space: nowrap;
+    }
+  }
+}
+
 .form-control {
   --border-width: 1px;
   display: block;
@@ -120,6 +132,10 @@
 
   font-size: 1rem;
   line-height: 1.25rem;
+
+  &.form-control-with-emoji {
+    padding-inline-end: 0.5rem;
+  }
 
   &[dir] {
     text-align: initial;

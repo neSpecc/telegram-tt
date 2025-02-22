@@ -21,9 +21,14 @@ export const ENTITY_CLASS_BY_NODE_NAME: Record<string, ApiMessageEntityTypes> = 
 
 const MAX_TAG_DEEPNESS = 3;
 
+/**
+ * @deprecated
+ */
 export default function parseHtmlAsFormattedText(
   html: string, withMarkdownLinks = false, skipMarkdown = false,
 ): ApiFormattedText {
+  console.warn(' --> parseHtmlAsFormattedText — GET RID OF ME');
+
   const fragment = document.createElement('div');
   fragment.innerHTML = skipMarkdown ? html
     : withMarkdownLinks ? parseMarkdown(parseMarkdownLinks(html)) : parseMarkdown(html);

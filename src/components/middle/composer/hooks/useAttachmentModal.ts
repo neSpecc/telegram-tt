@@ -1,7 +1,7 @@
 import { useState } from '../../../../lib/teact/teact';
 import { getActions } from '../../../../global';
 
-import type { ApiAttachment, ApiMessage } from '../../../../api/types';
+import type { ApiAttachment, ApiFormattedText, ApiMessage } from '../../../../api/types';
 
 import { canReplaceMessageMedia, getAttachmentMediaType } from '../../../../global/helpers';
 import { MEMO_EMPTY_ARRAY } from '../../../../util/memo';
@@ -13,26 +13,24 @@ import useOldLang from '../../../../hooks/useOldLang';
 export default function useAttachmentModal({
   attachments,
   fileSizeLimit,
-  setHtml,
+  setApiFormattedText,
   setAttachments,
   chatId,
   canSendAudios,
   canSendVideos,
   canSendPhotos,
   canSendDocuments,
-  insertNextText,
   editedMessage,
 }: {
   attachments: ApiAttachment[];
   fileSizeLimit: number;
-  setHtml: (html: string) => void;
+  setApiFormattedText: (apiFormattedText: ApiFormattedText) => void;
   setAttachments: (attachments: ApiAttachment[]) => void;
   chatId: string;
   canSendAudios?: boolean;
   canSendVideos?: boolean;
   canSendPhotos?: boolean;
   canSendDocuments?: boolean;
-  insertNextText: VoidFunction;
   editedMessage: ApiMessage | undefined;
 }) {
   const lang = useOldLang();
@@ -43,7 +41,6 @@ export default function useAttachmentModal({
 
   const handleClearAttachments = useLastCallback(() => {
     setAttachments(MEMO_EMPTY_ARRAY);
-    insertNextText();
   });
 
   const handleSetAttachments = useLastCallback(
@@ -126,11 +123,19 @@ export default function useAttachmentModal({
     setShouldSuggestCompression(suggestCompression);
   });
 
+  const onCaptionUpdate = useLastCallback((apiFormattedText: ApiFormattedText | undefined) => {
+    if (!apiFormattedText) {
+      return;
+    }
+
+    setApiFormattedText(apiFormattedText);
+  });
+
   return {
     shouldSuggestCompression,
     handleAppendFiles,
     handleFileSelect,
-    onCaptionUpdate: setHtml,
+    onCaptionUpdate,
     handleClearAttachments,
     handleSetAttachments,
     shouldForceCompression,

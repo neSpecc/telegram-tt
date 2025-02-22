@@ -4,7 +4,7 @@ import React, {
 } from '../../../../lib/teact/teact';
 import { getActions, getGlobal, withGlobal } from '../../../../global';
 
-import type { ApiChatlistExportedInvite } from '../../../../api/types';
+import type { ApiChatlistExportedInvite, ApiFormattedText } from '../../../../api/types';
 import type {
   FolderEditDispatch,
   FoldersState,
@@ -28,7 +28,7 @@ import GroupChatInfo from '../../../common/GroupChatInfo';
 import Icon from '../../../common/icons/Icon';
 import PrivateChatInfo from '../../../common/PrivateChatInfo';
 import FloatingActionButton from '../../../ui/FloatingActionButton';
-import InputText from '../../../ui/InputText';
+import InputFormatted from '../../../ui/InputFormatted';
 import ListItem from '../../../ui/ListItem';
 import Spinner from '../../../ui/Spinner';
 
@@ -151,9 +151,10 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
     onBack,
   });
 
-  const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const { currentTarget } = event;
-    dispatch({ type: 'setTitle', payload: currentTarget.value.trim() });
+  const handleChange = useCallback((textFormatted: ApiFormattedText) => {
+    if (textFormatted.text.length > 0) {
+      dispatch({ type: 'setTitle', payload: textFormatted });
+    }
   }, [dispatch]);
 
   const handleSubmit = useCallback(() => {
@@ -296,12 +297,19 @@ const SettingsFoldersEdit: FC<OwnProps & StateProps> = ({
             </p>
           )}
 
-          <InputText
+          <InputFormatted
             className="mb-0"
-            label={lang('FilterNameHint')}
-            value={state.folder.title.text}
             onChange={handleChange}
+            value={state.folder.title}
+            canSendSymbols
+            label={lang('FilterNameHint')}
             error={state.error && state.error === ERROR_NO_TITLE ? ERROR_NO_TITLE : undefined}
+            customEmojiMenuPosition={{
+              anchor: {
+                x: 300,
+                y: 222,
+              },
+            }}
           />
         </div>
 

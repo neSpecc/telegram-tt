@@ -640,6 +640,9 @@ function setElementRef($element: VirtualElementTag, element: DOMElement | undefi
   }
 }
 
+/**
+ * @deprecated
+ */
 function processControlled(tag: string, props: AnyLiteral) {
   // TODO Remove after tests
   if (!props.teactExperimentControlled) {

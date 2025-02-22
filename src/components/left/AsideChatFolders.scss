@@ -1,0 +1,90 @@
+@use "../../styles/mixins";
+
+
+.AsideChatFolders {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5625rem;
+  background-color: var(--color-background-aside);
+  width: 80px;
+  border-right: 1px solid var(--color-borders);
+
+  .folder-items {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .folder-item {
+    --background-color: transparent;
+    --background-color-hover: rgb(44, 44, 44);
+    --custom-emoji-size: 32px;
+
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 0.2rem;
+    cursor: pointer;
+    border-radius: 0.5rem;
+    transition: background-color 0.15s ease;
+    font-size: 0.64375rem;
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+    text-align: center;
+    line-height: 1.25;
+    background-color: var(--background-color);
+
+
+    &:hover {
+      --background-color: var(--background-color-hover);
+    }
+
+    &.active {
+      color: var(--color-primary);
+    }
+
+    .folder-item-icon {
+      flex-shrink: 0;
+      font-size: 2rem;
+      margin-bottom: 3px;
+
+      &.custom-emoji {
+        width: var(--custom-emoji-size);
+        height: var(--custom-emoji-size);
+      }
+    }
+
+    .badge {
+      position: absolute;
+      top: 0.6rem;
+      right: 0.5rem;
+      min-width: 1.125rem;
+      font-weight: var(--font-weight-semibold);
+      height: 1.125rem;
+      margin-top: 0.25rem;
+      padding: 0 0.375rem;
+      border-radius: 0.75rem;
+      background-color: var(--color-primary);
+      color: white;
+      font-size: 0.75rem;
+      line-height: 1.125rem;
+      text-align: center;
+      box-shadow: 0 0 0 1px var(--color-background-aside);
+    }
+  }
+
+  .main-menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .animated-menu-icon {
+    @include mixins.animated-menu-icon();
+  }
+}
+
+.theme-dark {
+  .AsideChatFolders {
+    background-color: var(--color-background-secondary);
+  }
+}
