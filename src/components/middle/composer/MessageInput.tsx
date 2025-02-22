@@ -36,7 +36,7 @@ import useDerivedState from '../../../hooks/useDerivedState';
 import useFlag from '../../../hooks/useFlag';
 import useLastCallback from '../../../hooks/useLastCallback';
 import useOldLang from '../../../hooks/useOldLang';
-import { TextEditorRenderingMode, useTextEditor } from '../../common/composer/hooks/useTextEditor';
+import { useTextEditor } from '../../common/composer/hooks/useTextEditor';
 
 import RendererTeact from '../../common/composer/ast/RendererTeact';
 import Icon from '../../common/icons/Icon';

@@ -70,8 +70,6 @@ const RendererTeact: FC<TeactRendererProps> = ({
         && selectionRect.width === 0
         && selectionRect.height === 0
       ) {
-        console.warn('PRE WORKAROUND');
-
         requestAnimationFrame(() => {
           onAfterUpdate();
         });
