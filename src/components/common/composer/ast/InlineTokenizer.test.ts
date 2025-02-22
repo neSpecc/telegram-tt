@@ -1,8 +1,16 @@
 import type { InlineToken } from './entities/Token';
+
 import { InlineTokenizer } from './InlineTokenizer';
 
 describe('inlineTokenizer', () => {
-  const tokenize = (input: string, isPlainText = false) => new InlineTokenizer(input).tokenize(isPlainText);
+  const tokenize = (
+    input: string,
+    isPlainText = false,
+    tokenizeLineBreaks = false,
+  ) => new InlineTokenizer(input).tokenize({
+    isPlainText,
+    tokenizeLineBreaks,
+  });
 
   it('should handle empty string', () => {
     const input = '';
@@ -72,6 +80,17 @@ describe('inlineTokenizer', () => {
         { type: 'monospace', value: 'code1', raw: '`code1`' },
         { type: 'text', value: ' text ', raw: ' text ' },
         { type: 'monospace', value: 'code2', raw: '`code2`' },
+      ]);
+    });
+
+    it('should not parse monospace if it contains custom emoji', () => {
+      const input = '`[😀](doc:123)`';
+      expect(tokenize(input)).toEqual([
+        { type: 'text', value: '`', raw: '`' },
+        {
+          type: 'customEmoji', raw: '[😀](doc:123)', documentId: '123', value: '😀',
+        },
+        { type: 'text', value: '`', raw: '`' },
       ]);
     });
   });
@@ -185,7 +204,9 @@ describe('inlineTokenizer', () => {
       const input = 'Hello [user](id:123)!';
       expect(tokenize(input)).toEqual([
         { type: 'text', value: 'Hello ', raw: 'Hello ' },
-        { type: 'mention', raw: '[user](id:123)', userId: '123', value: 'user' },
+        {
+          type: 'mention', raw: '[user](id:123)', userId: '123', value: 'user',
+        },
         { type: 'text', value: '!', raw: '!' },
       ]);
     });
@@ -209,9 +230,13 @@ describe('inlineTokenizer', () => {
     it('should parse multiple mentions', () => {
       const input = '[user1](id:123) and [user2](id:456)';
       expect(tokenize(input)).toEqual([
-        { type: 'mention', raw: '[user1](id:123)', userId: '123', value: 'user1' },
+        {
+          type: 'mention', raw: '[user1](id:123)', userId: '123', value: 'user1',
+        },
         { type: 'text', value: ' and ', raw: ' and ' },
-        { type: 'mention', raw: '[user2](id:456)', userId: '456', value: 'user2' },
+        {
+          type: 'mention', raw: '[user2](id:456)', userId: '456', value: 'user2',
+        },
       ]);
     });
 
@@ -220,7 +245,9 @@ describe('inlineTokenizer', () => {
       expect(tokenize(input)).toEqual([
         { type: 'bold', raw: '**' },
         { type: 'text', value: 'Hello ', raw: 'Hello ' },
-        { type: 'mention', raw: '[user](id:123)', userId: '123', value: 'user' },
+        {
+          type: 'mention', raw: '[user](id:123)', userId: '123', value: 'user',
+        },
         { type: 'text', value: '!', raw: '!' },
         { type: 'bold', raw: '**' },
       ]);
@@ -231,7 +258,9 @@ describe('inlineTokenizer', () => {
 
       expect(tokenize(input)).toEqual([
         { type: 'text', value: 'Hello ', raw: 'Hello ' },
-        { type: 'mention', raw: '[**user**](id:123)', userId: '123', value: '**user**' },
+        {
+          type: 'mention', raw: '[**user**](id:123)', userId: '123', value: '**user**',
+        },
       ]);
     });
 
@@ -286,7 +315,11 @@ describe('inlineTokenizer', () => {
     it('should parse links with special characters in URL', () => {
       const input = '[Link](https://example.com/path?param=value#hash)';
       expect(tokenize(input)).toEqual([
-        { type: 'link', value: 'https://example.com/path?param=value#hash', raw: '[Link](https://example.com/path?param=value#hash)' },
+        {
+          type: 'link',
+          value: 'https://example.com/path?param=value#hash',
+          raw: '[Link](https://example.com/path?param=value#hash)',
+        },
         { type: 'text', value: 'Link', raw: 'Link' },
         { type: 'link-close', raw: '' },
       ]);
@@ -436,7 +469,9 @@ describe('inlineTokenizer', () => {
       const input = 'Hello [😀](doc:5062301574668222465) world';
       expect(tokenize(input)).toEqual([
         { type: 'text', value: 'Hello ', raw: 'Hello ' },
-        { type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀' },
+        {
+          type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀',
+        },
         { type: 'text', value: ' world', raw: ' world' },
       ]);
     });
@@ -451,8 +486,12 @@ describe('inlineTokenizer', () => {
     it('should parse multiple mentions', () => {
       const input = '[😀](doc:5062301574668222465)[☺️](doc:5062301574668333789)';
       expect(tokenize(input)).toEqual([
-        { type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀' },
-        { type: 'customEmoji', raw: '[☺️](doc:5062301574668333789)', documentId: '5062301574668333789', value: '☺️' },
+        {
+          type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀',
+        },
+        {
+          type: 'customEmoji', raw: '[☺️](doc:5062301574668333789)', documentId: '5062301574668333789', value: '☺️',
+        },
       ]);
     });
 
@@ -461,7 +500,9 @@ describe('inlineTokenizer', () => {
       expect(tokenize(input)).toEqual([
         { type: 'bold', raw: '**' },
         { type: 'text', value: 'Hello ', raw: 'Hello ' },
-        { type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀' },
+        {
+          type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀',
+        },
         { type: 'text', value: '!', raw: '!' },
         { type: 'bold', raw: '**' },
       ]);
@@ -474,5 +515,21 @@ describe('inlineTokenizer', () => {
         { type: 'text', value: 'Hello [😀](doc:)', raw: 'Hello [😀](doc:)' },
       ]);
     });
+  });
+
+  it('should handle line break for quote block', () => {
+    const input = 'Hello\nworld';
+    expect(tokenize(input, false, true)).toEqual([
+      { type: 'text', value: 'Hello', raw: 'Hello' },
+      { type: 'line-break', raw: '\n' },
+      { type: 'text', value: 'world', raw: 'world' },
+    ]);
+  });
+
+  it('should not handle line break for pre block', () => {
+    const input = 'Hello\nworld';
+    expect(tokenize(input)).toEqual([
+      { type: 'text', value: 'Hello\nworld', raw: 'Hello\nworld' },
+    ]);
   });
 });

@@ -1,4 +1,5 @@
 import type { BlockToken } from './entities/Token';
+
 import { tokenize } from './Tokenizer';
 
 describe('tokenizer', () => {
@@ -154,7 +155,9 @@ describe('tokenizer', () => {
           content: '``',
           tokens: [{ type: 'text', value: '``', raw: '``' }],
         },
-        { type: 'pre', raw: '```', closed: false, content: '', language: undefined, tokens: [] },
+        {
+          type: 'pre', raw: '```', closed: false, content: '', language: undefined, tokens: [],
+        },
       ]);
     });
   });
@@ -210,10 +213,18 @@ describe('tokenizer', () => {
     it('should handle empty blocks', () => {
       const input = '\n>\n```\n```\n';
       expect(tokenize(input)).toEqual<BlockToken[]>([
-        { type: 'paragraph', raw: '', content: '', tokens: [] },
-        { type: 'quote', raw: '>', content: '', tokens: [] },
-        { type: 'pre', raw: '```\n```', closed: true, content: '', language: undefined, tokens: [] },
-        { type: 'paragraph', raw: '', content: '', tokens: [] },
+        {
+          type: 'paragraph', raw: '', content: '', tokens: [],
+        },
+        {
+          type: 'quote', raw: '>', content: '', tokens: [],
+        },
+        {
+          type: 'pre', raw: '```\n```', closed: true, content: '', language: undefined, tokens: [],
+        },
+        {
+          type: 'paragraph', raw: '', content: '', tokens: [],
+        },
       ]);
     });
   });

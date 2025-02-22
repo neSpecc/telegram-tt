@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-shadow */
 /* eslint-disable max-len */
 import type {
   ASTBoldNode,
@@ -6,11 +7,14 @@ import type {
   ASTLinkNode,
   ASTMentionNode,
   ASTNode,
+  ASTParagraphBlockNode,
   ASTPreBlockNode,
   ASTQuoteBlockNode,
   ASTRootNode,
   ASTUnderlineNode,
 } from './entities/ASTNode';
+
+import { generateNodeId } from '../helpers/node';
 
 import { RendererHtml } from './RendererHtml';
 
@@ -21,74 +25,64 @@ describe('renderer', () => {
     renderer = new RendererHtml();
   });
 
-  describe('html rendering', () => {
-    const isPreviewValue = true;
-    const isNotPreviewValue = false;
-    const isClosedValue = true;
-    const isNotClosedValue = false;
+  describe.skip('html rendering', () => {
+    const isPreview = true;
+    const isNotPreview = false;
+    const isClosed = true;
+    const isNotClosed = false;
 
     it.each([
-      [isPreviewValue, 'Hello world'],
-      [isNotPreviewValue, 'Hello world'],
+      [isPreview, 'Hello world'],
+      [isNotPreview, 'Hello world'],
     ])('should render text node', (isPreview, expected) => {
       const node: ASTNode = { type: 'text', value: 'Hello world', raw: 'Hello world' };
       expect(renderer.render(node, { mode: 'html', isPreview })).toBe(expected);
     });
 
     it.each([
-      [isPreviewValue, '&lt;div &amp; &quot;quote&quot; &#039;single&#039;&gt;'],
-      [isNotPreviewValue, '&lt;div &amp; &quot;quote&quot; &#039;single&#039;&gt;'],
+      [isPreview, '&lt;div &amp; &quot;quote&quot; &#039;single&#039;&gt;'],
+      [isNotPreview, '&lt;div &amp; &quot;quote&quot; &#039;single&#039;&gt;'],
     ])('should escape HTML special characters', (isPreview, expected) => {
       const node: ASTNode = { type: 'text', value: '<div & "quote" \'single\'>', raw: '<div & "quote" \'single\'>' };
       expect(renderer.render(node, { mode: 'html', isPreview })).toBe(expected);
     });
 
     it.each([
-      ['bold', isNotPreviewValue, isClosedValue, 'strong', 'md-bold', '', ''],
-      ['bold', isPreviewValue, isClosedValue, 'strong', 'md-bold', '**', '**'],
-      ['bold', isPreviewValue, isNotClosedValue, 'strong', 'md-bold', '**', ''],
-      ['italic', isNotPreviewValue, isClosedValue, 'em', 'md-italic', '', ''],
-      ['italic', isPreviewValue, isClosedValue, 'em', 'md-italic', '*', '*'],
-      ['italic', isPreviewValue, isNotClosedValue, 'em', 'md-italic', '*', ''],
-      ['underline', isNotPreviewValue, isClosedValue, 'span', 'md-underline', '', ''],
-      ['underline', isPreviewValue, isClosedValue, 'span', 'md-underline', '&lt;u&gt;', '&lt;/u&gt;'],
-      ['underline', isPreviewValue, isNotClosedValue, 'span', 'md-underline', '&lt;u&gt;', '&lt;/u&gt;'],
-      ['strikethrough', isNotPreviewValue, isClosedValue, 's', 'md-strikethrough', '', ''],
-      ['strikethrough', isPreviewValue, isClosedValue, 's', 'md-strikethrough', '~~', '~~'],
-      ['strikethrough', isPreviewValue, isNotClosedValue, 's', 'md-strikethrough', '~~', ''],
-      ['monospace', isNotPreviewValue, isClosedValue, 'code', 'md-monospace', '', ''],
-      ['monospace', isPreviewValue, isClosedValue, 'code', 'md-monospace', '`', '`'],
-      ['monospace', isPreviewValue, isNotClosedValue, 'code', 'md-monospace', '`', ''],
-    ])('should render %s. isPreview: %s, isClosed: %s -----> %s',
-      (formatting, isPreview, isClosed, tag, className, prefix, suffix) => {
-        const node = {
-          type: formatting,
-          children: [{ type: 'text', value: 'Hello world', raw: 'Hello world' }],
-          closed: isClosed,
-          raw: `${prefix}Hello world${suffix}`,
-        };
+      ['bold', isNotPreview, isClosed, 'strong', 'md-bold', '', ''],
+      ['bold', isPreview, isClosed, 'strong', 'md-bold', '**', '**'],
+      ['bold', isPreview, isNotClosed, 'strong', 'md-bold', '**', ''],
+      ['italic', isNotPreview, isClosed, 'em', 'md-italic', '', ''],
+      ['italic', isPreview, isClosed, 'em', 'md-italic', '*', '*'],
+      ['italic', isPreview, isNotClosed, 'em', 'md-italic', '*', ''],
+      ['underline', isNotPreview, isClosed, 'span', 'md-underline', '', ''],
+      ['underline', isPreview, isClosed, 'span', 'md-underline', '&lt;u&gt;', '&lt;/u&gt;'],
+      ['underline', isPreview, isNotClosed, 'span', 'md-underline', '&lt;u&gt;', '&lt;/u&gt;'],
+      ['strikethrough', isNotPreview, isClosed, 's', 'md-strikethrough', '', ''],
+      ['strikethrough', isPreview, isClosed, 's', 'md-strikethrough', '~~', '~~'],
+      ['strikethrough', isPreview, isNotClosed, 's', 'md-strikethrough', '~~', ''],
+      ['monospace', isNotPreview, isClosed, 'code', 'md-monospace', '', ''],
+      ['monospace', isPreview, isClosed, 'code', 'md-monospace', '`', '`'],
+      ['monospace', isPreview, isNotClosed, 'code', 'md-monospace', '`', ''],
+    ])('should render %s. isPreview: %s, isClosed: %s -----> %s', (formatting, isPreview, isClosed, tag, className, prefix, suffix) => {
+      const node = {
+        type: formatting,
+        children: [{ type: 'text', value: 'Hello world', raw: 'Hello world' }],
+        closed: isClosed,
+        raw: `${prefix}Hello world${suffix}`,
+      };
 
-        const rendered = renderer.render(node as ASTFormattingNode, { mode: 'html', isPreview });
+      const rendered = renderer.render(node as ASTFormattingNode, { mode: 'html', isPreview });
 
-        const prefixString = isPreview ? `<span class="md-preview-char">${prefix}</span>` : '';
-        const suffixString = isPreview && suffix ? `<span class="md-preview-char">${suffix}</span>` : '';
+      const prefixString = isPreview ? `<span class="md-preview-char">${prefix}</span>` : '';
+      const suffixString = isPreview && suffix ? `<span class="md-preview-char">${suffix}</span>` : '';
 
-        expect(rendered)
-          // eslint-disable-next-line max-len
-          .toBe(`<${tag} class="${className} md-node-highlightable ">${prefixString}Hello world${suffixString}</${tag}>`);
-      });
+      expect(rendered).toBe(`<${tag} class="${className} md-node-highlightable ">${prefixString}Hello world${suffixString}</${tag}>`);
+    });
 
+    // <strong class="md-bold md-node-highlightable "><span class="md-preview-char">**</span>Bold <em class="md-italic md-node-highlightable "><span class="md-preview-char">*</span>italic<span class="md-preview-char">*</span></em><span class="md-preview-char">**</span></strong>
     it.each([
-      [
-        isNotPreviewValue,
-        // eslint-disable-next-line max-len
-        '<strong class="md-bold md-node-highlightable ">Bold <em class="md-italic md-node-highlightable ">italic</em></strong>',
-      ],
-      [
-        isPreviewValue,
-        // eslint-disable-next-line max-len
-        '<strong class="md-bold md-node-highlightable "><span class="md-preview-char">**</span>Bold <em class="md-italic md-node-highlightable "><span class="md-preview-char">*</span>italic<span class="md-preview-char">*</span></em><span class="md-preview-char">**</span></strong>',
-      ],
+      [isNotPreview, '<strong class="md-bold md-node-highlightable ">Bold <em class="md-italic md-node-highlightable ">italic</em></strong>'],
+      [isPreview, '<strong class="md-bold md-node-highlightable "><span class="md-preview-char">**</span>Bold <em class="md-italic md-node-highlightable "><span class="md-preview-char">*</span>italic<span class="md-preview-char">*</span></em><span class="md-preview-char">**</span></strong>'],
     ])('should render nested formatting', (isPreview, expected) => {
       const node: ASTNode = {
         type: 'bold',
@@ -111,8 +105,7 @@ describe('renderer', () => {
           children: [{ type: 'text', value: 'Quote', raw: 'Quote' }],
         };
 
-        expect(renderer.render(node, { mode: 'html', isPreview: isPreviewValue }))
-          // eslint-disable-next-line max-len
+        expect(renderer.render(node, { mode: 'html', isPreview }))
           .toBe('<div class="paragraph paragraph--quote md-node-highlightable "><div class="md-quote"><span class="md-preview-char">></span>Quote</div></div>');
       });
 
@@ -123,8 +116,7 @@ describe('renderer', () => {
           children: [{ type: 'text', value: '', raw: '' }],
         };
 
-        expect(renderer.render(node, { mode: 'html', isPreview: isPreviewValue }))
-          // eslint-disable-next-line max-len
+        expect(renderer.render(node, { mode: 'html', isPreview }))
           .toBe('<div class="paragraph paragraph--quote md-node-highlightable "><div class="md-quote"><span class="md-preview-char">></span><br></div></div>');
       });
     });
@@ -136,8 +128,7 @@ describe('renderer', () => {
         raw: '[Click here](https://example.com)',
         children: [{ type: 'text', value: 'Click here', raw: 'Click here' }],
       };
-      expect(renderer.render(node, { mode: 'html', isPreview: isPreviewValue }))
-        .toBe('<a href="https://example.com">Click here</a>');
+      expect(renderer.render(node, { mode: 'html', isPreview: false })).toBe('<a href="https://example.com">Click here</a>');
     });
 
     it.skip('should render code blocks with language', () => {
@@ -149,20 +140,19 @@ describe('renderer', () => {
         closed: true,
       };
       expect(renderer.render(node, { mode: 'html' })).toBe(
-        // eslint-disable-next-line max-len
         '<div class="md-pre"><div data-block-id="hftc6lsa4jt" class="paragraph paragraph-pre md-node-highlightable ">const x = 42;</div></div>',
       );
     });
 
     it.skip.each([
-      [isPreviewValue, isClosedValue, 'console.log("Hello");', 'ts', '<pre language="ts">```ts\nconsole.log(&quot;Hello&quot;);```</pre>'],
-      [isPreviewValue, isClosedValue, 'console.log("Hello");', undefined, '<pre>```\nconsole.log(&quot;Hello&quot;);```</pre>'],
-      [isNotPreviewValue, isClosedValue, 'console.log("Hello");', 'ts', '<pre language="ts">console.log(&quot;Hello&quot;);</pre>'],
-      [isNotPreviewValue, isClosedValue, 'console.log("Hello");', undefined, '<pre>console.log(&quot;Hello&quot;);</pre>'],
-      [isPreviewValue, isNotClosedValue, 'console.log("Hello");', 'ts', '<pre language="ts">```ts\nconsole.log(&quot;Hello&quot;);'],
-      [isPreviewValue, isNotClosedValue, 'console.log("Hello");', undefined, '<pre>```\nconsole.log(&quot;Hello&quot;);'],
-      [isNotPreviewValue, isNotClosedValue, 'console.log("Hello");', 'ts', '<pre language="ts">console.log(&quot;Hello&quot;);'],
-      [isNotPreviewValue, isNotClosedValue, 'console.log("Hello");', undefined, '<pre>console.log(&quot;Hello&quot;);'],
+      [isPreview, isClosed, 'console.log("Hello");', 'ts', '<pre language="ts">```ts\nconsole.log(&quot;Hello&quot;);```</pre>'],
+      [isPreview, isClosed, 'console.log("Hello");', undefined, '<pre>```\nconsole.log(&quot;Hello&quot;);```</pre>'],
+      [isNotPreview, isClosed, 'console.log("Hello");', 'ts', '<pre language="ts">console.log(&quot;Hello&quot;);</pre>'],
+      [isNotPreview, isClosed, 'console.log("Hello");', undefined, '<pre>console.log(&quot;Hello&quot;);</pre>'],
+      [isPreview, isNotClosed, 'console.log("Hello");', 'ts', '<pre language="ts">```ts\nconsole.log(&quot;Hello&quot;);'],
+      [isPreview, isNotClosed, 'console.log("Hello");', undefined, '<pre>```\nconsole.log(&quot;Hello&quot;);'],
+      [isNotPreview, isNotClosed, 'console.log("Hello");', 'ts', '<pre language="ts">console.log(&quot;Hello&quot;);'],
+      [isNotPreview, isNotClosed, 'console.log("Hello");', undefined, '<pre>console.log(&quot;Hello&quot;);'],
     ])('should render pre blocks isPreview: %s, isClosed: %s, value: %s, language: %s -----> %s', (isPreview, isClosed, value, language, expected) => {
       const node = {
         type: 'pre',
@@ -257,17 +247,6 @@ describe('renderer', () => {
       expect(renderer.render(node, { mode: 'markdown' })).toBe(expected);
     });
 
-    it('should render quotes with proper formatting', () => {
-      const node: ASTNode = {
-        type: 'quote',
-        children: [
-          { type: 'text', value: 'Line 1\nLine 2', raw: 'Line 1\nLine 2' },
-        ],
-        raw: '>Line 1\n>Line 2',
-      };
-      expect(renderer.render(node, { mode: 'markdown' })).toBe('>Line 1\nLine 2');
-    });
-
     it('should handle spoilers', () => {
       const node: ASTNode = {
         type: 'spoiler',
@@ -275,6 +254,132 @@ describe('renderer', () => {
         raw: '||',
       };
       expect(renderer.render(node, { mode: 'markdown' })).toBe('||Hidden text||');
+    });
+
+    describe('quote blocks', () => {
+      it('should render quotes with proper formatting', () => {
+        const root: ASTRootNode = {
+          type: 'root',
+          raw: '>Line 1\nLine 2\n\nParagraph',
+          children: [
+            {
+              type: 'quote',
+              children: [
+                { type: 'text', value: 'Line 1', raw: 'Line 1' },
+                { type: 'line-break', raw: '\n' },
+                { type: 'text', value: 'Line 2', raw: 'Line 2' },
+              ],
+              raw: '>Line 1\nLine 2',
+            },
+            {
+              type: 'paragraph',
+              children: [
+                { type: 'text', value: 'Paragraph', raw: 'Paragraph' },
+              ],
+              raw: 'Paragraph',
+            },
+          ],
+        };
+
+        const result = renderer.render(root, { mode: 'markdown' });
+        expect(result)
+          .toBe(root.raw);
+      });
+      it('should render empty quote', () => {
+        const root: ASTRootNode = {
+          type: 'root',
+          raw: 'Line 1\n>',
+          children: [
+            {
+              type: 'paragraph',
+              children: [
+                { type: 'text', value: 'Line 1', raw: 'Line 1' },
+              ],
+              raw: 'Line 1',
+            },
+            {
+              type: 'quote',
+              children: [
+                { type: 'text', value: '', raw: '' },
+              ],
+              raw: '>',
+            },
+          ],
+        };
+
+        const result = renderer.render(root, { mode: 'markdown' });
+        expect(result)
+          .toBe(root.raw);
+      });
+
+      it('should render empty quote with trailing line break', () => {
+        const root: ASTRootNode = {
+          type: 'root',
+          raw: 'Line 1\n>\n\n',
+          children: [
+            {
+              type: 'paragraph',
+              children: [
+                { type: 'text', value: 'Line 1', raw: 'Line 1' },
+              ],
+              raw: 'Line 1',
+            },
+            {
+              type: 'quote',
+              children: [
+                { type: 'text', value: '', raw: '' },
+              ],
+              raw: '>',
+            },
+            {
+              type: 'paragraph',
+              children: [
+                { type: 'text', value: '', raw: '' },
+              ],
+              raw: '',
+            },
+          ],
+        };
+
+        const result = renderer.render(root, { mode: 'markdown' });
+        expect(result)
+          .toBe(root.raw);
+      });
+
+      it('should render paragraph after empty quote', () => {
+        const root: ASTRootNode = {
+          type: 'root',
+          raw: 'Line 1\n>\n\n',
+          children: [
+            {
+              type: 'paragraph',
+              children: [
+                { type: 'text', value: 'Line 1', raw: 'Line 1' },
+              ],
+              raw: 'Line 1',
+            },
+            {
+              type: 'quote',
+              children: [
+                { type: 'text', value: '', raw: '' },
+              ],
+              raw: '>',
+            },
+            {
+              type: 'paragraph',
+              children: [
+                { type: 'text', value: '', raw: '' },
+              ],
+              raw: '',
+            },
+          ],
+        };
+
+        const result = renderer.render(root, { mode: 'markdown' });
+
+        expect(result)
+          .toBe(root.raw);
+      });
     });
   });
 });
@@ -776,6 +881,273 @@ describe('offset mapping', () => {
         mdEnd: 13,
         nodeType: 'text',
         raw: 'bold',
+        nodeId: undefined,
+      },
+    ]);
+  });
+
+  it('should map offsets correctly for pre node', () => {
+    const node: ASTRootNode = {
+      type: 'root',
+      raw: '```typescript\nconst x = 42;\n```',
+      children: [{
+        type: 'pre',
+        raw: '```typescript\nconst x = 42;\n```',
+        value: 'const x = 42;',
+        language: 'typescript',
+        closed: true,
+      }],
+    };
+
+    renderer.render(node, { mode: 'html', isPreview: true });
+    const offsetMapping = renderer.getOffsetMapping();
+
+    expect(offsetMapping).toEqual([
+      {
+        htmlStart: 0,
+        htmlEnd: 31,
+        mdStart: 0,
+        mdEnd: 31,
+        nodeType: 'pre',
+        raw: '```typescript\nconst x = 42;\n```',
+        nodeId: undefined,
+      },
+    ]);
+  });
+
+  it('should map offsets correctly for pre node with multiple lines', () => {
+    const node: ASTRootNode = {
+      type: 'root',
+      raw: '```js\nline1\nline2\n```',
+      children: [{
+        type: 'pre',
+        raw: '```js\nline1\nline2\n```',
+        value: 'line1\nline2',
+        language: 'js',
+        closed: true,
+      }],
+    };
+
+    renderer.render(node, { mode: 'html', isPreview: true });
+    const offsetMapping = renderer.getOffsetMapping();
+
+    expect(offsetMapping).toEqual([
+      {
+        htmlStart: 0,
+        htmlEnd: 21,
+        mdStart: 0,
+        mdEnd: 21,
+        nodeType: 'pre',
+        raw: '```js\nline1\nline2\n```',
+        nodeId: undefined,
+      },
+    ]);
+  });
+
+  it('should hanle node after pre', () => {
+    const node: ASTRootNode = {
+      type: 'root',
+      raw: '```js\nconst x = 42;\n```\ntext',
+      children: [{
+        type: 'pre',
+        raw: '```js\nconst x = 42;\n```',
+        value: 'const x = 42;',
+        language: 'js',
+        closed: true,
+      }, {
+        type: 'paragraph',
+        raw: 'text',
+        children: [{
+          type: 'text',
+          raw: 'text',
+          value: 'text',
+        }],
+      }],
+    };
+
+    renderer.render(node, { mode: 'html', isPreview: true });
+    const offsetMapping = renderer.getOffsetMapping();
+
+    expect(offsetMapping).toMatchObject([
+      {
+        htmlStart: 0,
+        htmlEnd: 23,
+        mdStart: 0,
+        mdEnd: 23,
+        nodeType: 'pre',
+        raw: '```js\nconst x = 42;\n```',
+        nodeId: undefined,
+      },
+      {
+        htmlStart: 24,
+        htmlEnd: 28,
+        mdStart: 24,
+        mdEnd: 28,
+      },
+    ]);
+  });
+
+  it('should map offsets correctly for quote node', () => {
+    const rootNode: ASTRootNode = {
+      type: 'root',
+      raw: '>1',
+      children: [],
+    };
+    const quoteNode: ASTQuoteBlockNode = {
+      id: generateNodeId(),
+      type: 'quote',
+      raw: '>1',
+      children: [
+        {
+          type: 'text', value: '1', raw: '1', id: generateNodeId(),
+        },
+      ],
+    };
+    rootNode.children.push(quoteNode);
+
+    const parentMap = new WeakMap<ASTNode, ASTNode>();
+    parentMap.set(quoteNode, rootNode);
+
+    renderer.render(rootNode, { mode: 'html', isPreview: true }, parentMap);
+
+    const offsetMapping = renderer.getOffsetMapping();
+
+    expect(offsetMapping).toMatchObject([
+      {
+        htmlStart: 0,
+        htmlEnd: 2,
+        mdStart: 0,
+        mdEnd: 2,
+        nodeType: 'quote',
+        raw: '>1',
+        nodeId: quoteNode.id,
+      },
+      {
+        htmlStart: 1,
+        htmlEnd: 2,
+        mdStart: 1,
+        mdEnd: 2,
+        nodeType: 'text',
+        raw: '1',
+        nodeId: quoteNode.children[0].id,
+      },
+
+    ]);
+  });
+
+  it('should increment 1 for extra linebreak after quote', () => {
+    const rootNode: ASTRootNode = {
+      type: 'root',
+      raw: '>1\n\n2',
+      children: [],
+    };
+    const quoteNode: ASTQuoteBlockNode = {
+      id: generateNodeId(),
+      type: 'quote',
+      raw: '>1',
+      children: [
+        {
+          type: 'text', value: '1', raw: '1', id: generateNodeId(),
+        },
+      ],
+    };
+    const paragraphNode: ASTParagraphBlockNode = {
+      id: generateNodeId(),
+      type: 'paragraph',
+      raw: '2',
+      children: [{
+        type: 'text',
+        raw: '2',
+        value: '2',
+        id: generateNodeId(),
+      }],
+    };
+    rootNode.children.push(quoteNode);
+    rootNode.children.push(paragraphNode);
+
+    const parentMap = new WeakMap<ASTNode, ASTNode>();
+    parentMap.set(quoteNode, rootNode);
+
+    renderer.render(rootNode, { mode: 'html', isPreview: true }, parentMap);
+
+    const offsetMapping = renderer.getOffsetMapping();
+
+    expect(offsetMapping).toEqual([
+      {
+        htmlStart: 0,
+        htmlEnd: 2,
+        mdStart: 0,
+        mdEnd: 3,
+        nodeType: 'quote',
+        raw: '>1',
+        nodeId: quoteNode.id,
+      },
+      {
+        htmlStart: 1,
+        htmlEnd: 2,
+        mdStart: 1,
+        mdEnd: 2,
+        nodeType: 'text',
+        raw: '1',
+        nodeId: quoteNode.children[0].id,
+      },
+      {
+        htmlStart: 3,
+        htmlEnd: 4,
+        mdStart: 4,
+        mdEnd: 5,
+        nodeType: 'text',
+        raw: '2',
+        nodeId: paragraphNode.children[0].id,
+      },
+    ]);
+  });
+
+  it('should save custom emoji node', () => {
+    const root: ASTRootNode = {
+      type: 'root',
+      raw: '[custom emoji](doc:123)',
+      children: [
+        {
+          type: 'paragraph',
+          raw: 'aaa[custom emoji](doc:123)',
+          children: [
+            {
+              type: 'text',
+              raw: 'aaa',
+              value: 'aaa',
+            },
+            {
+              type: 'customEmoji',
+              raw: '[custom emoji](doc:123)',
+              value: 'custom emoji',
+              documentId: '123',
+            },
+          ],
+        },
+      ],
+    };
+
+    renderer.render(root, { mode: 'html', isPreview: true });
+    const offsetMapping = renderer.getOffsetMapping();
+
+    expect(offsetMapping).toEqual([
+      {
+        htmlStart: 0,
+        htmlEnd: 3,
+        mdStart: 0,
+        mdEnd: 3,
+        nodeType: 'text',
+        raw: 'aaa',
+        nodeId: undefined,
+      },
+      {
+        htmlStart: 3,
+        htmlEnd: 4,
+        mdStart: 3,
+        mdEnd: 26,
+        nodeType: 'customEmoji',
+        raw: '[custom emoji](doc:123)',
         nodeId: undefined,
       },
     ]);

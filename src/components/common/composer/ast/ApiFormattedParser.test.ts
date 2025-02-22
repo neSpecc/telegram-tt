@@ -813,6 +813,49 @@ describe('apiFormattedParser', () => {
       });
     });
 
+    it('should handle quote after pre', () => {
+      const node: ASTNode = {
+        type: 'root',
+        raw: '```\na\n```\n1\n2\n>quote',
+        children: [
+          {
+            type: 'pre',
+            language: '',
+            value: 'a',
+            raw: '```\na\n```',
+            closed: true,
+          },
+          { type: 'paragraph', children: [{ type: 'text', value: '1', raw: '1' }], raw: '1' },
+          { type: 'paragraph', children: [{ type: 'text', value: '2', raw: '2' }], raw: '2' },
+          {
+            type: 'quote',
+            children: [{
+              type: 'text',
+              value: 'quote',
+              raw: 'quote',
+            }],
+            raw: '>quote',
+          },
+        ],
+      };
+      expect(parser.fromAstToApiFormatted(node)).toEqual({
+        text: 'a\n1\n2\nquote',
+        entities: [
+          {
+            type: ApiMessageEntityTypes.Pre,
+            offset: 0,
+            length: 1,
+            language: '',
+          },
+          {
+            type: ApiMessageEntityTypes.Blockquote,
+            offset: 6,
+            length: 5,
+          },
+        ],
+      });
+    });
+
     it('should handle mentions', () => {
       const node: ASTNode = {
         type: 'root',
@@ -917,10 +960,8 @@ describe('apiFormattedParser', () => {
                 children: [
                   { type: 'text', value: 'bold ', raw: 'bold ' },
                   {
-                    type: 'link',
-                    href: 'https://example.com',
-                    children: [{ type: 'text', value: 'link', raw: 'link' }],
-                    raw: '[link](https://example.com)',
+                    // eslint-disable-next-line max-len
+                    type: 'link', href: 'https://example.com', children: [{ type: 'text', value: 'link', raw: 'link' }], raw: '[link](https://example.com)',
                   },
                 ],
                 raw: '**bold [link](https://example.com)**',
@@ -1056,7 +1097,7 @@ describe('apiFormattedParser', () => {
           {
             type: ApiMessageEntityTypes.Pre, offset: 6, length: 4, language: 'js',
           },
-          { type: ApiMessageEntityTypes.Blockquote, offset: 12, length: 5 },
+          { type: ApiMessageEntityTypes.Blockquote, offset: 11, length: 5 },
         ],
       });
     });

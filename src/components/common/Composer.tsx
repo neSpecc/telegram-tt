@@ -2131,11 +2131,3 @@ export default memo(withGlobal<OwnProps>(
     };
   },
 )(Composer));
-
-/**
- * @todo Remove link by TextFormatter icon click
- * @todo select all text by CMD + A
- * @todo copy/paste custom emoji
-
- *
- */

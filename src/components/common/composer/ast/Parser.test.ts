@@ -1,5 +1,8 @@
 import type { ASTParagraphBlockNode, ASTPreBlockNode, ASTQuoteBlockNode } from './entities/ASTNode';
-import type { BlockToken, InlineToken, ParagraphToken, QuoteToken } from './entities/Token';
+import type {
+  BlockToken, InlineToken, ParagraphToken, QuoteToken,
+} from './entities/Token';
+
 import { Parser } from './Parser';
 
 describe('parser', () => {
@@ -214,7 +217,9 @@ describe('parser', () => {
             raw: '>quoted **bold** text',
             children: [
               { type: 'text', value: 'quoted ', raw: 'quoted ' },
-              { type: 'bold', closed: true, children: [{ type: 'text', value: 'bold', raw: 'bold' }], raw: '**bold**' },
+              {
+                type: 'bold', closed: true, children: [{ type: 'text', value: 'bold', raw: 'bold' }], raw: '**bold**',
+              },
               { type: 'text', value: ' text', raw: ' text' },
             ],
           } as ASTQuoteBlockNode],
@@ -296,7 +301,12 @@ describe('parser', () => {
                 raw: '**bold <u>underline</u> text**',
                 children: [
                   { type: 'text', value: 'bold ', raw: 'bold ' },
-                  { type: 'underline', closed: true, children: [{ type: 'text', value: 'underline', raw: 'underline' }], raw: '<u>underline</u>' },
+                  {
+                    type: 'underline',
+                    closed: true,
+                    children: [{ type: 'text', value: 'underline', raw: 'underline' }],
+                    raw: '<u>underline</u>',
+                  },
                   { type: 'text', value: ' text', raw: ' text' },
                 ],
               },
@@ -399,7 +409,9 @@ describe('parser', () => {
               raw: '**Bold and `inline code`**',
               children: [
                 { type: 'text', value: 'Bold and ', raw: 'Bold and ' },
-                { type: 'monospace', value: 'inline code', raw: '`inline code`', closed: true },
+                {
+                  type: 'monospace', value: 'inline code', raw: '`inline code`', closed: true,
+                },
               ],
               closed: true,
             }],
@@ -438,7 +450,11 @@ describe('parser', () => {
           raw: 'console.log("Hello")\nconsole.log("World")',
           language: '',
           content: 'console.log("Hello")\nconsole.log("World")',
-          tokens: [{ type: 'text', value: 'console.log("Hello")\nconsole.log("World")', raw: 'console.log("Hello")\nconsole.log("World")' }],
+          tokens: [{
+            type: 'text',
+            value: 'console.log("Hello")\nconsole.log("World")',
+            raw: 'console.log("Hello")\nconsole.log("World")',
+          }],
         }];
         const parser = new Parser(tokens);
         const ast = parser.parse();
@@ -777,7 +793,11 @@ describe('parser', () => {
       type: 'paragraph',
       raw: 'Some <b>bold</b> and **bold** text',
       content: 'Some <b>bold</b> and **bold** text',
-      tokens: [{ type: 'text', value: 'Some <b>bold</b> and **bold** text', raw: 'Some <b>bold</b> and **bold** text' }],
+      tokens: [{
+        type: 'text',
+        value: 'Some <b>bold</b> and **bold** text',
+        raw: 'Some <b>bold</b> and **bold** text',
+      }],
     }];
     const parser = new Parser(tokens);
     const ast = parser.parse();
@@ -788,7 +808,11 @@ describe('parser', () => {
       children: [{
         type: 'paragraph',
         raw: 'Some <b>bold</b> and **bold** text',
-        children: [{ type: 'text', value: 'Some <b>bold</b> and **bold** text', raw: 'Some <b>bold</b> and **bold** text' }],
+        children: [{
+          type: 'text',
+          value: 'Some <b>bold</b> and **bold** text',
+          raw: 'Some <b>bold</b> and **bold** text',
+        }],
       }],
     });
   });
@@ -897,7 +921,7 @@ describe('parser', () => {
       expect((ast as ASTParagraphBlockNode).children[0]).toEqual({
         type: 'paragraph',
         raw: '',
-        children: expected.map(token => ({ ...token, raw: '' })),
+        children: expected.map((token) => ({ ...token, raw: '' })),
       });
     });
   });
@@ -926,9 +950,16 @@ describe('parser', () => {
   describe('mention', () => {
     it('should parse mention', () => {
       const tokens: BlockToken[] = [
-        { type: 'paragraph', raw: '[username](id:123)', content: '[username](id:123)', tokens: [
-          { type: 'mention', raw: '[username](id:123)', userId: '123', value: 'username' },
-        ] },
+        {
+          type: 'paragraph',
+          raw: '[username](id:123)',
+          content: '[username](id:123)',
+          tokens: [
+            {
+              type: 'mention', raw: '[username](id:123)', userId: '123', value: 'username',
+            },
+          ],
+        },
       ];
       const parser = new Parser(tokens);
       const ast = parser.parse();
@@ -1033,7 +1064,9 @@ describe('parser', () => {
           raw: '[😀](doc:5062301574668222465)',
           content: '[😀](doc:5062301574668222465)',
           tokens: [
-            { type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀' },
+            {
+              type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀',
+            },
           ],
         },
       ];
@@ -1046,7 +1079,9 @@ describe('parser', () => {
         children: [{
           type: 'paragraph',
           raw: '[😀](doc:5062301574668222465)',
-          children: [{ type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀' }],
+          children: [{
+            type: 'customEmoji', raw: '[😀](doc:5062301574668222465)', documentId: '5062301574668222465', value: '😀',
+          }],
         }],
       });
     });

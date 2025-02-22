@@ -47,7 +47,6 @@ export class MarkdownParser {
 
     this.parentMap = new WeakMap();
     this.buildParentMap(this.ast);
-    console.log('setAST %o buildParentMap %o', this.ast, this.parentMap);
   }
 
   public fromString(markdown: string) {

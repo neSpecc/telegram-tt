@@ -18,7 +18,7 @@ import type { BlockToken, InlineToken, PreToken } from './entities/Token';
 import { getClosingMarker, getOpeningMarker } from '../helpers/getFocusedNode';
 
 /**
- * Uses Recursive Descent Parsing algorithm to parse the tokens into an AST.
+ * Recursive Descent Parsing
  */
 export class Parser {
   private tokens: BlockToken[];
@@ -231,9 +231,7 @@ export class Parser {
       }
     }
 
-    // Handle any unclosed nodes remaining in stack
     for (const node of stack) {
-      // Set raw content for unclosed formatting nodes
       const nodeIsNotClosed = !('closed' in node) || !node.closed;
       if (nodeIsNotClosed && 'children' in node) {
         const openMarker = getOpeningMarker(node.type);

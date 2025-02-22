@@ -470,8 +470,41 @@ describe('blockTokenizer', () => {
     });
 
     describe('quote line breaks', () => {
-      it('should parse multiple lines with > as a separate quote blocks', () => {
-        const input = '>line 1\n>line 2';
+      it('should preserve newlines in pre block content', () => {
+        const input = '>line1\nline2\nline3';
+        const tokens = tokenize(input);
+
+        expect(tokens).toEqual<BlockToken[]>([
+          {
+            type: 'quote',
+            raw: '>line1\nline2\nline3',
+            content: 'line1\nline2\nline3',
+            tokens: [],
+          },
+        ]);
+      });
+      it('should add paragraph after quote if there is a linebreak after quote open', () => {
+        const input = '>\n';
+        const tokens = tokenize(input);
+
+        expect(tokens).toEqual<BlockToken[]>([
+          {
+            type: 'quote',
+            raw: '>',
+            content: '',
+            tokens: [],
+          },
+          {
+            type: 'paragraph',
+            raw: '',
+            content: '',
+            tokens: [],
+          },
+        ]);
+      });
+
+      it('should break quote by 2 linebreaks', () => {
+        const input = '>line 1\n\n>line 2';
         const tokens = tokenize(input);
 
         expect(tokens).toEqual<BlockToken[]>([
@@ -489,8 +522,9 @@ describe('blockTokenizer', () => {
           },
         ]);
       });
-      it('should break quote by linebreak', () => {
-        const input = '>line 1\nline2';
+
+      it('should preserve 2 linebreaks in when text after quote exists', () => {
+        const input = '>line 1\n\nparagraph';
         const tokens = tokenize(input);
 
         expect(tokens).toEqual<BlockToken[]>([
@@ -502,44 +536,33 @@ describe('blockTokenizer', () => {
           },
           {
             type: 'paragraph',
-            raw: 'line2',
-            content: 'line2',
+            raw: 'paragraph',
+            content: 'paragraph',
             tokens: [],
           },
         ]);
       });
-      // it('should break quote ended by 2 linebreaks', () => {
-      //   const input = '>line 1\n\n';
+
+      // it('should parse multiple lines with > as a separate quote blocks', () => {
+      //   const input = '>line 1\n>line 2';
       //   const tokens = tokenize(input);
 
       //   expect(tokens).toEqual<BlockToken[]>([
       //     {
       //       type: 'quote',
-      //       raw: '>line 1\n',
-      //       content: 'line 1\n',
+      //       raw: '>line 1',
+      //       content: 'line 1',
       //       tokens: [],
       //     },
-      //     {
-      //       type: 'paragraph',
-      //       raw: '',
-      //       content: '',
-      //       tokens: [],
-      //     },
-      //   ]);
-      // });
-      // it('should support internal line breaks', () => {
-      //   const input = '>quote\ntext';
-      //   const tokens = tokenize(input);
-
-      //   expect(tokens).toEqual<BlockToken[]>([
       //     {
       //       type: 'quote',
-      //       raw: '>quote\ntext',
-      //       content: 'quote\ntext',
+      //       raw: '>line 2',
+      //       content: 'line 2',
       //       tokens: [],
       //     },
       //   ]);
       // });
+
       it('should handle multiple quote blocks separated by 2 newlines', () => {
         const input = '>quote 1\n\n>quote 2';
         const tokens = tokenize(input);
@@ -549,12 +572,6 @@ describe('blockTokenizer', () => {
             type: 'quote',
             raw: '>quote 1',
             content: 'quote 1',
-            tokens: [],
-          },
-          {
-            type: 'paragraph',
-            raw: '',
-            content: '',
             tokens: [],
           },
           {
@@ -637,8 +654,21 @@ describe('blockTokenizer', () => {
         ]);
       });
 
-      it('should not remove empty paragraph between | quote text empty quote |', () => {
-        const input = '>\n1\n\n>';
+      it('should not create empty paragraph after quote if there is a linebreak after quote open', () => {
+        const input = '>\n1';
+        const tokens = tokenize(input);
+
+        expect(tokens).toEqual<BlockToken[]>([
+          {
+            type: 'quote',
+            raw: '>\n1',
+            content: '\n1',
+            tokens: [],
+          },
+        ]);
+      });
+      it('should not create empty paragraph after quote if there is a 2 linebreaks after quote', () => {
+        const input = '>\n\n1';
         const tokens = tokenize(input);
 
         expect(tokens).toEqual<BlockToken[]>([
@@ -652,18 +682,6 @@ describe('blockTokenizer', () => {
             type: 'paragraph',
             raw: '1',
             content: '1',
-            tokens: [],
-          },
-          {
-            type: 'paragraph',
-            raw: '',
-            content: '',
-            tokens: [],
-          },
-          {
-            type: 'quote',
-            raw: '>',
-            content: '',
             tokens: [],
           },
         ]);
@@ -713,5 +731,23 @@ describe('blockTokenizer', () => {
         ]);
       });
     });
+  });
+});
+
+describe('block tokenizer (isSingleLine=true)', () => {
+  const tokenize = (input: string) => new BlockTokenizer(input, { isSingleLine: true }).tokenize();
+
+  it('should handle multiple line breaks', () => {
+    const input = 'line1\n\nline2 >quote ```pre```';
+    const tokens = tokenize(input);
+
+    expect(tokens).toEqual<BlockToken[]>([
+      {
+        type: 'paragraph',
+        raw: 'line1 line2 >quote ```pre```',
+        content: 'line1 line2 >quote ```pre```',
+        tokens: [],
+      },
+    ]);
   });
 });

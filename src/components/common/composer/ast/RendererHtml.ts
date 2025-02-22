@@ -42,8 +42,6 @@ export class RendererHtml {
   constructor(private options: RendererOptions = { mode: 'html', isPreview: false }) {}
 
   public render(ast: ASTNode, options?: RendererOptions, parentMap?: WeakMap<ASTNode, ASTNode>): string {
-    console.log('render called with parentMap %o', parentMap);
-
     this.parentMap = parentMap || new WeakMap();
     this.options = options || this.options;
     this.offsetMapping = [];
@@ -186,18 +184,12 @@ export class RendererHtml {
 
         const parentNode = this.getParentNode(node);
 
-        console.log('this.parentMap', this.parentMap);
-
-        console.log('parentNode', parentNode);
-
         if (parentNode && 'children' in parentNode && Array.isArray(parentNode.children)) {
           const siblings = parentNode.children as ASTBlockNode[];
           const nodeIndex = siblings.indexOf(node);
           const nextNode = siblings[nodeIndex + 1];
           hasNextBlock = nextNode && isBlockNode(nextNode);
         }
-
-        console.log('hasNextBlock', hasNextBlock);
 
         const quoteMdLength = node.raw.length + (hasNextBlock ? 1 : 0); // +1 for the extra linebreak after the quote
 

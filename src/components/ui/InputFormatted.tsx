@@ -3,7 +3,6 @@ import type { FC } from '../../lib/teact/teact';
 import React, { memo, useState } from '../../lib/teact/teact';
 
 import type { ApiFormattedText } from '../../api/types';
-import type { TextEditorApi } from '../common/composer/TextEditorApi';
 import type { MenuPositionOptions } from './Menu';
 
 import buildClassName from '../../util/buildClassName';
@@ -53,7 +52,7 @@ const InputFormatted: FC<OwnProps> = ({
   customEmojiMenuPosition,
 }) => {
   const [isFocused, markFocused, unmarkFocused] = useFlag();
-  const [editorApi, setEditorApi] = useState<TextEditorApi | undefined>(undefined);
+  // const [editorApi, setEditorApi] = useState<TextEditorApi | undefined>(undefined);
   const [isEmpty, setIsEmpty] = useState(true);
   const lang = useOldLang();
   const labelText = error || success || label;
@@ -95,7 +94,7 @@ const InputFormatted: FC<OwnProps> = ({
           onChange={updateCallback}
           onFocus={markFocused}
           onBlur={unmarkFocused}
-          setEditorApi={setEditorApi}
+          // setEditorApi={setEditorApi}
           canSendSymbols={canSendSymbols}
           aria-label={labelText}
           tabIndex={tabIndex}

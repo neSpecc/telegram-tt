@@ -143,7 +143,7 @@ export function useTextEditor({
       currentText = parser.toMarkdown();
     }
 
-    console.log('update current text %o', currentText);
+    // console.log('update current text %o', currentText);
 
     const mapping = parser.computeOffsetMapping();
     const apiFormattedText = parser.toApiFormattedText();
@@ -181,13 +181,13 @@ export function useTextEditor({
   input.addEventListener('keydown', onKeydown);
   input.addEventListener('beforeinput', onBeforeInput);
 
-  input.addEventListener('click', () => {
-    const { start: htmlStart } = getSelectionRange(input);
-    const mdStart = htmlToMdOffset(offsetMapping, htmlStart);
-    const mapping = parser.getOffsetMapping();
-    console.log('click html %o -> md %o', htmlStart, mdStart);
-    console.log('mapping', mapping);
-  });
+  // input.addEventListener('click', () => {
+  //   const { start: htmlStart } = getSelectionRange(input);
+  //   const mdStart = htmlToMdOffset(offsetMapping, htmlStart);
+  //   const mapping = parser.getOffsetMapping();
+  //   console.log('click html %o -> md %o', htmlStart, mdStart);
+  //   console.log('mapping', mapping);
+  // });
 
   document.addEventListener('selectionchange', () => {
     if (document.activeElement === input) {
@@ -206,7 +206,6 @@ export function useTextEditor({
   // deleteDirection?: 'forward' | 'backward',
   ): { start: number; end: number } {
     if (FLASH_cmdAClicked) {
-      console.log('FLASH_cmdAClicked', FLASH_cmdAClicked);
       return { start: 0, end: currentText.length };
     }
 
@@ -223,7 +222,7 @@ export function useTextEditor({
     });
 
     if (prevChar === '\n' && isQuoteBefore) {
-      console.warn('PATCHING QUOTE ------------ +1');
+      // console.warn('PATCHING QUOTE ------------ +1');
 
       mdStart += 1;
       mdEnd += 1;
@@ -248,8 +247,8 @@ export function useTextEditor({
     selectionChangeMutex = true;
 
     // Use tracked offset instead of selection
-    let { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange();
-    // let [mdStart, mdEnd] = currentMdRange;
+    // let { start: mdStart, end: mdEnd } = getInputOperationMarkdownRange();
+    let [mdStart, mdEnd] = currentMdRange;
 
     const isDelete = event.inputType.startsWith('delete');
     const direction = event.inputType.includes('Forward') ? 'forward' : 'backward';
@@ -456,8 +455,6 @@ export function useTextEditor({
         const prevChar = currentText.slice(Math.max(0, mdStart - 1), mdStart);
 
         if (prevChar === '>') {
-          console.warn('line break at empty quote. Adding extra line break. %o -> %o', currentText.replace(/\n/g, '\n'), (`${currentText.slice(0, mdStart)}\n${currentText.slice(mdStart)}`).replace(/\n/g, '\n'));
-
           currentText = `${currentText.slice(0, mdStart)}\n${currentText.slice(mdStart)}`;
           mdStart += 1;
           mdEnd += 1;

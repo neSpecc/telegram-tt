@@ -229,7 +229,6 @@ const RendererTeact: FC<TeactRendererProps> = ({
           />
         );
       case 'line-break':
-        console.error('line-break');
         return <br />;
 
       default:
